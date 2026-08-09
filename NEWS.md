@@ -4,11 +4,16 @@
   `cudaverseCUDA` extension without changing the public device API.
 - Added native dense casts, reductions, SVD/PCA, exact distance blocks, and
   deterministic top-k/kNN integration.
+- Added shared-ownership native COO/CSR storage, sparse Matrix conversion,
+  sparse matrix-vector/matrix multiplication, row/column reductions, and
+  sparse-preserving normalization.
+- Added sparse inputs to `cuda_pca()` and `cuda_knn()`; the native path expands
+  them on the GPU and continues through the existing resident dense pipeline.
 - Kept `PCA -> distance -> top-k` intermediate data on the GPU for the native
   path and retained the `cudaverse-stage/1` provenance schema.
 - Preserved portable CPU behavior and the optional torch compatibility backend.
-  Native remains opt-in because global automatic selection must also cover the
-  element-wise/broadcast and sparse CUDA surface without regressions.
+  Native remains opt-in because global automatic selection must still cover
+  the element-wise and broadcasting surface without regressions.
 
 # cudaverse 0.1.0
 

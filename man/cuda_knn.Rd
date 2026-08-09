@@ -13,7 +13,7 @@ cuda_knn(
 )
 }
 \arguments{
-\item{x}{Numeric matrix with observations in rows.}
+\item{x}{Numeric matrix or \code{cudasparse} object with observations in rows.}
 
 \item{k}{Number of neighbours.}
 

@@ -236,7 +236,7 @@ cuda_sparse <- function(x, format = c("csr", "coo"),
     selection$backend
   }
   storage <- .backend_call(
-    backend_id, "sparse_from_coo", i, j, values, shape
+    backend_id, "sparse_from_coo", i, j, values, shape, format
   )
   backend <- if (device == "cuda") {
     if (identical(backend_id, "torch")) "torch-coo" else backend_id
@@ -309,6 +309,18 @@ dimnames.cudasparse <- function(x) {
   .sparse_dimnames(x)
 }
 
+.sparse_reformat <- function(x, format) {
+  .check_sparse(x)
+  if (identical(x$format, format)) return(x)
+  backend_id <- if (is.null(x$backend_id)) "base" else x$backend_id
+  if (typeof(x$storage) == "externalptr" &&
+      .backend_has_operation(backend_id, "sparse_share")) {
+    x$storage <- .backend_call(backend_id, "sparse_share", x$storage)
+  }
+  x$format <- format
+  x
+}
+
 #' Convert sparse storage format
 #'
 #' @param x A `cudasparse` matrix.
@@ -319,17 +331,13 @@ dimnames.cudasparse <- function(x) {
 #' as_coo(x)
 #' as_csr(x)
 as_coo <- function(x) {
-  .check_sparse(x)
-  x$format <- "coo"
-  x
+  .sparse_reformat(x, "coo")
 }
 
 #' @rdname as_coo
 #' @export
 as_csr <- function(x) {
-  .check_sparse(x)
-  x$format <- "csr"
-  x
+  .sparse_reformat(x, "csr")
 }
 
 #' Convert to an R sparse matrix
@@ -341,7 +349,22 @@ as_csr <- function(x) {
 #' to_dgCMatrix(cuda_sparse(diag(3), device = "cpu"))
 to_dgCMatrix <- function(x) {
   .check_sparse(x)
-  result <- methods::as(.triplet_matrix(x), "dgCMatrix")
+  backend_id <- if (is.null(x$backend_id)) "base" else x$backend_id
+  host <- if (typeof(x$storage) == "externalptr" &&
+              .backend_has_operation(backend_id, "sparse_to_host")) {
+    .backend_call(backend_id, "sparse_to_host", x$storage)
+  } else {
+    list(i = x$i, j = x$j, values = x$values, shape = x$shape)
+  }
+  result <- Matrix::sparseMatrix(
+    i = host$i,
+    j = host$j,
+    x = host$values,
+    dims = host$shape,
+    dimnames = .sparse_dimnames(x),
+    giveCsparse = TRUE
+  )
+  result <- methods::as(result, "dgCMatrix")
   .with_sparse_provenance(
     result,
     list(
@@ -359,8 +382,8 @@ to_dgCMatrix <- function(x) {
 #'
 #' @param x A `cudasparse` matrix.
 #' @param y A numeric matrix or `cudatensor`.
-#' @return A dense `cudatensor`. CUDA multiplication is transferred back to
-#'   the CPU in this first release so the result has portable semantics.
+#' @return A dense `cudatensor`. The native backend keeps the result on CUDA;
+#'   compatibility backends retain their existing portable CPU result.
 #' @export
 #' @examples
 #' x <- cuda_sparse(diag(3), device = "cpu")
@@ -368,16 +391,38 @@ to_dgCMatrix <- function(x) {
 sparse_matmul_dense <- function(x, y) {
   .check_sparse(x)
   y_device <- "cpu"
+  y_storage <- NULL
   if (inherits(y, "cudatensor")) {
+    .check_tensor(y, "y")
     y_device <- y$device
     y_shape <- tensor_shape(y)
-    y_cpu <- to_cpu(y)
+    y_dimnames <- .tensor_dimnames(y)
+    backend_id <- if (is.null(x$backend_id)) {
+      if (identical(x$backend, "torch-coo")) "torch" else "base"
+    } else {
+      x$backend_id
+    }
+    resident_native <- identical(backend_id, "native") &&
+      identical(y$backend, "native") && identical(y$device, "cuda")
+    if (resident_native) {
+      y_native <- if (identical(y$dtype, "float64")) {
+        y
+      } else {
+        .cast_tensor(y, "float64")
+      }
+      y_storage <- y_native$storage
+      y_cpu <- NULL
+    } else {
+      y_cpu <- to_cpu(y)
+    }
   } else {
     y_cpu <- y
     y_shape <- dim(y)
+    y_dimnames <- dimnames(y)
   }
-  if (!is.numeric(y_cpu) || length(y_shape) != 2L ||
-      anyNA(y_cpu) || any(!is.finite(y_cpu))) {
+  valid_host <- is.null(y_cpu) ||
+    (is.numeric(y_cpu) && !anyNA(y_cpu) && all(is.finite(y_cpu)))
+  if (!valid_host || length(y_shape) != 2L) {
     stop("`y` must be a finite numeric matrix or two-dimensional tensor.",
          call. = FALSE)
   }
@@ -386,7 +431,7 @@ sparse_matmul_dense <- function(x, y) {
          call. = FALSE)
   }
   y_dimnames <- .validate_sparse_dimnames(
-    dimnames(y_cpu),
+    y_dimnames,
     y_shape,
     "dimnames(y)"
   )
@@ -407,18 +452,33 @@ sparse_matmul_dense <- function(x, y) {
     x$j,
     x$values,
     x$shape,
-    y_cpu
+    y_cpu,
+    y_storage,
+    y_shape
   )
-  result <- as.matrix(result)
-  dim(result) <- c(x$shape[[1]], y_shape[[2]])
-  dimnames(result) <- result_dimnames
-  output <- cuda_tensor(
-    result,
-    device = "cpu",
-    dtype = "float64"
-  )
+  device_resident <- is.list(result) &&
+    isTRUE(result$device_resident) &&
+    typeof(result$storage) == "externalptr"
+  output <- if (device_resident) {
+    .new_cudatensor(
+      result$storage,
+      device = "cuda",
+      backend = backend_id,
+      dtype = result$dtype,
+      shape = result$shape,
+      dimnames = result_dimnames,
+      compute_stages = list(
+        sparse_multiply = .tensor_stage("cuda", backend_id)
+      )
+    )
+  } else {
+    result <- as.matrix(result)
+    dim(result) <- c(x$shape[[1]], y_shape[[2]])
+    dimnames(result) <- result_dimnames
+    cuda_tensor(result, device = "cpu", dtype = "float64")
+  }
   stages <- list()
-  if (identical(y_device, "cuda")) {
+  if (identical(y_device, "cuda") && !device_resident) {
     stages$dense_input_materialization <- .sparse_inherited_stage(
       device = "cpu",
       backend = "base",
@@ -429,9 +489,9 @@ sparse_matmul_dense <- function(x, y) {
   stages$sparse_multiply <- .sparse_inherited_stage(
     device = x$device,
     backend = x$backend,
-    output_device = if (identical(x$device, "cuda")) "cuda" else "cpu"
+    output_device = if (device_resident) "cuda" else "cpu"
   )
-  if (identical(x$device, "cuda")) {
+  if (identical(x$device, "cuda") && !device_resident) {
     stages$result_materialization <- .sparse_inherited_stage(
       device = "cpu",
       backend = "base",
@@ -486,42 +546,34 @@ sparse_matvec <- function(x, y) {
 #' sparse_row_sums(x)
 #' sparse_col_sums(x)
 sparse_row_sums <- function(x) {
-  .check_sparse(x)
-  result <- as.numeric(Matrix::rowSums(.triplet_matrix(x)))
-  sparse_dimnames <- .sparse_dimnames(x)
-  if (!is.null(sparse_dimnames) && !is.null(sparse_dimnames[[1L]])) {
-    names(result) <- sparse_dimnames[[1L]]
-  }
-  stages <- list()
-  if (identical(x$device, "cuda")) {
-    stages$source_materialization <- .sparse_inherited_stage(
-      device = "cpu",
-      backend = "Matrix",
-      output_device = "cpu",
-      reason = "metadata_materialization"
-    )
-  }
-  stages$row_reduction <- cuda_stage(
-    requested_device = "fixed-cpu",
-    device = "cpu",
-    backend = "Matrix",
-    selection_reason = "algorithm_cpu_only",
-    output_device = "cpu"
-  )
-  .with_sparse_provenance(result, stages)
+  .sparse_reduce_margin(x, 0L, "row_reduction")
 }
 
 #' @rdname sparse_row_sums
 #' @export
 sparse_col_sums <- function(x) {
+  .sparse_reduce_margin(x, 1L, "column_reduction")
+}
+
+.sparse_reduce_margin <- function(x, margin, stage_name) {
   .check_sparse(x)
-  result <- as.numeric(Matrix::colSums(.triplet_matrix(x)))
+  backend_id <- if (is.null(x$backend_id)) "base" else x$backend_id
+  native <- identical(x$device, "cuda") &&
+    .backend_has_operation(backend_id, "sparse_reduce")
+  result <- if (native) {
+    as.numeric(.backend_call(backend_id, "sparse_reduce", x$storage, margin))
+  } else if (margin == 0L) {
+    as.numeric(Matrix::rowSums(.triplet_matrix(x)))
+  } else {
+    as.numeric(Matrix::colSums(.triplet_matrix(x)))
+  }
   sparse_dimnames <- .sparse_dimnames(x)
-  if (!is.null(sparse_dimnames) && !is.null(sparse_dimnames[[2L]])) {
-    names(result) <- sparse_dimnames[[2L]]
+  axis <- margin + 1L
+  if (!is.null(sparse_dimnames) && !is.null(sparse_dimnames[[axis]])) {
+    names(result) <- sparse_dimnames[[axis]]
   }
   stages <- list()
-  if (identical(x$device, "cuda")) {
+  if (identical(x$device, "cuda") && !native) {
     stages$source_materialization <- .sparse_inherited_stage(
       device = "cpu",
       backend = "Matrix",
@@ -529,14 +581,100 @@ sparse_col_sums <- function(x) {
       reason = "metadata_materialization"
     )
   }
-  stages$column_reduction <- cuda_stage(
-    requested_device = "fixed-cpu",
-    device = "cpu",
-    backend = "Matrix",
-    selection_reason = "algorithm_cpu_only",
+  stages[[stage_name]] <- cuda_stage(
+    requested_device = if (native) "inherited" else "fixed-cpu",
+    device = if (native) "cuda" else "cpu",
+    backend = if (native) backend_id else "Matrix",
+    selection_reason = if (native) "inherited_device" else "algorithm_cpu_only",
     output_device = "cpu"
   )
   .with_sparse_provenance(result, stages)
+}
+
+#' Normalize sparse rows or columns without densifying
+#'
+#' Each selected row or column is divided by its sum and multiplied by
+#' `scale_factor`. Optionally, `log1p()` is applied to stored non-zero values.
+#' The operation preserves sparse structure and dimension labels.
+#'
+#' @param x A non-negative `cudasparse` matrix.
+#' @param margin Normalize `"rows"` or `"columns"`.
+#' @param scale_factor Positive target sum before the optional log transform.
+#' @param log1p Whether to apply `log1p()` to normalized stored values.
+#' @return A `cudasparse` matrix on the same device as `x`.
+#' @export
+#' @examples
+#' x <- cuda_sparse(matrix(c(1, 0, 3, 2), 2), device = "cpu")
+#' sparse_normalize(x, margin = "rows", scale_factor = 1)
+sparse_normalize <- function(x, margin = c("rows", "columns"),
+                             scale_factor = 1, log1p = FALSE) {
+  .check_sparse(x)
+  margin <- match.arg(margin)
+  margin_index <- if (identical(margin, "rows")) 0L else 1L
+  if (!is.numeric(scale_factor) || length(scale_factor) != 1L ||
+      is.na(scale_factor) || !is.finite(scale_factor) || scale_factor <= 0) {
+    stop("`scale_factor` must be one positive finite number.", call. = FALSE)
+  }
+  if (!is.logical(log1p) || length(log1p) != 1L || is.na(log1p)) {
+    stop("`log1p` must be TRUE or FALSE.", call. = FALSE)
+  }
+  if (any(x$values < 0)) {
+    stop("Sparse normalization requires non-negative values.", call. = FALSE)
+  }
+  sums <- if (margin_index == 0L) {
+    as.numeric(Matrix::rowSums(.triplet_matrix(x)))
+  } else {
+    as.numeric(Matrix::colSums(.triplet_matrix(x)))
+  }
+  if (any(!is.finite(sums)) || any(sums <= 0)) {
+    stop("Every normalized sparse margin must have a positive finite sum.",
+         call. = FALSE)
+  }
+
+  backend_id <- if (is.null(x$backend_id)) "base" else x$backend_id
+  native <- identical(x$device, "cuda") &&
+    .backend_has_operation(backend_id, "sparse_normalize")
+  if (native) {
+    normalized <- .backend_call(
+      backend_id,
+      "sparse_normalize",
+      x$storage,
+      margin_index,
+      scale_factor,
+      log1p
+    )
+    output <- x
+    output$storage <- normalized$storage
+    output$values <- as.numeric(normalized$values)
+  } else {
+    groups <- if (margin_index == 0L) x$i else x$j
+    values <- x$values * scale_factor / sums[groups]
+    if (isTRUE(log1p)) values <- base::log1p(values)
+    output <- x
+    output$values <- values
+    output$storage <- .backend_call(
+      backend_id,
+      "sparse_from_coo",
+      output$i,
+      output$j,
+      output$values,
+      output$shape,
+      output$format
+    )
+  }
+  .with_sparse_provenance(
+    output,
+    list(
+      normalization = cuda_stage(
+        requested_device = "inherited",
+        device = x$device,
+        backend = if (native) backend_id else "Matrix",
+        selection_reason = "inherited_device",
+        fallback = FALSE,
+        output_device = x$device
+      )
+    )
+  )
 }
 
 #' @export

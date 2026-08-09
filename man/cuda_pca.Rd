@@ -13,7 +13,8 @@ cuda_pca(
 )
 }
 \arguments{
-\item{x}{A matrix with observations in rows and features in columns.}
+\item{x}{A matrix or \code{cudasparse} object with observations in rows and
+features in columns.}
 
 \item{n_components}{Number of components to return.}
 

@@ -12,8 +12,8 @@ sparse_matmul_dense(x, y)
 \item{y}{A numeric matrix or \code{cudatensor}.}
 }
 \value{
-A dense \code{cudatensor}. CUDA multiplication is transferred back to
-the CPU in this first release so the result has portable semantics.
+A dense \code{cudatensor}. The native backend keeps the result on CUDA;
+compatibility backends retain their existing portable CPU result.
 }
 \description{
 Sparse matrix by dense matrix multiplication

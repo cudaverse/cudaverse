@@ -16,6 +16,39 @@
   x
 }
 
+.learn_sparse_matrix <- function(x, argument = "x", min_rows = 2L,
+                                 min_cols = 1L) {
+  if (!inherits(x, "cudasparse")) {
+    stop(sprintf("`%s` must be a `cudasparse` matrix.", argument),
+         call. = FALSE)
+  }
+  .check_sparse(x, argument)
+  if (x$shape[[1L]] < min_rows || x$shape[[2L]] < min_cols ||
+      anyNA(x$values) || any(!is.finite(x$values))) {
+    stop(
+      sprintf(
+        "`%s` must be a finite sparse matrix with at least %s rows and %s columns.",
+        argument, min_rows, min_cols
+      ),
+      call. = FALSE
+    )
+  }
+  x
+}
+
+.learn_sparse_dense <- function(x) {
+  as.matrix(.triplet_matrix(x))
+}
+
+.learn_sparse_constant_columns <- function(x) {
+  sparse <- .triplet_matrix(x)
+  rows <- x$shape[[1L]]
+  sums <- as.numeric(Matrix::colSums(sparse))
+  sum_squares <- as.numeric(Matrix::colSums(sparse * sparse))
+  centered <- pmax(sum_squares - sums * sums / rows, 0)
+  centered <= .Machine$double.eps * pmax(sum_squares, 1)
+}
+
 .learn_device <- function(device) {
   cuda_select_device(
     match.arg(device, c("auto", "cuda", "cpu"))
@@ -62,6 +95,17 @@
       requested_device = "inherited",
       device = "cuda",
       backend = "native",
+      selection_reason = "device_resident_input",
+      fallback = FALSE,
+      output_device = "cuda"
+    ))
+  }
+  if (inherits(x, "cudasparse") && identical(x$device, "cuda")) {
+    backend <- if (is.null(x$backend_id)) x$backend else x$backend_id
+    return(cuda_stage(
+      requested_device = "inherited",
+      device = "cuda",
+      backend = backend,
       selection_reason = "device_resident_input",
       fallback = FALSE,
       output_device = "cuda"
@@ -143,7 +187,11 @@
       typeof(resident$storage) == "externalptr") {
     return("cuda")
   }
-  if (inherits(x, "cudatensor")) x$device else "cpu"
+  if (inherits(x, "cudatensor") || inherits(x, "cudasparse")) {
+    x$device
+  } else {
+    "cpu"
+  }
 }
 
 .learn_flag <- function(value, argument) {
@@ -524,7 +572,8 @@ cuda_svd <- function(x, nu = min(nrow(x), ncol(x)),
 
 #' GPU-aware principal component analysis
 #'
-#' @param x A matrix with observations in rows and features in columns.
+#' @param x A matrix or `cudasparse` object with observations in rows and
+#'   features in columns.
 #' @param n_components Number of components to return.
 #' @param center Whether to centre features.
 #' @param scale. Whether to scale features to unit variance.
@@ -539,17 +588,27 @@ cuda_svd <- function(x, nu = min(nrow(x), ncol(x)),
 #' fit
 cuda_pca <- function(x, n_components = 2L, center = TRUE, scale. = FALSE,
                      device = c("auto", "cuda", "cpu")) {
+  sparse_input <- inherits(x, "cudasparse")
   source_device <- .learn_source_device(x)
   source_class <- class(x)[[1L]]
   input_stage <- .learn_input_stage(x)
-  x <- .learn_matrix(as.matrix(x), min_cols = 2L)
-  observation_names <- rownames(x)
-  feature_names <- colnames(x)
+  if (sparse_input) {
+    x <- .learn_sparse_matrix(x, min_cols = 2L)
+    sparse_names <- .sparse_dimnames(x)
+    observation_names <- if (is.null(sparse_names)) NULL else sparse_names[[1L]]
+    feature_names <- if (is.null(sparse_names)) NULL else sparse_names[[2L]]
+    input_shape <- x$shape
+  } else {
+    x <- .learn_matrix(as.matrix(x), min_cols = 2L)
+    observation_names <- rownames(x)
+    feature_names <- colnames(x)
+    input_shape <- dim(x)
+  }
   center <- .learn_flag(center, "center")
   scale. <- .learn_flag(scale., "scale.")
   selection <- .learn_device(device)
   device <- selection$device
-  max_components <- min(nrow(x) - 1L, ncol(x))
+  max_components <- min(input_shape[[1L]] - 1L, input_shape[[2L]])
   if (!is.numeric(n_components) || length(n_components) != 1L ||
       is.na(n_components) || n_components < 1 ||
       n_components > max_components ||
@@ -559,23 +618,85 @@ cuda_pca <- function(x, n_components = 2L, center = TRUE, scale. = FALSE,
       call. = FALSE
     )
   }
-  if (scale. && any(apply(x, 2L, stats::sd) == 0)) {
+  constant_features <- if (sparse_input) {
+    .learn_sparse_constant_columns(x)
+  } else {
+    apply(x, 2L, stats::sd) == 0
+  }
+  if (scale. && any(constant_features)) {
     stop("Cannot scale constant features.", call. = FALSE)
   }
   n_components <- as.integer(n_components)
 
   compute_backend <- .learn_selection_backend(selection, "base")
-  fit <- .backend_call(
-    compute_backend, "algorithm_pca", x, n_components, center, scale.
-  )
+  native_sparse <- sparse_input && identical(compute_backend, "native") &&
+    .backend_has_operation(compute_backend, "algorithm_sparse_pca")
+  sparse_transferred <- FALSE
+  if (native_sparse) {
+    sparse_compute <- x
+    source_backend <- if (is.null(x$backend_id)) "base" else x$backend_id
+    if (!identical(x$device, "cuda") ||
+        !identical(source_backend, compute_backend)) {
+      sparse_compute <- cuda_sparse(
+        .triplet_matrix(x),
+        format = x$format,
+        device = "cuda"
+      )
+      sparse_transferred <- TRUE
+    }
+    fit <- .backend_call(
+      compute_backend,
+      "algorithm_sparse_pca",
+      sparse_compute$storage,
+      sparse_compute$shape,
+      n_components,
+      center,
+      scale.
+    )
+  } else {
+    dense_input <- if (sparse_input) .learn_sparse_dense(x) else x
+    fit <- .backend_call(
+      compute_backend,
+      "algorithm_pca",
+      dense_input,
+      n_components,
+      center,
+      scale.
+    )
+  }
   output <- .named_pca_result(
     c(fit, list(device = device)),
     observation_names = observation_names,
     feature_names = feature_names
   )
 
-  stages <- .learn_add_stage(list(), "input_materialization", input_stage)
+  stages <- if (sparse_input && length(x$compute_stages)) {
+    x$compute_stages
+  } else {
+    .learn_add_stage(list(), "input_materialization", input_stage)
+  }
   backend <- if (identical(device, "cuda")) compute_backend else "stats"
+  if (native_sparse) {
+    if (sparse_transferred) {
+      stages$sparse_transfer <- .learn_stage(
+        selection,
+        backend = backend,
+        output_device = "cuda",
+        reason = "sparse_input_transfer"
+      )
+    }
+    stages$sparse_to_dense <- .learn_stage(
+      selection,
+      backend = backend,
+      output_device = "cuda",
+      reason = "device_resident_conversion"
+    )
+  } else if (sparse_input) {
+    stages$sparse_to_dense <- .learn_cpu_stage(
+      backend = "Matrix",
+      reason = "algorithm_materialization"
+    )
+  }
   stages$preprocessing <- .learn_stage(
     selection,
     backend = backend,
@@ -954,7 +1075,7 @@ cuda_distance <- function(x, y = NULL,
 
 #' k-nearest neighbours
 #'
-#' @param x Numeric matrix with observations in rows.
+#' @param x Numeric matrix or `cudasparse` object with observations in rows.
 #' @param k Number of neighbours.
 #' @param metric Exact distance metric, `"euclidean"` or `"cosine"`.
 #' @param device One of `"auto"`, `"cuda"`, or `"cpu"`.
@@ -991,28 +1112,74 @@ cuda_distance <- function(x, y = NULL,
 cuda_knn <- function(x, k = 15L, metric = c("euclidean", "cosine"),
                      device = c("auto", "cuda", "cpu"),
                      batch_size = 256L) {
+  sparse_input <- inherits(x, "cudasparse")
   source_device <- .learn_source_device(x)
   source_class <- class(x)[[1L]]
   input_stage <- .learn_input_stage(x)
-  x <- .learn_matrix(x)
-  observation_names <- rownames(x)
+  sparse_source <- NULL
+  if (sparse_input) {
+    sparse_source <- .learn_sparse_matrix(x)
+    sparse_names <- .sparse_dimnames(sparse_source)
+    observation_names <- if (is.null(sparse_names)) NULL else sparse_names[[1L]]
+    n_observations <- sparse_source$shape[[1L]]
+  } else {
+    x <- .learn_matrix(x)
+    observation_names <- rownames(x)
+    n_observations <- nrow(x)
+  }
   integer_k <- suppressWarnings(as.integer(k))
   if (!is.numeric(k) || length(k) != 1L || is.na(k) ||
       !is.finite(k) || is.na(integer_k) ||
-      integer_k < 1L || integer_k >= nrow(x) || k != integer_k) {
+      integer_k < 1L || integer_k >= n_observations || k != integer_k) {
     stop("`k` must be a whole number between 1 and nrow(x) - 1.",
          call. = FALSE)
   }
   metric <- match.arg(metric)
-  cosine_values <- if (metric == "cosine") {
-    .cosine_unit_rows(x, "x")
-  } else {
-    NULL
-  }
   selection <- .learn_device(device)
   device <- selection$device
-  batch_size <- .knn_batch_size(batch_size, nrow(x))
-  state <- .knn_distance_state(x, metric, selection, cosine_values)
+  batch_size <- .knn_batch_size(batch_size, n_observations)
+  compute_backend <- .learn_selection_backend(selection)
+  native_sparse <- sparse_input && identical(compute_backend, "native") &&
+    .backend_has_operation(compute_backend, "algorithm_sparse_knn_prepare")
+  sparse_transferred <- FALSE
+  if (native_sparse) {
+    sparse_compute <- sparse_source
+    source_backend <- if (is.null(sparse_source$backend_id)) {
+      "base"
+    } else {
+      sparse_source$backend_id
+    }
+    if (!identical(sparse_source$device, "cuda") ||
+        !identical(source_backend, compute_backend)) {
+      sparse_compute <- cuda_sparse(
+        .triplet_matrix(sparse_source),
+        format = sparse_source$format,
+        device = "cuda"
+      )
+      sparse_transferred <- TRUE
+    }
+    state <- list(
+      values = NULL,
+      storage = .backend_call(
+        compute_backend,
+        "algorithm_sparse_knn_prepare",
+        sparse_compute$storage,
+        sparse_compute$shape,
+        metric
+      ),
+      metric = metric,
+      device = selection$device,
+      backend = compute_backend
+    )
+  } else {
+    if (sparse_input) x <- .learn_sparse_dense(sparse_source)
+    cosine_values <- if (metric == "cosine") {
+      .cosine_unit_rows(x, "x")
+    } else {
+      NULL
+    }
+    state <- .knn_distance_state(x, metric, selection, cosine_values)
+  }
   device_topk <- .backend_has_operation(
     state$backend, "algorithm_knn_select"
   )
@@ -1029,15 +1196,15 @@ cuda_knn <- function(x, k = 15L, metric = c("euclidean", "cosine"),
     index <- selected$index
     neighbour_distance <- selected$distance
   } else {
-    reference_index <- seq_len(nrow(x))
-    index <- matrix(NA_integer_, nrow(x), integer_k)
-    neighbour_distance <- matrix(NA_real_, nrow(x), integer_k)
+    reference_index <- seq_len(n_observations)
+    index <- matrix(NA_integer_, n_observations, integer_k)
+    neighbour_distance <- matrix(NA_real_, n_observations, integer_k)
 
-    starts <- seq.int(1L, nrow(x), by = batch_size)
+    starts <- seq.int(1L, n_observations, by = batch_size)
     for (start in starts) {
       rows <- seq.int(
         start,
-        length.out = min(batch_size, nrow(x) - start + 1L)
+        length.out = min(batch_size, n_observations - start + 1L)
       )
       distances <- .knn_distance_block(state, rows)
       selected <- vapply(
@@ -1091,7 +1258,32 @@ cuda_knn <- function(x, k = 15L, metric = c("euclidean", "cosine"),
     ),
     class = "cuda_knn"
   )
-  stages <- .learn_add_stage(list(), "input_materialization", input_stage)
+  stages <- if (sparse_input && length(sparse_source$compute_stages)) {
+    sparse_source$compute_stages
+  } else {
+    .learn_add_stage(list(), "input_materialization", input_stage)
+  }
+  if (native_sparse) {
+    if (sparse_transferred) {
+      stages$sparse_transfer <- .learn_stage(
+        selection,
+        backend = state$backend,
+        output_device = "cuda",
+        reason = "sparse_input_transfer"
+      )
+    }
+    stages$sparse_to_dense <- .learn_stage(
+      selection,
+      backend = state$backend,
+      output_device = "cuda",
+      reason = "device_resident_conversion"
+    )
+  } else if (sparse_input) {
+    stages$sparse_to_dense <- .learn_cpu_stage(
+      backend = "Matrix",
+      reason = "algorithm_materialization"
+    )
+  }
   stages$distance <- .learn_stage(
     selection,
     backend = state$backend,

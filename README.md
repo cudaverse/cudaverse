@@ -21,11 +21,10 @@ functions use their documented portable backend and record what actually ran.
 
 Version 0.1.0 uses `torch` only as an optional CUDA backend; it is not a hard
 package dependency. Development version 0.2 now has a backend registry and a
-separate `cudaverseCUDA` extension behind the same public R API. Dense Phase 2
-implements driver detection, shared-ownership device allocations, transfer,
-casts, reductions, cuBLAS matrix multiplication, cuSOLVER SVD/PCA, exact
-distance blocks, and deterministic top-k/kNN. Its measured design benefits
-are:
+separate `cudaverseCUDA` extension behind the same public R API. Phase 3 adds
+shared-ownership COO/CSR storage, sparse multiplication and reductions,
+sparse-preserving normalization, and sparse-input PCA/kNN to the validated
+dense Phase 2 pipeline. Its measured design benefits are:
 
 - avoid requiring the full LibTorch installation, which occupied 6.86 GB in
   our Windows RTX 2000 development environment;
@@ -38,15 +37,16 @@ are:
 - allow future backends to be added without changing user code.
 
 These are development-line results, not claims about release 0.1.0. Native
-CUDA remains opt-in in 0.2 because element-wise/broadcast and sparse CUDA paths
-do not yet satisfy the same full-surface gate; making it the global automatic
+CUDA remains opt-in in 0.2 because element-wise arithmetic and broadcasting do
+not yet satisfy the same full-surface gate; making it the global automatic
 choice would regress currently supported torch workflows. CPU and torch
-compatibility behavior is unchanged, and sparse CUDA remains the next
-milestone. Reproducible PTX, RTX 2000 parity/lifecycle evidence, the CycloneDX
-SBOM, and the third-party redistribution inventory are published with the
-extension source. See the
+compatibility behavior is unchanged. Reproducible PTX, RTX 2000
+parity/lifecycle evidence, the CycloneDX SBOM, and the third-party
+redistribution inventory are published with the extension source. See the
 [native CUDA roadmap](.github/NATIVE-CUDA-ROADMAP.md) for the architecture and
-acceptance criteria.
+acceptance criteria, and the extension's
+[RTX 2000 Phase 3 report](https://github.com/cudaverse/cudaverseCUDA/blob/main/inst/reports/STAGE3.md)
+for raw-contract-linked timings, parity, provenance, and lifecycle evidence.
 
 ## Installation
 
@@ -65,7 +65,7 @@ toolkit:
 pak::pak("cudaverse/cudaverse@develop/native-cuda")
 pak::pak("cudaverse/cudaverseCUDA")
 
-# During Phase 2, request native before the compatibility backend.
+# During native development, request native before the compatibility backend.
 options(cudaverse.cuda_backends = c("native", "torch"))
 cuda_diagnostics()
 ```
@@ -83,6 +83,20 @@ embedding <- cuda_umap(pca$x)
 
 cuda_provenance(pca)
 embedding_coordinates(embedding)
+```
+
+Sparse inputs use the same algorithms and can remain device-resident through
+normalization and PCA:
+
+```r
+counts <- Matrix::rsparsematrix(1000, 100, density = 0.05)
+counts@x <- abs(counts@x)
+sparse <- cuda_sparse(counts, device = "cuda")
+normalized <- sparse_normalize(
+  sparse, margin = "rows", scale_factor = 1000, log1p = TRUE
+)
+pca <- cuda_pca(normalized, n_components = 20, device = "cuda")
+neighbors <- cuda_knn(pca$x, k = 15, device = "cuda")
 ```
 
 Single-cell-specific workflows live in the separate `cudacellr` extension so

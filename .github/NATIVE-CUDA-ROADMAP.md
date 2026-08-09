@@ -40,16 +40,16 @@ optional compatibility backend and the CPU path remains the portable fallback.
 
 The optional
 [`cudaverseCUDA`](https://github.com/cudaverse/cudaverseCUDA) extension now
-implements the dense native Phase 2 prototype. The main package discovers it
+implements the native sparse Phase 3 prototype. The main package discovers it
 lazily; it remains installable and fully checkable without the extension or
 CUDA. The native implementation uses NVIDIA's focused numerical libraries
 where they are a good fit:
 
 - cuBLAS for dense matrix multiplication;
-- cuSPARSE for sparse operations;
 - cuSOLVER for decompositions; and
-- small cudaverse-owned kernels for reductions, distance calculation,
-  broadcasting, and top-k selection.
+- small cudaverse-owned kernels for reductions, sparse operations, distance
+  calculation, broadcasting, and top-k selection. A future cuSPARSE adapter
+  remains an optimization option, not a runtime requirement.
 
 ## Delivery stages
 
@@ -62,12 +62,13 @@ where they are a good fit:
    pairwise distance blocks, and stable top-k/kNN. PCA scores feed distance and
    top-k through shared device storage; only ordinary PCA result fields and the
    final compact neighbour result are materialized in R.
-4. Add COO/CSR conversion, sparse matvec/matmul, and sparse reductions, then
-   connect normalization and sparse workflow paths.
+4. **Complete (sparse Phase 3):** shared-ownership COO/CSR storage, Matrix
+   conversion, sparse matvec/matmul, row/column reductions, normalization, and
+   sparse-input PCA/kNN through a device-resident dense continuation.
 5. Make `native` the automatic CUDA choice only after every operation reachable
    through automatic device selection passes the same CPU/GPU parity contract.
-   Dense Phase 2 alone is not sufficient: selecting native globally before
-   element-wise/broadcast and sparse coverage would regress existing workflows.
+   Selecting native globally before element-wise and broadcasting coverage
+   would still regress existing workflows.
 6. Retain torch for one compatibility cycle, then reassess whether it still
    belongs in `Suggests`.
 
@@ -88,10 +89,15 @@ The benchmark report must distinguish resident GPU kernel timing from complete
 R workflow timing. It must also report CPU-only and hybrid stages so users can
 see where acceleration actually occurred.
 
-Stage-one evidence and the dense Phase 2 parity, provenance, error recovery,
+Stage-one, dense Phase 2, and sparse Phase 3 parity, provenance, error recovery,
 interruption, allocation high-water, and benchmark contracts are versioned in
 the `cudaverseCUDA` repository. The CycloneDX SBOM and third-party license
 inventory explicitly distinguish package-owned PTX from dynamically discovered
-NVIDIA runtime libraries. Dense Phase 2 can be released as an explicit native
-backend, but global automatic preference remains gated on the uncovered tensor
-and sparse surface.
+NVIDIA runtime libraries. Native can be released as an explicit backend, but
+global automatic preference remains gated on the uncovered tensor arithmetic
+and broadcasting surface.
+
+The completed
+[RTX 2000 sparse Phase 3 report](https://github.com/cudaverse/cudaverseCUDA/blob/main/inst/reports/STAGE3.md)
+links its human-readable summary to the full machine-readable timing, parity,
+provenance, error-recovery, and lifecycle evidence.
