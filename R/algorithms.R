@@ -858,7 +858,9 @@ cuda_distance <- function(x, y = NULL,
     "algorithm_distance",
     if (metric == "cosine") x_unit else x,
     if (metric == "cosine") y_unit else y,
-    metric
+    metric,
+    x,
+    y
   )
   if (metric == "cosine") {
     distance <- pmin(pmax(distance, 0), 2)
@@ -917,7 +919,9 @@ cuda_distance <- function(x, y = NULL,
     x
   }
   backend <- .learn_selection_backend(selection)
-  storage <- .backend_call(backend, "algorithm_knn_prepare", values)
+  storage <- .backend_call(
+    backend, "algorithm_knn_prepare", values, metric, x
+  )
   list(
     values = values,
     storage = storage,
