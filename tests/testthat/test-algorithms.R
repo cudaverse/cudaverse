@@ -451,7 +451,7 @@ test_that("kNN validates batch sizes and cosine rows clearly", {
       zero,
       k = 1,
       metric = "cosine",
-      device = "cuda",
+      device = "cpu",
       batch_size = 1
     ),
     "zero-length rows"
