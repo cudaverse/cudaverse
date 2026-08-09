@@ -40,10 +40,10 @@ optional compatibility backend and the CPU path remains the portable fallback.
 
 The optional
 [`cudaverseCUDA`](https://github.com/cudaverse/cudaverseCUDA) extension now
-implements the first native prototype. The main package discovers it lazily;
-it remains installable and fully checkable without the extension or CUDA. The
-native implementation uses NVIDIA's focused numerical libraries where they
-are a good fit:
+implements the dense native Phase 2 prototype. The main package discovers it
+lazily; it remains installable and fully checkable without the extension or
+CUDA. The native implementation uses NVIDIA's focused numerical libraries
+where they are a good fit:
 
 - cuBLAS for dense matrix multiplication;
 - cuSPARSE for sparse operations;
@@ -55,12 +55,15 @@ are a good fit:
 
 1. **Complete:** extract and test the internal backend contract without
    changing the public API.
-2. **Stage-one prototype complete:** device diagnostics,
+2. **Complete (Stage 1):** device diagnostics,
    allocation/finalization, transfer, synchronization, and cuBLAS matrix
-   multiplication. Arithmetic and reductions remain in the next stage.
-3. Implement pairwise distance and device-resident top-k selection, then move
-   exact k-nearest-neighbour workflows onto the native path.
-4. Add sparse operations and decompositions.
+   multiplication.
+3. **Complete (dense Phase 2):** casts, reductions, cuSOLVER SVD/PCA,
+   pairwise distance blocks, and stable top-k/kNN. PCA scores feed distance and
+   top-k through shared device storage; only ordinary PCA result fields and the
+   final compact neighbour result are materialized in R.
+4. Add COO/CSR conversion, sparse matvec/matmul, and sparse reductions, then
+   connect normalization and sparse workflow paths.
 5. Make `native` the automatic CUDA choice only after it passes the same CPU/GPU
    parity contract as the current backend.
 6. Retain torch for one compatibility cycle, then reassess whether it still
@@ -83,7 +86,9 @@ The benchmark report must distinguish resident GPU kernel timing from complete
 R workflow timing. It must also report CPU-only and hybrid stages so users can
 see where acceleration actually occurred.
 
-Stage-one evidence, including the RTX 2000 parity/lifecycle report, CycloneDX
-SBOM, and third-party license inventory, is versioned under `inst/reports/` in
-the `cudaverseCUDA` repository. Native remains opt-in until the later dense
-pipeline gates pass.
+Stage-one evidence and the dense Phase 2 parity, provenance, error recovery,
+interruption, allocation high-water, and benchmark contracts are versioned in
+the `cudaverseCUDA` repository. The CycloneDX SBOM and third-party license
+inventory explicitly distinguish package-owned PTX from dynamically discovered
+NVIDIA runtime libraries. Native remains opt-in until the final dense benchmark
+and release audit pass.
