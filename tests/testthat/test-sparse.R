@@ -123,6 +123,73 @@ test_that("sparse reductions match Matrix", {
   )
 })
 
+test_that("sparse normalization preserves structure and matches dense R", {
+  source <- matrix(
+    c(1, 0, 3, 2, 4, 0, 5, 1, 2, 3, 0, 6),
+    nrow = 4,
+    dimnames = list(
+      observation = paste0("sample_", 1:4),
+      feature = paste0("gene_", 1:3)
+    )
+  )
+  sparse <- cuda_sparse(source, device = "cpu")
+
+  rows <- sparse_normalize(
+    sparse, margin = "rows", scale_factor = 100, log1p = FALSE
+  )
+  expected_rows <- source * 100 / rowSums(source)
+  expect_s3_class(rows, "cudasparse")
+  expect_identical(rows$i, sparse$i)
+  expect_identical(rows$j, sparse$j)
+  expect_identical(dimnames(rows), dimnames(sparse))
+  expect_equal(as.matrix(to_dgCMatrix(rows)), expected_rows, tolerance = 1e-12)
+
+  columns <- sparse_normalize(
+    sparse, margin = "columns", scale_factor = 10, log1p = TRUE
+  )
+  expected_columns <- log1p(sweep(source, 2L, colSums(source), "/") * 10)
+  expect_equal(
+    as.matrix(to_dgCMatrix(columns)),
+    expected_columns,
+    tolerance = 1e-12
+  )
+  expect_identical(cuda_provenance(rows)$stage, "normalization")
+})
+
+test_that("PCA and kNN accept sparse inputs without changing CPU results", {
+  set.seed(2026)
+  source <- matrix(stats::rpois(240, lambda = 3), nrow = 40, ncol = 6)
+  source[source < 2] <- 0
+  rownames(source) <- paste0("sample_", seq_len(nrow(source)))
+  colnames(source) <- paste0("feature_", seq_len(ncol(source)))
+  sparse <- sparse_normalize(
+    cuda_sparse(source, device = "cpu"),
+    margin = "rows",
+    scale_factor = 100,
+    log1p = TRUE
+  )
+  dense <- as.matrix(to_dgCMatrix(sparse))
+
+  sparse_pca <- cuda_pca(sparse, 3L, device = "cpu")
+  dense_pca <- cuda_pca(dense, 3L, device = "cpu")
+  expect_equal(
+    tcrossprod(sparse_pca$rotation),
+    tcrossprod(dense_pca$rotation),
+    tolerance = 1e-10
+  )
+  expect_identical(rownames(sparse_pca$x), rownames(source))
+  expect_true(all(c("normalization", "sparse_to_dense", "decomposition") %in%
+                    cuda_provenance(sparse_pca)$stage))
+
+  sparse_knn <- cuda_knn(sparse, k = 5L, device = "cpu", batch_size = 11L)
+  dense_knn <- cuda_knn(dense, k = 5L, device = "cpu", batch_size = 11L)
+  expect_identical(sparse_knn$index, dense_knn$index)
+  expect_equal(sparse_knn$distance, dense_knn$distance, tolerance = 1e-12)
+  expect_true(all(c("normalization", "sparse_to_dense", "distance",
+                    "neighbor_selection") %in%
+                    cuda_provenance(sparse_knn)$stage))
+})
+
 test_that("invalid inputs fail clearly", {
   expect_error(cuda_sparse(matrix(c(1, NA), 1), device = "cpu"), "finite")
   expect_error(cuda_sparse(letters[1:3], device = "cpu"), "matrix")
@@ -134,6 +201,13 @@ test_that("invalid inputs fail clearly", {
   x <- cuda_sparse(diag(3), device = "cpu")
   expect_error(sparse_matvec(x, 1:2), "one value per column")
   expect_error(sparse_matmul_dense(x, matrix(1:8, 4)), "not conformable")
+  expect_error(sparse_normalize(x, scale_factor = 0), "positive finite")
+  expect_error(sparse_normalize(x, log1p = NA), "TRUE or FALSE")
+
+  negative <- cuda_sparse(matrix(c(1, -1, 2, 3), 2), device = "cpu")
+  expect_error(sparse_normalize(negative), "non-negative")
+  empty_margin <- cuda_sparse(matrix(c(1, 0, 0, 0), 2), device = "cpu")
+  expect_error(sparse_normalize(empty_margin), "positive finite sum")
 })
 
 test_that("large sparse printing avoids materializing all entries", {

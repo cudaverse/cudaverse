@@ -175,12 +175,14 @@ execution or automatic chunking. Printing a tensor with more than 100 values
 shows metadata without copying the full CUDA allocation; explicitly call
 `to_cpu()` only when that transfer is intended.
 
-The optional native dense pipeline attaches shared device storage to PCA's
-ordinary R score matrix. A following `cuda_knn()` call reuses that allocation,
-keeps exact distance blocks and stable top-k selection on the GPU, and returns
-only the compact neighbour matrices. `cuda_provenance()` records
-`scores_resident`, device-resident input materialization, CUDA distance, and the
-final CPU output as separate stages.
+The optional native pipeline stores COO and CSR metadata in shared device
+storage. Sparse normalization remains sparse; sparse-input PCA expands directly
+into a GPU dense buffer, attaches shared device storage to PCA's ordinary R
+score matrix, and a following `cuda_knn()` call reuses that allocation. Exact
+distance blocks and stable top-k selection remain on the GPU, and only compact
+results are returned. `cuda_provenance()` records normalization,
+`sparse_to_dense`, `scores_resident`, device-resident input materialization,
+CUDA distance, and final CPU output as separate stages.
 
 ## Hardware-gated validation
 

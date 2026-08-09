@@ -203,8 +203,10 @@
              "/" = x / y, "^" = x^y)
     },
     transpose = function(storage) t(storage),
-    sparse_from_coo = function(i, j, values, shape) NULL,
-    sparse_matmul_dense = function(storage, i, j, values, shape, dense) {
+    sparse_from_coo = function(i, j, values, shape, format = "csr") NULL,
+    sparse_matmul_dense = function(storage, i, j, values, shape, dense,
+                                   dense_storage = NULL,
+                                   dense_shape = dim(dense)) {
       Matrix::sparseMatrix(i = i, j = j, x = values, dims = shape) %*% dense
     },
     algorithm_svd = function(x, nu, nv) {
@@ -335,7 +337,7 @@
              "/" = x / y, "^" = x^y)
     },
     transpose = function(storage) storage$t(),
-    sparse_from_coo = function(i, j, values, shape) {
+    sparse_from_coo = function(i, j, values, shape, format = "csr") {
       indices <- torch::torch_tensor(rbind(i, j),
                                      dtype = torch::torch_int64(),
                                      device = "cuda")
@@ -349,7 +351,9 @@
         device = "cuda"
       )$coalesce()
     },
-    sparse_matmul_dense = function(storage, i, j, values, shape, dense) {
+    sparse_matmul_dense = function(storage, i, j, values, shape, dense,
+                                   dense_storage = NULL,
+                                   dense_shape = dim(dense)) {
       dense_gpu <- torch::torch_tensor(dense,
                                        dtype = torch::torch_float64(),
                                        device = "cuda")
