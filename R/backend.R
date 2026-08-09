@@ -109,6 +109,12 @@
   )
 }
 
+.backend_has_operation <- function(name, operation) {
+  backend <- .backend_get(name)
+  is.character(operation) && length(operation) == 1L &&
+    !is.na(operation) && is.function(backend[[operation]])
+}
+
 .backend_default_error_translate <- function(backend) {
   force(backend)
   function(error, operation) {

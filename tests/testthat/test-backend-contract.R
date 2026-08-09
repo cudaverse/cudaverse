@@ -100,3 +100,8 @@ test_that("missing backend capabilities return structured conditions", {
   expect_identical(condition$backend, "contract-test")
   expect_identical(condition$operation, "reduce")
 })
+
+test_that("optional backend operations are discovered without changing contract", {
+  expect_false(cudaverse:::.backend_has_operation("base", "missing_method"))
+  expect_true(cudaverse:::.backend_has_operation("base", "algorithm_distance"))
+})
