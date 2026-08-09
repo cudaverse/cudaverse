@@ -21,10 +21,11 @@ functions use their documented portable backend and record what actually ran.
 
 Version 0.1.0 uses `torch` only as an optional CUDA backend; it is not a hard
 package dependency. Development version 0.2 now has a backend registry and a
-separate `cudaverseCUDA` prototype behind the same public R API. The first
-prototype implements driver detection, shared-ownership device allocations,
-host/device transfer, synchronization, and double-precision cuBLAS matrix
-multiplication. Its intended benefits are:
+separate `cudaverseCUDA` extension behind the same public R API. Dense Phase 2
+implements driver detection, shared-ownership device allocations, transfer,
+casts, reductions, cuBLAS matrix multiplication, cuSOLVER SVD/PCA, exact
+distance blocks, and deterministic top-k/kNN. Its measured design benefits
+are:
 
 - avoid requiring the full LibTorch installation, which occupied 6.86 GB in
   our Windows RTX 2000 development environment;
@@ -36,11 +37,14 @@ multiplication. Its intended benefits are:
   provenance directly; and
 - allow future backends to be added without changing user code.
 
-The complete benefits remain roadmap goals, not claims about release 0.1.0.
-Native CUDA is not yet the automatic default, and PCA, distance, and top-k are
-not yet native. The stage-one RTX 2000 evidence and redistribution inventory
-are published with the extension source; broader claims wait for the full
-pipeline gates. See the
+These are development-line results, not claims about release 0.1.0. Native
+CUDA remains opt-in in 0.2 because element-wise/broadcast and sparse CUDA paths
+do not yet satisfy the same full-surface gate; making it the global automatic
+choice would regress currently supported torch workflows. CPU and torch
+compatibility behavior is unchanged, and sparse CUDA remains the next
+milestone. Reproducible PTX, RTX 2000 parity/lifecycle evidence, the CycloneDX
+SBOM, and the third-party redistribution inventory are published with the
+extension source. See the
 [native CUDA roadmap](.github/NATIVE-CUDA-ROADMAP.md) for the architecture and
 acceptance criteria.
 
@@ -61,7 +65,7 @@ toolkit:
 pak::pak("cudaverse/cudaverse@develop/native-cuda")
 pak::pak("cudaverse/cudaverseCUDA")
 
-# During the prototype phase, request native before the compatibility backend.
+# During Phase 2, request native before the compatibility backend.
 options(cudaverse.cuda_backends = c("native", "torch"))
 cuda_diagnostics()
 ```

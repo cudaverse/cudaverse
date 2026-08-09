@@ -42,10 +42,12 @@ deterministically in favour of the smaller row index.
 
 The implementation constructs at most a
 \code{min(batch_size, nrow(x))}-by-\code{nrow(x)} dense distance block instead of a
-complete pairwise distance matrix. On CUDA, distance blocks are computed
-with torch and transferred to the CPU for deterministic neighbour ordering.
-On CPU, Euclidean blocks use the same guarded translated-and-scaled
-implementation as \code{\link[=cuda_distance]{cuda_distance()}}.
+complete pairwise distance matrix. The native CUDA backend keeps distance
+blocks and deterministic top-k selection on the GPU, then transfers only the
+final \code{n}-by-\code{k} index and distance matrices. Compatibility backends without
+device-side selection transfer each distance block to the CPU for stable
+ordering. On CPU, Euclidean blocks use the same guarded
+translated-and-scaled implementation as \code{\link[=cuda_distance]{cuda_distance()}}.
 }
 \examples{
 cuda_knn(

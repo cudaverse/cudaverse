@@ -55,6 +55,18 @@
 }
 
 .learn_input_stage <- function(x) {
+  resident <- attr(x, "cudaverse_native_state", exact = TRUE)
+  if (is.list(resident) && identical(resident$backend, "native") &&
+      typeof(resident$storage) == "externalptr") {
+    return(cuda_stage(
+      requested_device = "inherited",
+      device = "cuda",
+      backend = "native",
+      selection_reason = "device_resident_input",
+      fallback = FALSE,
+      output_device = "cuda"
+    ))
+  }
   if (!inherits(x, "cudatensor") || !identical(x$device, "cuda")) {
     return(NULL)
   }
@@ -126,6 +138,11 @@
 }
 
 .learn_source_device <- function(x) {
+  resident <- attr(x, "cudaverse_native_state", exact = TRUE)
+  if (is.list(resident) && identical(resident$backend, "native") &&
+      typeof(resident$storage) == "externalptr") {
+    return("cuda")
+  }
   if (inherits(x, "cudatensor")) x$device else "cpu"
 }
 
@@ -569,6 +586,15 @@ cuda_pca <- function(x, n_components = 2L, center = TRUE, scale. = FALSE,
     backend = backend,
     output_device = "cpu"
   )
+  resident_scores <- attr(output$x, "cudaverse_native_state", exact = TRUE)
+  if (is.list(resident_scores) && identical(resident_scores$backend, "native")) {
+    stages$scores_resident <- .learn_stage(
+      selection,
+      backend = backend,
+      output_device = "cuda",
+      reason = "device_resident_output"
+    )
+  }
   .with_learning_provenance(
     output,
     stages,
@@ -832,7 +858,9 @@ cuda_distance <- function(x, y = NULL,
     "algorithm_distance",
     if (metric == "cosine") x_unit else x,
     if (metric == "cosine") y_unit else y,
-    metric
+    metric,
+    x,
+    y
   )
   if (metric == "cosine") {
     distance <- pmin(pmax(distance, 0), 2)
@@ -891,7 +919,9 @@ cuda_distance <- function(x, y = NULL,
     x
   }
   backend <- .learn_selection_backend(selection)
-  storage <- .backend_call(backend, "algorithm_knn_prepare", values)
+  storage <- .backend_call(
+    backend, "algorithm_knn_prepare", values, metric, x
+  )
   list(
     values = values,
     storage = storage,
@@ -944,10 +974,12 @@ cuda_distance <- function(x, y = NULL,
 #'
 #' The implementation constructs at most a
 #' `min(batch_size, nrow(x))`-by-`nrow(x)` dense distance block instead of a
-#' complete pairwise distance matrix. On CUDA, distance blocks are computed
-#' with torch and transferred to the CPU for deterministic neighbour ordering.
-#' On CPU, Euclidean blocks use the same guarded translated-and-scaled
-#' implementation as [cuda_distance()].
+#' complete pairwise distance matrix. The native CUDA backend keeps distance
+#' blocks and deterministic top-k selection on the GPU, then transfers only the
+#' final `n`-by-`k` index and distance matrices. Compatibility backends without
+#' device-side selection transfer each distance block to the CPU for stable
+#' ordering. On CPU, Euclidean blocks use the same guarded
+#' translated-and-scaled implementation as [cuda_distance()].
 #' @export
 #' @examples
 #' cuda_knn(
@@ -981,47 +1013,64 @@ cuda_knn <- function(x, k = 15L, metric = c("euclidean", "cosine"),
   device <- selection$device
   batch_size <- .knn_batch_size(batch_size, nrow(x))
   state <- .knn_distance_state(x, metric, selection, cosine_values)
-  reference_index <- seq_len(nrow(x))
-  index <- matrix(NA_integer_, nrow(x), integer_k)
-  neighbour_distance <- matrix(NA_real_, nrow(x), integer_k)
+  device_topk <- .backend_has_operation(
+    state$backend, "algorithm_knn_select"
+  )
+  if (device_topk) {
+    selected <- .backend_call(
+      state$backend,
+      "algorithm_knn_select",
+      state$storage,
+      state$values,
+      integer_k,
+      state$metric,
+      batch_size
+    )
+    index <- selected$index
+    neighbour_distance <- selected$distance
+  } else {
+    reference_index <- seq_len(nrow(x))
+    index <- matrix(NA_integer_, nrow(x), integer_k)
+    neighbour_distance <- matrix(NA_real_, nrow(x), integer_k)
 
-  starts <- seq.int(1L, nrow(x), by = batch_size)
-  for (start in starts) {
-    rows <- seq.int(
-      start,
-      length.out = min(batch_size, nrow(x) - start + 1L)
-    )
-    distances <- .knn_distance_block(state, rows)
-    selected <- vapply(
-      seq_along(rows),
-      function(i) {
-        candidates <- reference_index[-rows[[i]]]
-        ordering <- order(
-          distances[i, candidates],
-          candidates,
-          method = "radix"
-        )
-        candidates[ordering[seq_len(integer_k)]]
-      },
-      integer(integer_k)
-    )
-    selected <- t(matrix(
-      selected,
-      nrow = integer_k,
-      ncol = length(rows)
-    ))
-    selected_distance <- distances[cbind(
-      rep(seq_along(rows), each = integer_k),
-      as.vector(t(selected))
-    )]
+    starts <- seq.int(1L, nrow(x), by = batch_size)
+    for (start in starts) {
+      rows <- seq.int(
+        start,
+        length.out = min(batch_size, nrow(x) - start + 1L)
+      )
+      distances <- .knn_distance_block(state, rows)
+      selected <- vapply(
+        seq_along(rows),
+        function(i) {
+          candidates <- reference_index[-rows[[i]]]
+          ordering <- order(
+            distances[i, candidates],
+            candidates,
+            method = "radix"
+          )
+          candidates[ordering[seq_len(integer_k)]]
+        },
+        integer(integer_k)
+      )
+      selected <- t(matrix(
+        selected,
+        nrow = integer_k,
+        ncol = length(rows)
+      ))
+      selected_distance <- distances[cbind(
+        rep(seq_along(rows), each = integer_k),
+        as.vector(t(selected))
+      )]
 
-    index[rows, ] <- selected
-    neighbour_distance[rows, ] <- matrix(
-      selected_distance,
-      nrow = length(rows),
-      ncol = integer_k,
-      byrow = TRUE
-    )
+      index[rows, ] <- selected
+      neighbour_distance[rows, ] <- matrix(
+        selected_distance,
+        nrow = length(rows),
+        ncol = integer_k,
+        byrow = TRUE
+      )
+    }
   }
 
   if (!is.null(observation_names)) {
@@ -1046,14 +1095,20 @@ cuda_knn <- function(x, k = 15L, metric = c("euclidean", "cosine"),
   stages$distance <- .learn_stage(
     selection,
     backend = state$backend,
-    output_device = "cpu"
+    output_device = if (device_topk) "cuda" else "cpu"
   )
-  stages$neighbor_selection <- .learn_cpu_stage()
+  stages$neighbor_selection <- if (device_topk) {
+    .learn_stage(selection, backend = state$backend, output_device = "cpu")
+  } else {
+    .learn_cpu_stage()
+  }
   .with_learning_provenance(
     output,
     stages,
     requested_device = selection$requested_device,
-    backend = if (identical(device, "cuda")) {
+    backend = if (device_topk) {
+      state$backend
+    } else if (identical(device, "cuda")) {
       paste0(state$backend, "+base")
     } else {
       "base"

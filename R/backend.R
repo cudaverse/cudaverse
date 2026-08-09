@@ -109,6 +109,12 @@
   )
 }
 
+.backend_has_operation <- function(name, operation) {
+  backend <- .backend_get(name)
+  is.character(operation) && length(operation) == 1L &&
+    !is.na(operation) && is.function(backend[[operation]])
+}
+
 .backend_default_error_translate <- function(backend) {
   force(backend)
   function(error, operation) {
@@ -223,14 +229,15 @@
       if (is.numeric(scale)) transformed <- sweep(transformed, 2L, scale, "/")
       transformed %*% rotation
     },
-    algorithm_distance = function(x, y, metric) {
+    algorithm_distance = function(x, y, metric, source_x = x, source_y = y) {
       if (identical(metric, "euclidean")) {
         .euclidean_distance_cpu(x, y)
       } else {
         1 - tcrossprod(x, y)
       }
     },
-    algorithm_knn_prepare = function(values) values,
+    algorithm_knn_prepare = function(values, metric = "euclidean",
+                                     source_values = values) values,
     algorithm_knn_block = function(storage, values, rows, metric) {
       if (identical(metric, "euclidean")) {
         .euclidean_distance_cpu(values[rows, , drop = FALSE], values)
@@ -406,7 +413,7 @@
         ncol = ncol(rotation)
       )
     },
-    algorithm_distance = function(x, y, metric) {
+    algorithm_distance = function(x, y, metric, source_x = x, source_y = y) {
       x_gpu <- .torch_matrix(x)
       y_gpu <- if (identical(x, y)) x_gpu else .torch_matrix(y)
       result <- if (identical(metric, "euclidean")) {
@@ -416,7 +423,10 @@
       }
       .torch_array(result)
     },
-    algorithm_knn_prepare = function(values) .torch_matrix(values),
+    algorithm_knn_prepare = function(values, metric = "euclidean",
+                                     source_values = values) {
+      .torch_matrix(values)
+    },
     algorithm_knn_block = function(storage, values, rows, metric) {
       query <- storage[rows, , drop = FALSE]
       result <- if (identical(metric, "euclidean")) {
