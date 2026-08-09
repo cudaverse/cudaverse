@@ -6,8 +6,9 @@
   deterministic top-k/kNN integration.
 - Kept `PCA -> distance -> top-k` intermediate data on the GPU for the native
   path and retained the `cudaverse-stage/1` provenance schema.
-- Preserved portable CPU behavior and the optional torch compatibility backend;
-  native remains opt-in pending the complete Phase 2 release audit.
+- Preserved portable CPU behavior and the optional torch compatibility backend.
+  Native remains opt-in because global automatic selection must also cover the
+  element-wise/broadcast and sparse CUDA surface without regressions.
 
 # cudaverse 0.1.0
 

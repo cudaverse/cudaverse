@@ -38,9 +38,11 @@ are:
 - allow future backends to be added without changing user code.
 
 These are development-line results, not claims about release 0.1.0. Native
-CUDA remains opt-in while the final Phase 2 benchmark is completed, and sparse
-CUDA remains the next milestone. CPU and torch compatibility behavior is
-unchanged. Reproducible PTX, RTX 2000 parity/lifecycle evidence, the CycloneDX
+CUDA remains opt-in in 0.2 because element-wise/broadcast and sparse CUDA paths
+do not yet satisfy the same full-surface gate; making it the global automatic
+choice would regress currently supported torch workflows. CPU and torch
+compatibility behavior is unchanged, and sparse CUDA remains the next
+milestone. Reproducible PTX, RTX 2000 parity/lifecycle evidence, the CycloneDX
 SBOM, and the third-party redistribution inventory are published with the
 extension source. See the
 [native CUDA roadmap](.github/NATIVE-CUDA-ROADMAP.md) for the architecture and

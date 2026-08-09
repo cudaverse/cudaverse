@@ -64,8 +64,10 @@ where they are a good fit:
    final compact neighbour result are materialized in R.
 4. Add COO/CSR conversion, sparse matvec/matmul, and sparse reductions, then
    connect normalization and sparse workflow paths.
-5. Make `native` the automatic CUDA choice only after it passes the same CPU/GPU
-   parity contract as the current backend.
+5. Make `native` the automatic CUDA choice only after every operation reachable
+   through automatic device selection passes the same CPU/GPU parity contract.
+   Dense Phase 2 alone is not sufficient: selecting native globally before
+   element-wise/broadcast and sparse coverage would regress existing workflows.
 6. Retain torch for one compatibility cycle, then reassess whether it still
    belongs in `Suggests`.
 
@@ -90,5 +92,6 @@ Stage-one evidence and the dense Phase 2 parity, provenance, error recovery,
 interruption, allocation high-water, and benchmark contracts are versioned in
 the `cudaverseCUDA` repository. The CycloneDX SBOM and third-party license
 inventory explicitly distinguish package-owned PTX from dynamically discovered
-NVIDIA runtime libraries. Native remains opt-in until the final dense benchmark
-and release audit pass.
+NVIDIA runtime libraries. Dense Phase 2 can be released as an explicit native
+backend, but global automatic preference remains gated on the uncovered tensor
+and sparse surface.
