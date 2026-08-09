@@ -96,3 +96,8 @@ inventory explicitly distinguish package-owned PTX from dynamically discovered
 NVIDIA runtime libraries. Native can be released as an explicit backend, but
 global automatic preference remains gated on the uncovered tensor arithmetic
 and broadcasting surface.
+
+The completed
+[RTX 2000 sparse Phase 3 report](https://github.com/cudaverse/cudaverseCUDA/blob/main/inst/reports/STAGE3.md)
+links its human-readable summary to the full machine-readable timing, parity,
+provenance, error-recovery, and lifecycle evidence.
