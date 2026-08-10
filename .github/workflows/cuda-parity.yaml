@@ -13,6 +13,12 @@ permissions:
 
 jobs:
   hardware-contract:
+    # Hardware checks use a repository-scoped ephemeral runner. Enable the
+    # repository variable only after that runner is online, or dispatch this
+    # workflow manually after registering one.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      vars.CUDAVERSE_NVIDIA_CI == 'enabled'
     # The reusable workflow is the single trust boundary for access to the
     # protected NVIDIA runner group. Avoid duplicating its event predicate in
     # callers, where context differences can turn required RTX checks into
