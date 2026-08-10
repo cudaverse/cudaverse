@@ -167,8 +167,8 @@ Deferred beyond CP-03:
 
 ## CP-04: executable public-backend conformance
 
-Status: implementation and validation in progress on
-`agent/backend-conformance`.
+Status: implementation and local validation complete on
+`agent/backend-conformance`; PR 19 is ready for final exact-head CI.
 
 Scope:
 
@@ -196,7 +196,7 @@ Required evidence before merge:
   skipped cases, including all pre-existing recovery and lifecycle tests;
 - [x] a local source build and `R CMD check --no-manual` complete with
   `Status: OK`;
-- [ ] Windows, macOS, Ubuntu, R-devel, pkgdown, supply-chain, CPU contract,
+- [x] Windows, macOS, Ubuntu, R-devel, pkgdown, supply-chain, CPU contract,
   CUDA ABI/PTX, and Windows/Linux artifact CI pass on the exact PR source.
 
 Deferred beyond CP-04:
