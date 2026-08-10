@@ -1,7 +1,10 @@
 # cudaverse 0.2.0.9000
 
-- Added a backend registry and lazy discovery of the optional
-  `cudaverseCUDA` extension without changing the public device API.
+- Added a backend registry and integrated the lightweight native CUDA
+  implementation into `cudaverse` without changing the public device API.
+- Removed the cross-repository `cudaverseCUDA` dependency. Native runtime
+  libraries are still discovered lazily, so CPU-only installation and checks
+  do not require CUDA or a CUDA toolkit.
 - Added native dense casts, reductions, SVD/PCA, exact distance blocks, and
   deterministic top-k/kNN integration.
 - Added shared-ownership native COO/CSR storage, sparse Matrix conversion,
@@ -13,7 +16,7 @@
   path and retained the `cudaverse-stage/1` provenance schema.
 - Preserved portable CPU behavior and the optional torch compatibility backend.
 - Added capability-gated automatic native selection. Native is preferred only
-  when the extension contract, complete tensor/algorithm capability set,
+  when the native contract, complete tensor/algorithm capability set,
   driver/cuBLAS/cuSOLVER/PTX runtime, and cached runtime self-test all pass;
   otherwise torch or the recorded CPU fallback retains compatibility.
 - Added native float32 matmul plus device-native element-wise arithmetic,

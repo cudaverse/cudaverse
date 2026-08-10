@@ -1,0 +1,1660 @@
+{
+  "schema": "cudaverse-native-phase2/1",
+  "generated_at_utc": "2026-08-09 17:45:37 UTC",
+  "source": {
+    "cudaverseCUDA": {
+      "commit": "4e871c65a289dfd8f465b002c459f5f78b9c0a74",
+      "dirty": false
+    },
+    "cudaverse": {
+      "commit": "2e1adf4a1cc3960055561a06369b6203baf1cbdc",
+      "dirty": false
+    }
+  },
+  "hardware": {
+    "nvidia_smi": "NVIDIA RTX 2000 Ada Generation, 595.97, 16380, 8.9"
+  },
+  "software": {
+    "R": "R version 4.6.0 (2026-04-24 ucrt)",
+    "cudaverse": "0.2.0.9000",
+    "cudaverseCUDA": "0.2.0.9000",
+    "native_diagnostics": {
+      "installed": true,
+      "available": true,
+      "device_count": 1,
+      "version": "13020",
+      "reason": "cuda_available",
+      "detection_error": null,
+      "driver_version": 13020,
+      "cublas_loaded": true,
+      "kernels_loaded": true
+    }
+  },
+  "contract": {
+    "warmup_runs": 5,
+    "timed_runs": 10,
+    "k": 15,
+    "requested_components": 50,
+    "batch_size": 256,
+    "dtype": "float64",
+    "metric": "euclidean",
+    "center": true,
+    "scale": true,
+    "cold_definition": "first workload after packages and diagnostics are loaded, before workload warm-up",
+    "full_pipeline_boundary": "host input -> PCA -> host PCA metadata/score mirror -> exact kNN -> host n-by-k result",
+    "knn_continuation_boundary": "PCA completion -> exact kNN -> host n-by-k result; native reuses the device-resident score allocation and never materializes a dense distance matrix on the host",
+    "peak_vram_definition": "cudaverseCUDA allocation high-water bytes for native; torch CUDA allocator allocated/reserved byte peaks for torch; external library/context memory is shown only by whole-device snapshots"
+  },
+  "installed_size_bytes": {
+    "cudaverse": 326010,
+    "cudaverseCUDA": 413237
+  },
+  "benchmarks": {
+    "1000x50": {
+      "base": {
+        "status": "complete",
+        "rows": 1000,
+        "columns": 50,
+        "n_components": 50,
+        "cold_seconds": {
+          "pca": 0,
+          "knn_continuation": 0.14000000000000012,
+          "full_pipeline": 0.14000000000000012
+        },
+        "pca": {
+          "median_seconds": 0.0050000000000001155,
+          "p95_seconds": 0.020000000000000462,
+          "runs_seconds": [
+            0.010000000000000231,
+            0.020000000000000018,
+            0,
+            0.019999999999999574,
+            0.020000000000000462,
+            0.019999999999999574,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "knn_continuation": {
+          "median_seconds": 0.11000000000000032,
+          "p95_seconds": 0.14000000000000012,
+          "runs_seconds": [
+            0.14000000000000012,
+            0.10999999999999988,
+            0.10999999999999988,
+            0.11000000000000032,
+            0.089999999999999858,
+            0.11000000000000032,
+            0.099999999999999645,
+            0.11000000000000032,
+            0.13999999999999968,
+            0.11000000000000032
+          ]
+        },
+        "full_pipeline": {
+          "median_seconds": 0.12000000000000011,
+          "p95_seconds": 0.15000000000000036,
+          "runs_seconds": [
+            0.15000000000000036,
+            0.12999999999999989,
+            0.10999999999999988,
+            0.12999999999999989,
+            0.11000000000000032,
+            0.12999999999999989,
+            0.099999999999999645,
+            0.11000000000000032,
+            0.13999999999999968,
+            0.11000000000000032
+          ]
+        },
+        "validation": {
+          "pca_sdev_max_absolute_error": 0,
+          "pca_subspace_projector_max_absolute_error": 0,
+          "pca_reconstruction_max_absolute_error": 0,
+          "pca_reconstruction_max_relative_error": 0,
+          "knn_indices_identical": true,
+          "knn_distance_max_absolute_error": 0,
+          "knn_distance_max_relative_error": 0,
+          "passed": true
+        },
+        "provenance": {
+          "pca": {
+            "schema": "cudaverse-stage/1",
+            "compute_device": "cpu",
+            "stages": {
+              "stage": [
+                "preprocessing",
+                "decomposition"
+              ],
+              "requested_device": [
+                "cpu",
+                "cpu"
+              ],
+              "device": [
+                "cpu",
+                "cpu"
+              ],
+              "backend": [
+                "stats",
+                "stats"
+              ],
+              "selection_reason": [
+                "explicit_cpu",
+                "explicit_cpu"
+              ],
+              "fallback": [
+                false,
+                false
+              ],
+              "output_device": [
+                "cpu",
+                "cpu"
+              ]
+            }
+          },
+          "knn": {
+            "schema": "cudaverse-stage/1",
+            "compute_device": "cpu",
+            "stages": {
+              "stage": [
+                "distance",
+                "neighbor_selection"
+              ],
+              "requested_device": [
+                "cpu",
+                "fixed-cpu"
+              ],
+              "device": [
+                "cpu",
+                "cpu"
+              ],
+              "backend": [
+                "base",
+                "base"
+              ],
+              "selection_reason": [
+                "explicit_cpu",
+                "algorithm_cpu_only"
+              ],
+              "fallback": [
+                false,
+                false
+              ],
+              "output_device": [
+                "cpu",
+                "cpu"
+              ]
+            }
+          },
+          "pca_scores_device_resident": false
+        },
+        "memory": {
+          "operation_owned_current_before_bytes": 0,
+          "operation_owned_peak_bytes": 0,
+          "operation_owned_result_bytes": 0,
+          "operation_owned_post_cleanup_difference_bytes": 0,
+          "whole_device_used_before_bytes": 1171652608,
+          "whole_device_used_with_result_bytes": 1171652608,
+          "whole_device_used_after_cleanup_bytes": 1171652608,
+          "whole_device_post_cleanup_absolute_difference_bytes": 0
+        }
+      },
+      "native": {
+        "status": "complete",
+        "rows": 1000,
+        "columns": 50,
+        "n_components": 50,
+        "cold_seconds": {
+          "pca": 0.050000000000000266,
+          "knn_continuation": 0.0099999999999997868,
+          "full_pipeline": 0.060000000000000053
+        },
+        "pca": {
+          "median_seconds": 0.010000000000000009,
+          "p95_seconds": 0.020000000000000018,
+          "runs_seconds": [
+            0.0099999999999997868,
+            0,
+            0.0099999999999997868,
+            0.020000000000000018,
+            0.010000000000000231,
+            0.020000000000000018,
+            0.010000000000000231,
+            0.020000000000000018,
+            0,
+            0.0099999999999997868
+          ]
+        },
+        "knn_continuation": {
+          "median_seconds": 0.020000000000000018,
+          "p95_seconds": 0.020000000000000018,
+          "runs_seconds": [
+            0.020000000000000018,
+            0.020000000000000018,
+            0.020000000000000018,
+            0.0099999999999997868,
+            0.020000000000000018,
+            0,
+            0.020000000000000018,
+            0,
+            0.020000000000000018,
+            0
+          ]
+        },
+        "full_pipeline": {
+          "median_seconds": 0.024999999999999911,
+          "p95_seconds": 0.030000000000000249,
+          "runs_seconds": [
+            0.029999999999999805,
+            0.020000000000000018,
+            0.029999999999999805,
+            0.029999999999999805,
+            0.030000000000000249,
+            0.020000000000000018,
+            0.030000000000000249,
+            0.020000000000000018,
+            0.020000000000000018,
+            0.0099999999999997868
+          ]
+        },
+        "validation": {
+          "pca_sdev_max_absolute_error": 3.5527136788005009e-15,
+          "pca_subspace_projector_max_absolute_error": 1.6653345369377348e-15,
+          "pca_reconstruction_max_absolute_error": 1.8207657603852567e-14,
+          "pca_reconstruction_max_relative_error": 4.3580414050649491e-15,
+          "knn_indices_identical": true,
+          "knn_distance_max_absolute_error": 2.3980817331903381e-14,
+          "knn_distance_max_relative_error": 2.5294290241752569e-15,
+          "passed": true
+        },
+        "provenance": {
+          "pca": {
+            "schema": "cudaverse-stage/1",
+            "compute_device": "cuda",
+            "stages": {
+              "stage": [
+                "preprocessing",
+                "decomposition",
+                "scores_resident"
+              ],
+              "requested_device": [
+                "cuda",
+                "cuda",
+                "cuda"
+              ],
+              "device": [
+                "cuda",
+                "cuda",
+                "cuda"
+              ],
+              "backend": [
+                "native",
+                "native",
+                "native"
+              ],
+              "selection_reason": [
+                "explicit_cuda",
+                "explicit_cuda",
+                "device_resident_output"
+              ],
+              "fallback": [
+                false,
+                false,
+                false
+              ],
+              "output_device": [
+                "cuda",
+                "cpu",
+                "cuda"
+              ]
+            }
+          },
+          "knn": {
+            "schema": "cudaverse-stage/1",
+            "compute_device": "cuda",
+            "stages": {
+              "stage": [
+                "input_materialization",
+                "distance",
+                "neighbor_selection"
+              ],
+              "requested_device": [
+                "inherited",
+                "cuda",
+                "cuda"
+              ],
+              "device": [
+                "cuda",
+                "cuda",
+                "cuda"
+              ],
+              "backend": [
+                "native",
+                "native",
+                "native"
+              ],
+              "selection_reason": [
+                "device_resident_input",
+                "explicit_cuda",
+                "explicit_cuda"
+              ],
+              "fallback": [
+                false,
+                false,
+                false
+              ],
+              "output_device": [
+                "cuda",
+                "cuda",
+                "cpu"
+              ]
+            }
+          },
+          "pca_scores_device_resident": true
+        },
+        "memory": {
+          "operation_owned_current_before_bytes": 0,
+          "operation_owned_peak_bytes": 9707644,
+          "operation_owned_result_bytes": 400000,
+          "operation_owned_post_cleanup_difference_bytes": 0,
+          "backend_allocator_peak_bytes": 9707644,
+          "backend_allocator_reserved_peak_bytes": null,
+          "backend_allocator_peak_source": "cudaverseCUDA allocation tracker",
+          "whole_device_used_before_bytes": 1209401344,
+          "whole_device_used_with_result_bytes": 1209401344,
+          "whole_device_used_after_cleanup_bytes": 1209401344,
+          "whole_device_post_cleanup_absolute_difference_bytes": 0
+        }
+      },
+      "torch": {
+        "status": "complete",
+        "rows": 1000,
+        "columns": 50,
+        "n_components": 50,
+        "cold_seconds": {
+          "pca": 0.10000000000000009,
+          "knn_continuation": 0.14000000000000012,
+          "full_pipeline": 0.24000000000000021
+        },
+        "pca": {
+          "median_seconds": 0.020000000000000462,
+          "p95_seconds": 0.030000000000000249,
+          "runs_seconds": [
+            0.029999999999999361,
+            0.019999999999999574,
+            0.020000000000000462,
+            0.029999999999999361,
+            0.019999999999999574,
+            0.020000000000000462,
+            0.030000000000000249,
+            0.0099999999999997868,
+            0.010000000000000675,
+            0.030000000000000249
+          ]
+        },
+        "knn_continuation": {
+          "median_seconds": 0.064999999999999947,
+          "p95_seconds": 0.099999999999999645,
+          "runs_seconds": [
+            0.060000000000000497,
+            0.059999999999999609,
+            0.069999999999999396,
+            0.080000000000000071,
+            0.070000000000000284,
+            0.059999999999999609,
+            0.059999999999999609,
+            0.080000000000000071,
+            0.059999999999999609,
+            0.099999999999999645
+          ]
+        },
+        "full_pipeline": {
+          "median_seconds": 0.089999999999999858,
+          "p95_seconds": 0.12999999999999989,
+          "runs_seconds": [
+            0.089999999999999858,
+            0.079999999999999183,
+            0.089999999999999858,
+            0.10999999999999943,
+            0.089999999999999858,
+            0.080000000000000071,
+            0.089999999999999858,
+            0.089999999999999858,
+            0.070000000000000284,
+            0.12999999999999989
+          ]
+        },
+        "validation": {
+          "pca_sdev_max_absolute_error": 1.5099033134902129e-14,
+          "pca_subspace_projector_max_absolute_error": 1.1768364061026659e-14,
+          "pca_reconstruction_max_absolute_error": 6.7057470687359455e-14,
+          "pca_reconstruction_max_relative_error": 1.6050347613775789e-14,
+          "knn_indices_identical": true,
+          "knn_distance_max_absolute_error": 8.7041485130612273e-14,
+          "knn_distance_max_relative_error": 9.1808905321916724e-15,
+          "passed": true
+        },
+        "provenance": {
+          "pca": {
+            "schema": "cudaverse-stage/1",
+            "compute_device": "cuda",
+            "stages": {
+              "stage": [
+                "preprocessing",
+                "decomposition"
+              ],
+              "requested_device": [
+                "cuda",
+                "cuda"
+              ],
+              "device": [
+                "cuda",
+                "cuda"
+              ],
+              "backend": [
+                "torch",
+                "torch"
+              ],
+              "selection_reason": [
+                "explicit_cuda",
+                "explicit_cuda"
+              ],
+              "fallback": [
+                false,
+                false
+              ],
+              "output_device": [
+                "cuda",
+                "cpu"
+              ]
+            }
+          },
+          "knn": {
+            "schema": "cudaverse-stage/1",
+            "compute_device": "hybrid",
+            "stages": {
+              "stage": [
+                "distance",
+                "neighbor_selection"
+              ],
+              "requested_device": [
+                "cuda",
+                "fixed-cpu"
+              ],
+              "device": [
+                "cuda",
+                "cpu"
+              ],
+              "backend": [
+                "torch",
+                "base"
+              ],
+              "selection_reason": [
+                "explicit_cuda",
+                "algorithm_cpu_only"
+              ],
+              "fallback": [
+                false,
+                false
+              ],
+              "output_device": [
+                "cpu",
+                "cpu"
+              ]
+            }
+          },
+          "pca_scores_device_resident": false
+        },
+        "memory": {
+          "operation_owned_current_before_bytes": 0,
+          "operation_owned_peak_bytes": 0,
+          "operation_owned_result_bytes": 0,
+          "operation_owned_post_cleanup_difference_bytes": 0,
+          "backend_allocator_peak_bytes": 20279808,
+          "backend_allocator_reserved_peak_bytes": 25165824,
+          "backend_allocator_peak_source": "torch CUDA allocator statistics",
+          "whole_device_used_before_bytes": 1291190272,
+          "whole_device_used_with_result_bytes": 1291190272,
+          "whole_device_used_after_cleanup_bytes": 1291190272,
+          "whole_device_post_cleanup_absolute_difference_bytes": 0
+        }
+      }
+    },
+    "10000x100": {
+      "base": {
+        "status": "complete",
+        "rows": 10000,
+        "columns": 100,
+        "n_components": 50,
+        "cold_seconds": {
+          "pca": 0.20000000000000018,
+          "knn_continuation": 11.49,
+          "full_pipeline": 11.69
+        },
+        "pca": {
+          "median_seconds": 0.18999999999999773,
+          "p95_seconds": 0.21999999999999886,
+          "runs_seconds": [
+            0.18000000000000682,
+            0.18999999999999773,
+            0.17999999999999261,
+            0.19999999999998863,
+            0.18999999999999773,
+            0.18000000000000682,
+            0.21999999999999886,
+            0.20000000000001705,
+            0.18000000000000682,
+            0.18999999999999773
+          ]
+        },
+        "knn_continuation": {
+          "median_seconds": 13.229999999999997,
+          "p95_seconds": 13.530000000000001,
+          "runs_seconds": [
+            13.260000000000005,
+            13.090000000000003,
+            13.530000000000001,
+            13.430000000000007,
+            13.199999999999989,
+            13.069999999999993,
+            13.150000000000006,
+            12.639999999999986,
+            13.389999999999986,
+            13.310000000000002
+          ]
+        },
+        "full_pipeline": {
+          "median_seconds": 13.414999999999999,
+          "p95_seconds": 13.709999999999994,
+          "runs_seconds": [
+            13.440000000000012,
+            13.280000000000001,
+            13.709999999999994,
+            13.629999999999995,
+            13.389999999999986,
+            13.25,
+            13.370000000000005,
+            12.840000000000003,
+            13.569999999999993,
+            13.5
+          ]
+        },
+        "validation": {
+          "pca_sdev_max_absolute_error": 0,
+          "pca_subspace_projector_max_absolute_error": 0,
+          "pca_reconstruction_max_absolute_error": 0,
+          "pca_reconstruction_max_relative_error": 0,
+          "knn_indices_identical": true,
+          "knn_distance_max_absolute_error": 0,
+          "knn_distance_max_relative_error": 0,
+          "passed": true
+        },
+        "provenance": {
+          "pca": {
+            "schema": "cudaverse-stage/1",
+            "compute_device": "cpu",
+            "stages": {
+              "stage": [
+                "preprocessing",
+                "decomposition"
+              ],
+              "requested_device": [
+                "cpu",
+                "cpu"
+              ],
+              "device": [
+                "cpu",
+                "cpu"
+              ],
+              "backend": [
+                "stats",
+                "stats"
+              ],
+              "selection_reason": [
+                "explicit_cpu",
+                "explicit_cpu"
+              ],
+              "fallback": [
+                false,
+                false
+              ],
+              "output_device": [
+                "cpu",
+                "cpu"
+              ]
+            }
+          },
+          "knn": {
+            "schema": "cudaverse-stage/1",
+            "compute_device": "cpu",
+            "stages": {
+              "stage": [
+                "distance",
+                "neighbor_selection"
+              ],
+              "requested_device": [
+                "cpu",
+                "fixed-cpu"
+              ],
+              "device": [
+                "cpu",
+                "cpu"
+              ],
+              "backend": [
+                "base",
+                "base"
+              ],
+              "selection_reason": [
+                "explicit_cpu",
+                "algorithm_cpu_only"
+              ],
+              "fallback": [
+                false,
+                false
+              ],
+              "output_device": [
+                "cpu",
+                "cpu"
+              ]
+            }
+          },
+          "pca_scores_device_resident": false
+        },
+        "memory": {
+          "operation_owned_current_before_bytes": 0,
+          "operation_owned_peak_bytes": 0,
+          "operation_owned_result_bytes": 0,
+          "operation_owned_post_cleanup_difference_bytes": 0,
+          "whole_device_used_before_bytes": 1171652608,
+          "whole_device_used_with_result_bytes": 1171652608,
+          "whole_device_used_after_cleanup_bytes": 1171652608,
+          "whole_device_post_cleanup_absolute_difference_bytes": 0
+        }
+      },
+      "native": {
+        "status": "complete",
+        "rows": 10000,
+        "columns": 100,
+        "n_components": 50,
+        "cold_seconds": {
+          "pca": 0.06999999999999984,
+          "knn_continuation": 0.24000000000000021,
+          "full_pipeline": 0.31000000000000005
+        },
+        "pca": {
+          "median_seconds": 0.059999999999999609,
+          "p95_seconds": 0.070000000000000284,
+          "runs_seconds": [
+            0.050000000000000711,
+            0.059999999999999609,
+            0.060000000000000497,
+            0.070000000000000284,
+            0.059999999999999609,
+            0.069999999999999396,
+            0.060000000000000497,
+            0.050000000000000711,
+            0.059999999999999609,
+            0.040000000000000036
+          ]
+        },
+        "knn_continuation": {
+          "median_seconds": 0.19999999999999973,
+          "p95_seconds": 0.20999999999999996,
+          "runs_seconds": [
+            0.1899999999999995,
+            0.19000000000000039,
+            0.19999999999999929,
+            0.20000000000000018,
+            0.20000000000000018,
+            0.20000000000000018,
+            0.20000000000000018,
+            0.19999999999999929,
+            0.19000000000000039,
+            0.20999999999999996
+          ]
+        },
+        "full_pipeline": {
+          "median_seconds": 0.25499999999999989,
+          "p95_seconds": 0.27000000000000046,
+          "runs_seconds": [
+            0.24000000000000021,
+            0.25,
+            0.25999999999999979,
+            0.27000000000000046,
+            0.25999999999999979,
+            0.26999999999999957,
+            0.26000000000000068,
+            0.25,
+            0.25,
+            0.25
+          ]
+        },
+        "validation": {
+          "pca_sdev_max_absolute_error": 2.6645352591003757e-15,
+          "pca_subspace_projector_max_absolute_error": 1.0375034165122088e-13,
+          "pca_reconstruction_max_absolute_error": 7.2397643435806458e-13,
+          "pca_reconstruction_max_relative_error": 1.9846804044458856e-13,
+          "knn_indices_identical": true,
+          "knn_distance_max_absolute_error": 1.1688428003253648e-12,
+          "knn_distance_max_relative_error": 1.1678407150784887e-13,
+          "passed": true
+        },
+        "provenance": {
+          "pca": {
+            "schema": "cudaverse-stage/1",
+            "compute_device": "cuda",
+            "stages": {
+              "stage": [
+                "preprocessing",
+                "decomposition",
+                "scores_resident"
+              ],
+              "requested_device": [
+                "cuda",
+                "cuda",
+                "cuda"
+              ],
+              "device": [
+                "cuda",
+                "cuda",
+                "cuda"
+              ],
+              "backend": [
+                "native",
+                "native",
+                "native"
+              ],
+              "selection_reason": [
+                "explicit_cuda",
+                "explicit_cuda",
+                "device_resident_output"
+              ],
+              "fallback": [
+                false,
+                false,
+                false
+              ],
+              "output_device": [
+                "cuda",
+                "cpu",
+                "cuda"
+              ]
+            }
+          },
+          "knn": {
+            "schema": "cudaverse-stage/1",
+            "compute_device": "cuda",
+            "stages": {
+              "stage": [
+                "input_materialization",
+                "distance",
+                "neighbor_selection"
+              ],
+              "requested_device": [
+                "inherited",
+                "cuda",
+                "cuda"
+              ],
+              "device": [
+                "cuda",
+                "cuda",
+                "cuda"
+              ],
+              "backend": [
+                "native",
+                "native",
+                "native"
+              ],
+              "selection_reason": [
+                "device_resident_input",
+                "explicit_cuda",
+                "explicit_cuda"
+              ],
+              "fallback": [
+                false,
+                false,
+                false
+              ],
+              "output_device": [
+                "cuda",
+                "cuda",
+                "cpu"
+              ]
+            }
+          },
+          "pca_scores_device_resident": true
+        },
+        "memory": {
+          "operation_owned_current_before_bytes": 0,
+          "operation_owned_peak_bytes": 77493116,
+          "operation_owned_result_bytes": 4000000,
+          "operation_owned_post_cleanup_difference_bytes": 0,
+          "backend_allocator_peak_bytes": 77493116,
+          "backend_allocator_reserved_peak_bytes": null,
+          "backend_allocator_peak_source": "cudaverseCUDA allocation tracker",
+          "whole_device_used_before_bytes": 1209401344,
+          "whole_device_used_with_result_bytes": 1213595648,
+          "whole_device_used_after_cleanup_bytes": 1209401344,
+          "whole_device_post_cleanup_absolute_difference_bytes": 0
+        }
+      },
+      "torch": {
+        "status": "complete",
+        "rows": 10000,
+        "columns": 100,
+        "n_components": 50,
+        "cold_seconds": {
+          "pca": 0.11999999999999922,
+          "knn_continuation": 8.5000000000000018,
+          "full_pipeline": 8.620000000000001
+        },
+        "pca": {
+          "median_seconds": 0.28999999999999915,
+          "p95_seconds": 0.39000000000000057,
+          "runs_seconds": [
+            0.38000000000000256,
+            0.27999999999999403,
+            0.28000000000000114,
+            0.24000000000000909,
+            0.26999999999999602,
+            0.28000000000000114,
+            0.29999999999999716,
+            0.32999999999999829,
+            0.39000000000000057,
+            0.37999999999999545
+          ]
+        },
+        "knn_continuation": {
+          "median_seconds": 7.3199999999999967,
+          "p95_seconds": 8.8700000000000045,
+          "runs_seconds": [
+            7.4799999999999969,
+            7.4799999999999969,
+            7.1200000000000045,
+            8.6899999999999977,
+            8.8700000000000045,
+            8.8399999999999892,
+            7.0099999999999909,
+            7.1599999999999966,
+            6.5699999999999932,
+            6.7499999999999858
+          ]
+        },
+        "full_pipeline": {
+          "median_seconds": 7.6249999999999929,
+          "p95_seconds": 9.1400000000000006,
+          "runs_seconds": [
+            7.8599999999999994,
+            7.7599999999999909,
+            7.4000000000000057,
+            8.9300000000000068,
+            9.1400000000000006,
+            9.1199999999999903,
+            7.3099999999999881,
+            7.4899999999999949,
+            6.9599999999999937,
+            7.1299999999999812
+          ]
+        },
+        "validation": {
+          "pca_sdev_max_absolute_error": 2.0650148258027912e-14,
+          "pca_subspace_projector_max_absolute_error": 6.7501559897209518e-14,
+          "pca_reconstruction_max_absolute_error": 1.0200729150255938e-12,
+          "pca_reconstruction_max_relative_error": 2.7963876025224347e-13,
+          "knn_indices_identical": true,
+          "knn_distance_max_absolute_error": 1.4921397450962104e-12,
+          "knn_distance_max_relative_error": 1.4908604873342411e-13,
+          "passed": true
+        },
+        "provenance": {
+          "pca": {
+            "schema": "cudaverse-stage/1",
+            "compute_device": "cuda",
+            "stages": {
+              "stage": [
+                "preprocessing",
+                "decomposition"
+              ],
+              "requested_device": [
+                "cuda",
+                "cuda"
+              ],
+              "device": [
+                "cuda",
+                "cuda"
+              ],
+              "backend": [
+                "torch",
+                "torch"
+              ],
+              "selection_reason": [
+                "explicit_cuda",
+                "explicit_cuda"
+              ],
+              "fallback": [
+                false,
+                false
+              ],
+              "output_device": [
+                "cuda",
+                "cpu"
+              ]
+            }
+          },
+          "knn": {
+            "schema": "cudaverse-stage/1",
+            "compute_device": "hybrid",
+            "stages": {
+              "stage": [
+                "distance",
+                "neighbor_selection"
+              ],
+              "requested_device": [
+                "cuda",
+                "fixed-cpu"
+              ],
+              "device": [
+                "cuda",
+                "cpu"
+              ],
+              "backend": [
+                "torch",
+                "base"
+              ],
+              "selection_reason": [
+                "explicit_cuda",
+                "algorithm_cpu_only"
+              ],
+              "fallback": [
+                false,
+                false
+              ],
+              "output_device": [
+                "cpu",
+                "cpu"
+              ]
+            }
+          },
+          "pca_scores_device_resident": false
+        },
+        "memory": {
+          "operation_owned_current_before_bytes": 0,
+          "operation_owned_peak_bytes": 0,
+          "operation_owned_result_bytes": 0,
+          "operation_owned_post_cleanup_difference_bytes": 0,
+          "backend_allocator_peak_bytes": 80619008,
+          "backend_allocator_reserved_peak_bytes": 134217728,
+          "backend_allocator_peak_source": "torch CUDA allocator statistics",
+          "whole_device_used_before_bytes": 1400242176,
+          "whole_device_used_with_result_bytes": 1400242176,
+          "whole_device_used_after_cleanup_bytes": 1400242176,
+          "whole_device_post_cleanup_absolute_difference_bytes": 0
+        }
+      }
+    },
+    "50000x128": {
+      "base": {
+        "status": "complete",
+        "rows": 50000,
+        "columns": 128,
+        "n_components": 50,
+        "cold_seconds": {
+          "pca": 1.8600000000000003,
+          "knn_continuation": 326.40000000000003,
+          "full_pipeline": 328.26000000000005
+        },
+        "pca": {
+          "median_seconds": 1.9100000000003092,
+          "p95_seconds": 2.1899999999995998,
+          "runs_seconds": [
+            1.8699999999998909,
+            1.9700000000002547,
+            1.8900000000003274,
+            1.8000000000001819,
+            1.930000000000291,
+            2.0599999999999454,
+            1.9699999999997999,
+            2.1899999999995998,
+            1.7699999999995271,
+            1.6400000000003274
+          ]
+        },
+        "knn_continuation": {
+          "median_seconds": 337.19999999999982,
+          "p95_seconds": 346.61999999999989,
+          "runs_seconds": [
+            341.26999999999998,
+            316.40999999999985,
+            312.66999999999962,
+            342.80999999999995,
+            333.12999999999965,
+            324.86999999999989,
+            343.51999999999998,
+            329.14000000000033,
+            346.61999999999989,
+            344.63000000000011
+          ]
+        },
+        "full_pipeline": {
+          "median_seconds": 339.09999999999991,
+          "p95_seconds": 348.38999999999942,
+          "runs_seconds": [
+            343.13999999999987,
+            318.38000000000011,
+            314.55999999999995,
+            344.61000000000013,
+            335.05999999999995,
+            326.92999999999984,
+            345.48999999999978,
+            331.32999999999993,
+            348.38999999999942,
+            346.27000000000044
+          ]
+        },
+        "validation": {
+          "pca_sdev_max_absolute_error": 0,
+          "pca_subspace_projector_max_absolute_error": 0,
+          "pca_reconstruction_max_absolute_error": 0,
+          "pca_reconstruction_max_relative_error": 0,
+          "knn_indices_identical": true,
+          "knn_distance_max_absolute_error": 0,
+          "knn_distance_max_relative_error": 0,
+          "passed": true
+        },
+        "provenance": {
+          "pca": {
+            "schema": "cudaverse-stage/1",
+            "compute_device": "cpu",
+            "stages": {
+              "stage": [
+                "preprocessing",
+                "decomposition"
+              ],
+              "requested_device": [
+                "cpu",
+                "cpu"
+              ],
+              "device": [
+                "cpu",
+                "cpu"
+              ],
+              "backend": [
+                "stats",
+                "stats"
+              ],
+              "selection_reason": [
+                "explicit_cpu",
+                "explicit_cpu"
+              ],
+              "fallback": [
+                false,
+                false
+              ],
+              "output_device": [
+                "cpu",
+                "cpu"
+              ]
+            }
+          },
+          "knn": {
+            "schema": "cudaverse-stage/1",
+            "compute_device": "cpu",
+            "stages": {
+              "stage": [
+                "distance",
+                "neighbor_selection"
+              ],
+              "requested_device": [
+                "cpu",
+                "fixed-cpu"
+              ],
+              "device": [
+                "cpu",
+                "cpu"
+              ],
+              "backend": [
+                "base",
+                "base"
+              ],
+              "selection_reason": [
+                "explicit_cpu",
+                "algorithm_cpu_only"
+              ],
+              "fallback": [
+                false,
+                false
+              ],
+              "output_device": [
+                "cpu",
+                "cpu"
+              ]
+            }
+          },
+          "pca_scores_device_resident": false
+        },
+        "memory": {
+          "operation_owned_current_before_bytes": 0,
+          "operation_owned_peak_bytes": 0,
+          "operation_owned_result_bytes": 0,
+          "operation_owned_post_cleanup_difference_bytes": 0,
+          "whole_device_used_before_bytes": 1171652608,
+          "whole_device_used_with_result_bytes": 1171652608,
+          "whole_device_used_after_cleanup_bytes": 1171652608,
+          "whole_device_post_cleanup_absolute_difference_bytes": 0
+        }
+      },
+      "native": {
+        "status": "complete",
+        "rows": 50000,
+        "columns": 128,
+        "n_components": 50,
+        "cold_seconds": {
+          "pca": 0.25,
+          "knn_continuation": 3.6099999999999999,
+          "full_pipeline": 3.8599999999999999
+        },
+        "pca": {
+          "median_seconds": 0.25999999999999979,
+          "p95_seconds": 0.29999999999999716,
+          "runs_seconds": [
+            0.23999999999999844,
+            0.26999999999999957,
+            0.25,
+            0.29999999999999716,
+            0.25,
+            0.24000000000000199,
+            0.27000000000000313,
+            0.24000000000000199,
+            0.28000000000000114,
+            0.29999999999999716
+          ]
+        },
+        "knn_continuation": {
+          "median_seconds": 3.5899999999999999,
+          "p95_seconds": 3.6499999999999986,
+          "runs_seconds": [
+            3.5700000000000003,
+            3.5899999999999963,
+            3.6499999999999986,
+            3.5900000000000034,
+            3.5700000000000003,
+            3.5900000000000034,
+            3.5799999999999983,
+            3.5700000000000003,
+            3.6000000000000014,
+            3.6100000000000065
+          ]
+        },
+        "full_pipeline": {
+          "median_seconds": 3.8549999999999986,
+          "p95_seconds": 3.9100000000000037,
+          "runs_seconds": [
+            3.8099999999999987,
+            3.8599999999999959,
+            3.8999999999999986,
+            3.8900000000000006,
+            3.8200000000000003,
+            3.8300000000000054,
+            3.8500000000000014,
+            3.8100000000000023,
+            3.8800000000000026,
+            3.9100000000000037
+          ]
+        },
+        "validation": {
+          "pca_sdev_max_absolute_error": 4.6629367034256575e-15,
+          "pca_subspace_projector_max_absolute_error": 2.4791280139879746e-13,
+          "pca_reconstruction_max_absolute_error": 2.0192736371882347e-12,
+          "pca_reconstruction_max_relative_error": 5.9797829675326023e-13,
+          "knn_indices_identical": true,
+          "knn_distance_max_absolute_error": 2.9141133950361109e-12,
+          "knn_distance_max_relative_error": 3.0792017868516305e-13,
+          "passed": true
+        },
+        "provenance": {
+          "pca": {
+            "schema": "cudaverse-stage/1",
+            "compute_device": "cuda",
+            "stages": {
+              "stage": [
+                "preprocessing",
+                "decomposition",
+                "scores_resident"
+              ],
+              "requested_device": [
+                "cuda",
+                "cuda",
+                "cuda"
+              ],
+              "device": [
+                "cuda",
+                "cuda",
+                "cuda"
+              ],
+              "backend": [
+                "native",
+                "native",
+                "native"
+              ],
+              "selection_reason": [
+                "explicit_cuda",
+                "explicit_cuda",
+                "device_resident_output"
+              ],
+              "fallback": [
+                false,
+                false,
+                false
+              ],
+              "output_device": [
+                "cuda",
+                "cpu",
+                "cuda"
+              ]
+            }
+          },
+          "knn": {
+            "schema": "cudaverse-stage/1",
+            "compute_device": "cuda",
+            "stages": {
+              "stage": [
+                "input_materialization",
+                "distance",
+                "neighbor_selection"
+              ],
+              "requested_device": [
+                "inherited",
+                "cuda",
+                "cuda"
+              ],
+              "device": [
+                "cuda",
+                "cuda",
+                "cuda"
+              ],
+              "backend": [
+                "native",
+                "native",
+                "native"
+              ],
+              "selection_reason": [
+                "device_resident_input",
+                "explicit_cuda",
+                "explicit_cuda"
+              ],
+              "fallback": [
+                false,
+                false,
+                false
+              ],
+              "output_device": [
+                "cuda",
+                "cuda",
+                "cpu"
+              ]
+            }
+          },
+          "pca_scores_device_resident": true
+        },
+        "memory": {
+          "operation_owned_current_before_bytes": 0,
+          "operation_owned_peak_bytes": 462388988,
+          "operation_owned_result_bytes": 20000000,
+          "operation_owned_post_cleanup_difference_bytes": 0,
+          "backend_allocator_peak_bytes": 462388988,
+          "backend_allocator_reserved_peak_bytes": null,
+          "backend_allocator_peak_source": "cudaverseCUDA allocation tracker",
+          "whole_device_used_before_bytes": 1209401344,
+          "whole_device_used_with_result_bytes": 1230372864,
+          "whole_device_used_after_cleanup_bytes": 1209401344,
+          "whole_device_post_cleanup_absolute_difference_bytes": 0
+        }
+      },
+      "torch": {
+        "status": "complete",
+        "rows": 50000,
+        "columns": 128,
+        "n_components": 50,
+        "cold_seconds": {
+          "pca": 0.31999999999999984,
+          "knn_continuation": 178.34,
+          "full_pipeline": 178.66
+        },
+        "pca": {
+          "median_seconds": 0.44000000000005457,
+          "p95_seconds": 0.50999999999999091,
+          "runs_seconds": [
+            0.36999999999989086,
+            0.44000000000005457,
+            0.50999999999999091,
+            0.5,
+            0.41000000000008185,
+            0.25,
+            0.44000000000005457,
+            0.45000000000027285,
+            0.23999999999978172,
+            0.46000000000003638
+          ]
+        },
+        "knn_continuation": {
+          "median_seconds": 180.6350000000001,
+          "p95_seconds": 187.25,
+          "runs_seconds": [
+            174.01999999999998,
+            179.58999999999992,
+            173.3599999999999,
+            177.72000000000003,
+            180.87000000000012,
+            184.91999999999985,
+            182.18000000000029,
+            187.25,
+            180.40000000000009,
+            180.94000000000005
+          ]
+        },
+        "full_pipeline": {
+          "median_seconds": 180.96000000000004,
+          "p95_seconds": 187.70000000000027,
+          "runs_seconds": [
+            174.38999999999987,
+            180.02999999999997,
+            173.86999999999989,
+            178.22000000000003,
+            181.2800000000002,
+            185.16999999999985,
+            182.62000000000035,
+            187.70000000000027,
+            180.63999999999987,
+            181.40000000000009
+          ]
+        },
+        "validation": {
+          "pca_sdev_max_absolute_error": 3.0198066269804258e-14,
+          "pca_subspace_projector_max_absolute_error": 7.9181106116266164e-13,
+          "pca_reconstruction_max_absolute_error": 9.7204466698030956e-12,
+          "pca_reconstruction_max_relative_error": 2.8785678356023171e-12,
+          "knn_indices_identical": true,
+          "knn_distance_max_absolute_error": 1.7013057629355899e-11,
+          "knn_distance_max_relative_error": 1.7976869925980792e-12,
+          "passed": true
+        },
+        "provenance": {
+          "pca": {
+            "schema": "cudaverse-stage/1",
+            "compute_device": "cuda",
+            "stages": {
+              "stage": [
+                "preprocessing",
+                "decomposition"
+              ],
+              "requested_device": [
+                "cuda",
+                "cuda"
+              ],
+              "device": [
+                "cuda",
+                "cuda"
+              ],
+              "backend": [
+                "torch",
+                "torch"
+              ],
+              "selection_reason": [
+                "explicit_cuda",
+                "explicit_cuda"
+              ],
+              "fallback": [
+                false,
+                false
+              ],
+              "output_device": [
+                "cuda",
+                "cpu"
+              ]
+            }
+          },
+          "knn": {
+            "schema": "cudaverse-stage/1",
+            "compute_device": "hybrid",
+            "stages": {
+              "stage": [
+                "distance",
+                "neighbor_selection"
+              ],
+              "requested_device": [
+                "cuda",
+                "fixed-cpu"
+              ],
+              "device": [
+                "cuda",
+                "cpu"
+              ],
+              "backend": [
+                "torch",
+                "base"
+              ],
+              "selection_reason": [
+                "explicit_cuda",
+                "algorithm_cpu_only"
+              ],
+              "fallback": [
+                false,
+                false
+              ],
+              "output_device": [
+                "cpu",
+                "cpu"
+              ]
+            }
+          },
+          "pca_scores_device_resident": false
+        },
+        "memory": {
+          "operation_owned_current_before_bytes": 0,
+          "operation_owned_peak_bytes": 0,
+          "operation_owned_result_bytes": 0,
+          "operation_owned_post_cleanup_difference_bytes": 0,
+          "backend_allocator_peak_bytes": 420204032,
+          "backend_allocator_reserved_peak_bytes": 591396864,
+          "backend_allocator_peak_source": "torch CUDA allocator statistics",
+          "whole_device_used_before_bytes": 1819672576,
+          "whole_device_used_with_result_bytes": 1819672576,
+          "whole_device_used_after_cleanup_bytes": 1819672576,
+          "whole_device_post_cleanup_absolute_difference_bytes": 0
+        }
+      }
+    }
+  },
+  "source_fragments": ["1000x50-base.json", "1000x50-gpu-v2.json", "10000x100-base.json", "10000x100-gpu-v2.json", "50000x128-base.json", "50000x128-native.json", "50000x128-torch.json"],
+  "fragment_sources": {
+    "1000x50-base.json": {
+      "cudaverseCUDA": {
+        "commit": "4e871c65a289dfd8f465b002c459f5f78b9c0a74",
+        "dirty": false
+      },
+      "cudaverse": {
+        "commit": "2e1adf4a1cc3960055561a06369b6203baf1cbdc",
+        "dirty": false
+      }
+    },
+    "1000x50-gpu-v2.json": {
+      "cudaverseCUDA": {
+        "commit": "d7f694871ac8ec97f6549f3791672244a927db07",
+        "dirty": false
+      },
+      "cudaverse": {
+        "commit": "f424e29b115ceb6e7ba3282e7d15ad52dbdab413",
+        "dirty": false
+      }
+    },
+    "10000x100-base.json": {
+      "cudaverseCUDA": {
+        "commit": "4e871c65a289dfd8f465b002c459f5f78b9c0a74",
+        "dirty": false
+      },
+      "cudaverse": {
+        "commit": "2e1adf4a1cc3960055561a06369b6203baf1cbdc",
+        "dirty": false
+      }
+    },
+    "10000x100-gpu-v2.json": {
+      "cudaverseCUDA": {
+        "commit": "d7f694871ac8ec97f6549f3791672244a927db07",
+        "dirty": false
+      },
+      "cudaverse": {
+        "commit": "f424e29b115ceb6e7ba3282e7d15ad52dbdab413",
+        "dirty": false
+      }
+    },
+    "50000x128-base.json": {
+      "cudaverseCUDA": {
+        "commit": "4e871c65a289dfd8f465b002c459f5f78b9c0a74",
+        "dirty": false
+      },
+      "cudaverse": {
+        "commit": "2e1adf4a1cc3960055561a06369b6203baf1cbdc",
+        "dirty": false
+      }
+    },
+    "50000x128-native.json": {
+      "cudaverseCUDA": {
+        "commit": "d7f694871ac8ec97f6549f3791672244a927db07",
+        "dirty": false
+      },
+      "cudaverse": {
+        "commit": "f424e29b115ceb6e7ba3282e7d15ad52dbdab413",
+        "dirty": false
+      }
+    },
+    "50000x128-torch.json": {
+      "cudaverseCUDA": {
+        "commit": "d7f694871ac8ec97f6549f3791672244a927db07",
+        "dirty": false
+      },
+      "cudaverse": {
+        "commit": "f424e29b115ceb6e7ba3282e7d15ad52dbdab413",
+        "dirty": false
+      }
+    }
+  },
+  "hardware_validation": {
+    "schema": "cudaverse-native-phase2-validation/1",
+    "generated_at_utc": "2026-08-09 17:45:36 UTC",
+    "source": {
+      "cudaverseCUDA": {
+        "commit": "d7f694871ac8ec97f6549f3791672244a927db07",
+        "dirty": false
+      },
+      "cudaverse": {
+        "commit": "f424e29b115ceb6e7ba3282e7d15ad52dbdab413",
+        "dirty": false
+      }
+    },
+    "software": {
+      "R": "R version 4.6.0 (2026-04-24 ucrt)",
+      "cudaverse": "0.2.0.9000",
+      "cudaverseCUDA": "0.2.0.9000",
+      "diagnostics": {
+        "installed": true,
+        "available": true,
+        "device_count": 1,
+        "version": "13020",
+        "reason": "cuda_available",
+        "detection_error": null,
+        "driver_version": 13020,
+        "cublas_loaded": true,
+        "kernels_loaded": true
+      }
+    },
+    "lifecycle": {
+      "cycles": 1000,
+      "transfer_parity": true,
+      "tracked_bytes_before": 0,
+      "tracked_bytes_after": 0,
+      "tracked_difference_bytes": 0,
+      "whole_device_used_before_bytes": 1171652608,
+      "whole_device_used_after_bytes": 1171652608,
+      "whole_device_absolute_difference_bytes": 0,
+      "acceptance_bytes": 1048576,
+      "passed": true
+    },
+    "structured_errors": {
+      "injections": 100,
+      "condition_classes": [
+        "cudaverse_native_error",
+        "cudaverse_backend_operation_error",
+        "cudaverse_backend_error",
+        "error",
+        "condition"
+      ],
+      "backend": "native",
+      "operation": "algorithm_pca",
+      "structured": true,
+      "tracked_bytes_before": 0,
+      "tracked_bytes_after": 0,
+      "tracked_difference_bytes": 0,
+      "whole_device_used_before_bytes": 1209401344,
+      "whole_device_used_after_bytes": 1209401344,
+      "whole_device_absolute_difference_bytes": 0,
+      "acceptance_bytes": 1048576,
+      "passed": true
+    },
+    "cuda_errors": {
+      "injections": 100,
+      "temporary_allocation_bytes": 4096,
+      "condition_classes": [
+        "cudaverse_native_error",
+        "cudaverse_backend_operation_error",
+        "cudaverse_backend_error",
+        "error",
+        "condition"
+      ],
+      "backend": "native",
+      "operation": "test_inject_cuda_error",
+      "message": "Native CUDA backend failed during `test_inject_cuda_error`: injected cuMemAlloc: CUDA error 2 (CUDA_ERROR_OUT_OF_MEMORY): out of memory",
+      "structured": true,
+      "tracked_bytes_before": 0,
+      "tracked_bytes_after": 0,
+      "tracked_difference_bytes": 0,
+      "whole_device_used_before_bytes": 1209401344,
+      "whole_device_used_after_bytes": 1209401344,
+      "whole_device_absolute_difference_bytes": 0,
+      "acceptance_bytes": 1048576,
+      "passed": true
+    },
+    "repeated_pipeline": {
+      "cycles": 100,
+      "result_shape_valid": true,
+      "tracked_bytes_before": 0,
+      "tracked_bytes_after": 0,
+      "tracked_difference_bytes": 0,
+      "whole_device_used_before_bytes": 1209401344,
+      "whole_device_used_after_bytes": 1209401344,
+      "whole_device_absolute_difference_bytes": 0,
+      "acceptance_bytes": 1048576,
+      "passed": true
+    },
+    "interruption": {
+      "condition_classes": [
+        "simpleError",
+        "error",
+        "condition"
+      ],
+      "condition_message": "reached elapsed time limit",
+      "interrupted": true,
+      "backend_reusable": true,
+      "tracked_bytes_before": 0,
+      "tracked_bytes_after": 0,
+      "tracked_difference_bytes": 0,
+      "whole_device_used_before_bytes": 1209401344,
+      "whole_device_used_after_bytes": 1209401344,
+      "whole_device_absolute_difference_bytes": 0,
+      "acceptance_bytes": 1048576,
+      "passed": true
+    },
+    "passed": true
+  }
+}

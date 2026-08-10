@@ -38,12 +38,11 @@ runtime. The initial choices will be `native`, `torch`, and `cpu`, with `auto`
 selecting the best validated backend. During migration, torch remains an
 optional compatibility backend and the CPU path remains the portable fallback.
 
-The optional
-[`cudaverseCUDA`](https://github.com/cudaverse/cudaverseCUDA) extension now
-implements the native sparse Phase 3 pipeline and Phase 4 release-hardening
-candidate. The main package discovers it
-lazily; it remains installable and fully checkable without the extension or
-CUDA. The native implementation uses NVIDIA's focused numerical libraries
+The native sparse Phase 3 pipeline and Phase 4 release-hardening candidate are
+now integrated directly into `cudaverse`. Registration is internal and NVIDIA
+runtime discovery remains lazy, so the package remains installable and fully
+checkable without CUDA. The native implementation uses NVIDIA's focused
+numerical libraries
 where they are a good fit:
 
 - cuBLAS for dense matrix multiplication;
@@ -93,8 +92,8 @@ R workflow timing. It must also report CPU-only and hybrid stages so users can
 see where acceleration actually occurred.
 
 Stage-one, dense Phase 2, and sparse Phase 3 parity, provenance, error recovery,
-interruption, allocation high-water, and benchmark contracts are versioned in
-the `cudaverseCUDA` repository. The CycloneDX SBOM and third-party license
+interruption, allocation high-water, and benchmark contracts are preserved in
+`inst/reports/native`. The CycloneDX SBOM and third-party license
 inventory explicitly distinguish package-owned PTX from dynamically discovered
 NVIDIA runtime libraries. Native automatic preference is now fail-closed behind
 the versioned contract, complete capability set, healthy runtime components,
@@ -103,12 +102,12 @@ artifact-install, SBOM, and license evidence has passed; torch remains
 available for the 0.2 compatibility cycle.
 
 The completed
-[RTX 2000 sparse Phase 3 report](https://github.com/cudaverse/cudaverseCUDA/blob/main/inst/reports/STAGE3.md)
+[RTX 2000 sparse Phase 3 report](../inst/reports/native/STAGE3.md)
 links its human-readable summary to the full machine-readable timing, parity,
 provenance, error-recovery, and lifecycle evidence.
 
 The completed
-[RTX 2000 Phase 4 release-hardening report](https://github.com/cudaverse/cudaverseCUDA/blob/main/inst/reports/STAGE4.md)
+[RTX 2000 Phase 4 release-hardening report](../inst/reports/native/STAGE4.md)
 adds automatic-selection evidence, float32/float64 tensor parity, dense and
 sparse 1,000-cycle lifecycle checks, Windows/Linux artifact installation, and
 checksum-pinned regression gates against Phase 3. The bounded

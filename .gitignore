@@ -4,3 +4,9 @@
 .Ruserdata
 *.Rcheck
 *.tar.gz
+src/*.o
+src/*.dll
+src/*.so
+src/*.dylib
+.isolated-check/
+.check-work/

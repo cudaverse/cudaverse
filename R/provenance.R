@@ -82,23 +82,22 @@
 #' cuda_diagnostics()
 cuda_diagnostics <- function() {
   .backend_register_builtins()
-  .backend_discover_native()
   torch <- .backend_diagnostics("torch")
   registered <- ls(.cudaverse_backends, all.names = TRUE)
   native <- if ("native" %in% registered) {
     .backend_diagnostics("native")
   } else {
     list(
-      installed = FALSE,
+      installed = TRUE,
       available = FALSE,
       device_count = 0L,
       version = NA_character_,
-      reason = if (is.null(.cudaverse_backend_discovery$error)) {
-        "extension_not_installed"
+      reason = if (is.null(.cudaverse_backend_registration$native_error)) {
+        "native_backend_unavailable"
       } else {
         "backend_error"
       },
-      detection_error = .cudaverse_backend_discovery$error
+      detection_error = .cudaverse_backend_registration$native_error
     )
   }
   torch <- .backend_selection_status("torch", torch)
@@ -139,8 +138,7 @@ cuda_diagnostics <- function() {
   ))
   auto_selection_reason <- if (available) {
     selected_details$auto_selection_reason
-  } else if (isTRUE(native$installed) ||
-             !identical(native$reason, "extension_not_installed")) {
+  } else if (isTRUE(native$installed)) {
     native$auto_selection_reason
   } else {
     torch$auto_selection_reason
@@ -229,8 +227,8 @@ cuda_select_device <- function(device = c("auto", "cuda", "cpu")) {
   if (identical(requested_device, "cuda")) {
     message <- paste0(
       "CUDA is unavailable (", auto_selection_reason, "). ",
-      "Install `cudaverseCUDA` or a CUDA-enabled `torch` backend, or use ",
-      "`device = \"cpu\"`."
+      "Make the NVIDIA CUDA driver, cuBLAS 12, and cuSOLVER 11 available, ",
+      "install a CUDA-enabled `torch` backend, or use `device = \"cpu\"`."
     )
     condition <- structure(
       list(

@@ -31,7 +31,7 @@ diagnostics <- cuda_diagnostics()
 diagnostics
 ```
 
-`cuda_diagnostics()` never installs an extension, torch, or a CUDA runtime.
+`cuda_diagnostics()` never installs torch or a CUDA runtime.
 `available_backends`, `auto_eligible_backends`, `auto_selection_reason`,
 `selected_backend`, and `backend_diagnostics` describe the registry. The first
 native diagnostic in a session runs and caches a small transfer, float32 and
@@ -190,7 +190,7 @@ execution or automatic chunking. Printing a tensor with more than 100 values
 shows metadata without copying the full CUDA allocation; explicitly call
 `to_cpu()` only when that transfer is intended.
 
-The optional native pipeline stores COO and CSR metadata in shared device
+The built-in native pipeline stores COO and CSR metadata in shared device
 storage. Sparse normalization remains sparse; sparse-input PCA expands directly
 into a GPU dense buffer, attaches shared device storage to PCA's ordinary R
 score matrix, and a following `cuda_knn()` call reuses that allocation. Exact
@@ -214,10 +214,11 @@ The main-package compatibility job:
 - requires torch to report at least one CUDA device;
 - runs required CPU/CUDA parity and provenance checks.
 
-The `cudaverseCUDA` repository separately compiles on Windows, macOS, Ubuntu,
-and R-devel; reproducibly rebuilds its PTX in CUDA 12.8.1; and runs the explicit
+The integrated native workflow compiles `cudaverse` on Windows, macOS, Ubuntu,
+and R-devel; reproducibly rebuilds its PTX in CUDA 12.8.1; and runs explicit
 native parity, structured-error, interruption, and 1,000-cycle VRAM contracts
-on the RTX 2000 development machine.
+on the RTX 2000 development machine. The ordinary package checks do not need
+CUDA hardware or a CUDA toolkit.
 
 A missing CUDA runtime fails the hardware job. It is never converted into a
 successful skip.

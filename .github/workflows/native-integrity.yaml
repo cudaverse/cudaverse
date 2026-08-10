@@ -1,0 +1,150 @@
+name: native-integrity
+
+on:
+  pull_request:
+  push:
+    branches: [develop/native-cuda]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  supply-chain:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: release
+      - name: Install validation dependencies
+        run: install.packages(c("digest", "jsonlite"))
+        shell: Rscript {0}
+      - name: Reject bundled NVIDIA and LibTorch runtimes
+        run: Rscript tools/check-redistributables.R .
+      - name: Validate SBOM, PTX checksum, and license inventory
+        run: Rscript tools/check-sbom.R
+      - name: Validate the pinned pre-consolidation hardware baseline
+        run: Rscript tools/check-phase4-report.R
+
+  cuda-12-8-1-abi:
+    runs-on: ubuntu-latest
+    container: nvidia/cuda:12.8.1-devel-ubuntu24.04
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install R build toolchain
+        run: |
+          apt-get update -qq
+          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends r-base-dev
+      - name: Compile the registered native bridge
+        run: R CMD SHLIB src/native_backend.cpp -o cudaverse.so
+        env:
+          PKG_LIBS: -ldl
+      - uses: actions/upload-artifact@v7
+        with:
+          name: cudaverse-linux-cuda-12.8.1-abi-${{ github.sha }}
+          path: cudaverse.so
+          retention-days: 14
+
+  cuda-12-8-1-ptx:
+    runs-on: ubuntu-latest
+    container: nvidia/cuda:12.8.1-devel-ubuntu24.04
+    steps:
+      - uses: actions/checkout@v7
+      - name: Rebuild forward-compatible dense kernels
+        run: |
+          mkdir -p generated-kernels
+          nvcc -O3 -ptx -arch=compute_75 \
+            tools/cuda/dense_kernels.cu \
+            -o generated-kernels/cudaverse_dense_kernels.ptx
+          sha256sum generated-kernels/cudaverse_dense_kernels.ptx \
+            > generated-kernels/SHA256SUMS
+      - name: Verify committed PTX reproducibility
+        run: |
+          cmp inst/kernels/cudaverse_dense_kernels.ptx \
+            generated-kernels/cudaverse_dense_kernels.ptx
+          (cd inst/kernels && sha256sum --check SHA256SUMS)
+      - uses: actions/upload-artifact@v7
+        with:
+          name: cudaverse-ptx-cuda-12.8.1-${{ github.sha }}
+          path: generated-kernels
+          retention-days: 14
+
+  package-artifacts:
+    name: artifact (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: release
+          use-public-rspm: true
+      - name: Install hard dependencies and validation helpers
+        shell: Rscript {0}
+        run: |
+          install.packages(c("Matrix", "digest", "jsonlite"))
+      - name: Verify source payload before packaging
+        shell: Rscript {0}
+        run: |
+          source(file.path("tools", "check-sbom.R"))
+          source(file.path("tools", "check-redistributables.R"))
+          check_redistributables(".")
+      - name: Build installable artifact
+        shell: Rscript {0}
+        run: |
+          system2(file.path(R.home("bin"), "R"), c("CMD", "INSTALL", "--build", "."))
+      - name: Scan the built artifact
+        shell: Rscript {0}
+        run: |
+          source(file.path("tools", "check-redistributables.R"))
+          archives <- c(
+            Sys.glob("cudaverse_*.zip"),
+            Sys.glob("cudaverse_*.tar.gz")
+          )
+          stopifnot(length(archives) == 1L)
+          extracted <- tempfile("cudaverse-artifact-")
+          dir.create(extracted)
+          if (endsWith(archives, ".zip")) {
+            utils::unzip(archives, exdir = extracted)
+          } else {
+            utils::untar(archives, exdir = extracted)
+          }
+          check_redistributables(extracted)
+      - name: Install and diagnose the artifact without CUDA
+        shell: Rscript {0}
+        run: |
+          archives <- c(
+            Sys.glob("cudaverse_*.zip"),
+            Sys.glob("cudaverse_*.tar.gz")
+          )
+          stopifnot(length(archives) == 1L)
+          library_path <- tempfile("cudaverse-install-")
+          dir.create(library_path)
+          utils::install.packages(
+            archives,
+            repos = NULL,
+            lib = library_path,
+            type = if (.Platform$OS.type == "windows") "win.binary" else "source"
+          )
+          .libPaths(c(library_path, .libPaths()))
+          library(cudaverse)
+          diagnostics <- cuda_diagnostics()
+          factory <- cudaverse:::.native_backend_factory()
+          stopifnot(
+            identical(factory$name, "native"),
+            is.list(diagnostics$backend_diagnostics$native),
+            isTRUE(diagnostics$backend_diagnostics$native$installed)
+          )
+      - uses: actions/upload-artifact@v7
+        with:
+          name: cudaverse-${{ runner.os }}-${{ github.sha }}
+          path: |
+            cudaverse_*.zip
+            cudaverse_*.tar.gz
+          if-no-files-found: error
+          retention-days: 14
+

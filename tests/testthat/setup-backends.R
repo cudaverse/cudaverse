@@ -1,3 +1,3 @@
 # The main package contract suite validates the stable CPU/torch behavior.
-# Native hardware parity is owned by the optional cudaverseCUDA extension.
+# Native hardware parity runs only when CUDAVERSE_NATIVE_TESTS=true.
 options(cudaverse.cuda_backends = "torch")
