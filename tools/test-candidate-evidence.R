@@ -103,16 +103,17 @@ write_consolidation <- function(source_commit = commit) {
     auto_unbox = TRUE, pretty = TRUE
   )
 }
-write_package_tests <- function(source_commit = commit, skips = 0L) {
+write_package_tests <- function(
+  source_commit = commit, skips = 0L,
+  hardware = "NVIDIA RTX 2000 Ada Generation Laptop GPU"
+) {
   jsonlite::write_json(
     list(
       schema = "cudaverse-native-package-tests/1",
       source = list(cudaverse = list(
         commit = source_commit, tracked_dirty = FALSE
       )),
-      hardware = list(
-        nvidia_smi = "NVIDIA RTX 2000 Ada Generation Laptop GPU"
-      ),
+      hardware = list(nvidia_smi = hardware),
       software = list(R = R.version.string, cudaverse = version),
       testthat = list(
         tests = 10L, expectations = 100L, failures = 0L, errors = 0L,
@@ -390,6 +391,19 @@ expect_error_message(
 )
 write_package_tests()
 manifest$rtx$package_test_report_sha256 <- sha_for("package_tests")
+
+write_package_tests(hardware = "NVIDIA RTX 2000 synthetic different GPU")
+manifest$rtx$package_test_report_sha256 <- sha_for("package_tests")
+write_rtx()
+manifest$rtx$report_sha256 <- sha_for("rtx")
+write_manifest()
+expect_error_message(
+  run_checker(), "RTX input reports do not identify the same hardware"
+)
+write_package_tests()
+manifest$rtx$package_test_report_sha256 <- sha_for("package_tests")
+write_rtx()
+manifest$rtx$report_sha256 <- sha_for("rtx")
 
 write_sbom("0.2.0.9000")
 manifest$supply_chain$sbom_sha256 <- sha_for("sbom")
