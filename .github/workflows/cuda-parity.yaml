@@ -1,9 +1,9 @@
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches: [main, develop/native-cuda]
   pull_request:
-    branches: [main]
+    branches: [main, develop/native-cuda]
     types: [opened, synchronize, reopened, ready_for_review]
 
 name: cuda-parity
@@ -13,22 +13,17 @@ permissions:
 
 jobs:
   hardware-contract:
-    # Fork, bot, draft, and non-collaborator PRs stay skipped here and are
-    # rejected again by the reusable workflow before its runner group is used.
-    if: >-
-      (github.event_name == 'workflow_dispatch' ||
-       vars.CUDAVERSE_NVIDIA_CI == 'enabled') &&
-      (github.event_name != 'workflow_dispatch' ||
-       github.ref == 'refs/heads/main') &&
-      (github.event_name != 'pull_request' ||
-       (github.event.pull_request.base.ref == 'main' &&
-        github.event.pull_request.draft == false &&
-        github.event.pull_request.head.repo.full_name == github.repository &&
-        github.event.pull_request.user.type == 'User' &&
-        github.event.sender.type == 'User' &&
-        !endsWith(github.actor, '[bot]') &&
-        contains(
-          fromJSON('["OWNER","MEMBER","COLLABORATOR"]'),
-          github.event.pull_request.author_association
-        )))
+    # The reusable workflow is the single trust boundary for access to the
+    # protected NVIDIA runner group. Avoid duplicating its event predicate in
+    # callers, where context differences can turn required RTX checks into
+    # misleading skips.
     uses: cudaverse/.github/.github/workflows/cuda-parity.yaml@main
+    with:
+      caller_event: ${{ github.event_name }}
+      caller_repository: ${{ github.repository }}
+      source_repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
+      source_ref: ${{ github.event.pull_request.head.sha || github.ref }}
+      base_ref: ${{ github.event.pull_request.base.ref || '' }}
+      draft: ${{ github.event.pull_request.draft || false }}
+      actor: ${{ github.actor }}
+      author_association: ${{ github.event.pull_request.author_association || '' }}

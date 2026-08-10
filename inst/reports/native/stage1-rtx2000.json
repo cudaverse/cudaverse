@@ -1,0 +1,420 @@
+{
+  "schema": "cudaverse-native-stage1/1",
+  "generated_at_utc": "2026-08-07 01:02:27 UTC",
+  "source_commit": "0ce97a9b385e843af508d8f21095f410fec1ef3a",
+  "hardware": {
+    "nvidia_smi": "NVIDIA RTX 2000 Ada Generation, 595.97, 16380, 8.9"
+  },
+  "software": {
+    "R": "R version 4.6.0 (2026-04-24 ucrt)",
+    "cudaverse": "0.2.0.9000",
+    "cudaverseCUDA": "0.1.0.9000",
+    "native_diagnostics": {
+      "installed": true,
+      "available": true,
+      "device_count": 1,
+      "version": "13020",
+      "reason": "cuda_available",
+      "detection_error": null,
+      "driver_version": 13020,
+      "cublas_loaded": true
+    }
+  },
+  "tolerances": {
+    "float64_matmul_rtol": 1e-08
+  },
+  "installed_size_bytes": 218449,
+  "benchmarks": {
+    "256": {
+      "base": {
+        "cold_seconds": 0.020000000000000018,
+        "resident": {
+          "median_seconds": 0,
+          "p95_seconds": 0.020000000000000018,
+          "runs_seconds": [
+            0.019999999999999962,
+            0,
+            0,
+            0,
+            0.010000000000000009,
+            0,
+            0,
+            0.020000000000000018,
+            0,
+            0
+          ]
+        },
+        "transfer_included": {
+          "median_seconds": 0,
+          "p95_seconds": 0.020000000000000018,
+          "runs_seconds": [
+            0.019999999999999962,
+            0,
+            0,
+            0,
+            0.010000000000000009,
+            0,
+            0,
+            0.020000000000000018,
+            0,
+            0
+          ]
+        },
+        "max_absolute_error": 0,
+        "max_relative_error": 0,
+        "provenance": {
+          "backend": "base",
+          "output_device": "cpu"
+        }
+      },
+      "native": {
+        "cold_seconds": 0.020000000000000018,
+        "resident": {
+          "median_seconds": 0,
+          "p95_seconds": 0,
+          "runs_seconds": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "transfer_included": {
+          "median_seconds": 0,
+          "p95_seconds": 0.020000000000000018,
+          "runs_seconds": [
+            0,
+            0,
+            0,
+            0,
+            0.020000000000000018,
+            0,
+            0,
+            0,
+            0,
+            0.020000000000000018
+          ]
+        },
+        "max_absolute_error": 2.8421709430404007e-14,
+        "max_relative_error": 3.9254033346489591e-16,
+        "provenance": {
+          "stage": "matrix_multiply",
+          "requested_device": "inherited",
+          "device": "cuda",
+          "backend": "native",
+          "selection_reason": "inherited_device",
+          "fallback": false,
+          "output_device": "cuda"
+        }
+      },
+      "torch": {
+        "cold_seconds": 0,
+        "resident": {
+          "median_seconds": 0,
+          "p95_seconds": 0.010000000000000231,
+          "runs_seconds": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0.010000000000000231,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "transfer_included": {
+          "median_seconds": 0,
+          "p95_seconds": 0.020000000000000018,
+          "runs_seconds": [
+            0,
+            0.0099999999999997868,
+            0,
+            0,
+            0.020000000000000018,
+            0,
+            0,
+            0,
+            0.010000000000000231,
+            0
+          ]
+        },
+        "max_absolute_error": 2.8421709430404007e-14,
+        "max_relative_error": 3.9254033346489591e-16,
+        "provenance": {
+          "stage": "matrix_multiply",
+          "requested_device": "inherited",
+          "device": "cuda",
+          "backend": "torch",
+          "selection_reason": "inherited_device",
+          "fallback": false,
+          "output_device": "cuda"
+        }
+      }
+    },
+    "1024": {
+      "base": {
+        "cold_seconds": 0.30000000000000027,
+        "resident": {
+          "median_seconds": 0.35499999999999954,
+          "p95_seconds": 0.41999999999999993,
+          "runs_seconds": [
+            0.37999999999999989,
+            0.35999999999999943,
+            0.34000000000000075,
+            0.37999999999999989,
+            0.33000000000000007,
+            0.3199999999999994,
+            0.36000000000000032,
+            0.34999999999999964,
+            0.34000000000000075,
+            0.41999999999999993
+          ]
+        },
+        "transfer_included": {
+          "median_seconds": 0.35499999999999954,
+          "p95_seconds": 0.41999999999999993,
+          "runs_seconds": [
+            0.37999999999999989,
+            0.35999999999999943,
+            0.34000000000000075,
+            0.37999999999999989,
+            0.33000000000000007,
+            0.3199999999999994,
+            0.36000000000000032,
+            0.34999999999999964,
+            0.34000000000000075,
+            0.41999999999999993
+          ]
+        },
+        "max_absolute_error": 0,
+        "max_relative_error": 0,
+        "provenance": {
+          "backend": "base",
+          "output_device": "cpu"
+        }
+      },
+      "native": {
+        "cold_seconds": 0.029999999999999361,
+        "resident": {
+          "median_seconds": 0.030000000000000249,
+          "p95_seconds": 0.039999999999999147,
+          "runs_seconds": [
+            0.0099999999999997868,
+            0.030000000000001137,
+            0.029999999999999361,
+            0.030000000000001137,
+            0.039999999999999147,
+            0.029999999999999361,
+            0.030000000000001137,
+            0.029999999999999361,
+            0.029999999999999361,
+            0.030000000000001137
+          ]
+        },
+        "transfer_included": {
+          "median_seconds": 0.039999999999999147,
+          "p95_seconds": 0.060000000000000497,
+          "runs_seconds": [
+            0.029999999999999361,
+            0.050000000000000711,
+            0.029999999999999361,
+            0.040000000000000924,
+            0.039999999999999147,
+            0.060000000000000497,
+            0.029999999999999361,
+            0.050000000000000711,
+            0.039999999999999147,
+            0.030000000000001137
+          ]
+        },
+        "max_absolute_error": 8.5265128291212022e-14,
+        "max_relative_error": 5.4989117486510097e-16,
+        "provenance": {
+          "stage": "matrix_multiply",
+          "requested_device": "inherited",
+          "device": "cuda",
+          "backend": "native",
+          "selection_reason": "inherited_device",
+          "fallback": false,
+          "output_device": "cuda"
+        }
+      },
+      "torch": {
+        "cold_seconds": 0.030000000000001137,
+        "resident": {
+          "median_seconds": 0.029999999999999361,
+          "p95_seconds": 0.039999999999999147,
+          "runs_seconds": [
+            0.02000000000000135,
+            0.029999999999999361,
+            0.029999999999999361,
+            0.030000000000001137,
+            0.029999999999999361,
+            0.030000000000001137,
+            0.039999999999999147,
+            0.029999999999999361,
+            0.030000000000001137,
+            0.029999999999999361
+          ]
+        },
+        "transfer_included": {
+          "median_seconds": 0.060000000000000497,
+          "p95_seconds": 0.090000000000001634,
+          "runs_seconds": [
+            0.070000000000000284,
+            0.060000000000000497,
+            0.059999999999998721,
+            0.090000000000001634,
+            0.049999999999998934,
+            0.060000000000000497,
+            0.049999999999998934,
+            0.090000000000001634,
+            0.049999999999998934,
+            0.060000000000000497
+          ]
+        },
+        "max_absolute_error": 8.5265128291212022e-14,
+        "max_relative_error": 5.4989117486510097e-16,
+        "provenance": {
+          "stage": "matrix_multiply",
+          "requested_device": "inherited",
+          "device": "cuda",
+          "backend": "torch",
+          "selection_reason": "inherited_device",
+          "fallback": false,
+          "output_device": "cuda"
+        }
+      }
+    },
+    "4096": {
+      "base": {
+        "cold_seconds": 33.650000000000006,
+        "resident": {
+          "median_seconds": 34.799999999999983,
+          "p95_seconds": 40.170000000000016,
+          "runs_seconds": [37.230000000000018, 35.939999999999998, 35.779999999999973, 40.170000000000016, 35.20999999999998, 34.180000000000007, 33.410000000000025, 34.389999999999986, 32.769999999999982, 32.170000000000016]
+        },
+        "transfer_included": {
+          "median_seconds": 34.799999999999983,
+          "p95_seconds": 40.170000000000016,
+          "runs_seconds": [37.230000000000018, 35.939999999999998, 35.779999999999973, 40.170000000000016, 35.20999999999998, 34.180000000000007, 33.410000000000025, 34.389999999999986, 32.769999999999982, 32.170000000000016]
+        },
+        "max_absolute_error": 0,
+        "max_relative_error": 0,
+        "provenance": {
+          "backend": "base",
+          "output_device": "cpu"
+        }
+      },
+      "native": {
+        "cold_seconds": 0.77999999999999403,
+        "resident": {
+          "median_seconds": 0.71999999999999886,
+          "p95_seconds": 0.75,
+          "runs_seconds": [
+            0.72000000000000597,
+            0.71999999999999886,
+            0.71999999999999886,
+            0.71000000000000085,
+            0.71999999999999886,
+            0.71999999999999886,
+            0.71999999999999886,
+            0.74000000000000199,
+            0.71000000000000085,
+            0.75
+          ]
+        },
+        "transfer_included": {
+          "median_seconds": 0.83999999999999986,
+          "p95_seconds": 0.85000000000000142,
+          "runs_seconds": [
+            0.83999999999999631,
+            0.85000000000000142,
+            0.82000000000000028,
+            0.85000000000000142,
+            0.83999999999999631,
+            0.84000000000000341,
+            0.85000000000000142,
+            0.83999999999999631,
+            0.82999999999999829,
+            0.84000000000000341
+          ]
+        },
+        "max_absolute_error": 3.4106051316484809e-13,
+        "max_relative_error": 9.2051498582615976e-16,
+        "provenance": {
+          "stage": "matrix_multiply",
+          "requested_device": "inherited",
+          "device": "cuda",
+          "backend": "native",
+          "selection_reason": "inherited_device",
+          "fallback": false,
+          "output_device": "cuda"
+        }
+      },
+      "torch": {
+        "cold_seconds": 0.8300000000000054,
+        "resident": {
+          "median_seconds": 0.71999999999999886,
+          "p95_seconds": 0.72000000000000597,
+          "runs_seconds": [
+            0.71999999999999886,
+            0.71000000000000085,
+            0.71999999999999886,
+            0.71999999999999886,
+            0.71999999999999886,
+            0.71999999999999886,
+            0.72000000000000597,
+            0.71999999999999886,
+            0.71999999999999886,
+            0.71000000000000085
+          ]
+        },
+        "transfer_included": {
+          "median_seconds": 1.1600000000000001,
+          "p95_seconds": 1.25,
+          "runs_seconds": [
+            1.1099999999999994,
+            1.1600000000000037,
+            1.1599999999999966,
+            1.25,
+            1.1700000000000017,
+            1.1499999999999986,
+            1.1799999999999997,
+            1.1400000000000006,
+            1.1700000000000017,
+            1.1200000000000045
+          ]
+        },
+        "max_absolute_error": 3.4106051316484809e-13,
+        "max_relative_error": 9.2051498582615976e-16,
+        "provenance": {
+          "stage": "matrix_multiply",
+          "requested_device": "inherited",
+          "device": "cuda",
+          "backend": "torch",
+          "selection_reason": "inherited_device",
+          "fallback": false,
+          "output_device": "cuda"
+        }
+      }
+    }
+  },
+  "lifecycle": {
+    "cycles": 1000,
+    "used_bytes_before": 1423310848,
+    "used_bytes_after": 1423310848,
+    "absolute_difference_bytes": 0,
+    "acceptance_bytes": 1048576,
+    "passed": true
+  }
+}

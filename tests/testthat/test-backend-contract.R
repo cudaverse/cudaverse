@@ -107,9 +107,6 @@ test_that("missing backend capabilities return structured conditions", {
 test_that("native auto-selection requires its contract, capabilities, and self-test", {
   old_option <- options(cudaverse.cuda_backends = NULL)
   on.exit(options(old_option), add = TRUE)
-  testthat::local_mocked_bindings(
-    .backend_discover_native = function() invisible(NULL)
-  )
 
   registry <- cudaverse:::.cudaverse_backends
   had_native <- exists("native", envir = registry, inherits = FALSE)

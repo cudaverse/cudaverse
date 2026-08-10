@@ -12,16 +12,17 @@ The public API is organized by topic rather than by package:
 - weighted kNN graphs, Louvain, and Leiden clustering;
 - UMAP, t-SNE, and diffusion-map-style embeddings.
 
-CUDA is optional. The development line can discover the lightweight
-[`cudaverseCUDA`](https://github.com/cudaverse/cudaverseCUDA) extension or use
-a supported CUDA-enabled `torch` installation. When neither is available,
-functions use their documented portable backend and record what actually ran.
+CUDA is optional. The development line includes a lightweight native backend
+and can also use a supported CUDA-enabled `torch` installation. NVIDIA
+libraries are discovered only when CUDA diagnostics or selection is requested.
+When neither CUDA path is available, functions use their documented portable
+backend and record what actually ran.
 
 ## Lightweight native CUDA direction
 
 Version 0.1.0 uses `torch` only as an optional CUDA backend; it is not a hard
 package dependency. Development version 0.2 now has a backend registry and a
-separate `cudaverseCUDA` extension behind the same public R API. Phase 3 added
+built-in native implementation behind the same public R API. Phase 3 added
 shared-ownership COO/CSR storage, sparse multiplication and reductions,
 sparse-preserving normalization, and sparse-input PCA/kNN to the validated
 dense Phase 2 pipeline. Phase 4 adds the remaining arithmetic, broadcasting,
@@ -40,17 +41,17 @@ selection. Its measured design benefits are:
 
 These are development-line results, not claims about release 0.1.0. In the
 Phase 4 candidate, native becomes the preferred CUDA backend for `device =
-"auto"` only when extension version 0.4 is installed, its backend contract and
-capabilities match, driver/cuBLAS/cuSOLVER/PTX components are healthy, and a
-cached runtime self-test passes. An older, incomplete, or unhealthy extension
+"auto"` only when its backend contract and capabilities match,
+driver/cuBLAS/cuSOLVER/PTX components are healthy, and a
+cached runtime self-test passes. An incomplete or unhealthy native runtime
 cannot become automatic; torch remains the compatibility CUDA backend and CPU
 remains the observable fallback. Explicit CUDA requests never silently fall
 back. Reproducible PTX, RTX 2000
 parity/lifecycle evidence, the CycloneDX SBOM, and the third-party
-redistribution inventory are published with the extension source. See the
+redistribution inventory are kept in this repository. See the
 [native CUDA roadmap](.github/NATIVE-CUDA-ROADMAP.md) for the architecture and
-  acceptance criteria, the extension's
-  [Phase 4 RTX report](https://github.com/cudaverse/cudaverseCUDA/blob/main/inst/reports/STAGE4.md)
+  acceptance criteria, the historical
+  [Phase 4 RTX report](inst/reports/native/STAGE4.md)
   for machine-backed evidence, and the
   [0.2 release-candidate assessment](.github/NATIVE-CUDA-PHASE4-RC.md) for the
   bounded release decision.
@@ -64,19 +65,22 @@ During development, install from GitHub:
 pak::pak("cudaverse/cudaverse")
 ```
 
-Native CUDA development uses the optional extension. It is discovered lazily,
-so installing `cudaverse` never downloads a CUDA runtime or requires a CUDA
-toolkit:
+The native backend is included but remains runtime-lazy, so installing
+`cudaverse` never downloads a CUDA runtime or requires a CUDA toolkit:
 
 ```r
 pak::pak("cudaverse/cudaverse@develop/native-cuda")
-pak::pak("cudaverse/cudaverseCUDA")
 
 diagnostics <- cuda_diagnostics()
 diagnostics$selected_backend
 diagnostics$auto_eligible_backends
 diagnostics$backend_diagnostics$native$self_test
 ```
+
+On Windows, `CUDAVERSE_CUBLAS_PATH` and `CUDAVERSE_CUSOLVER_PATH` may point
+to user-provided `cublas64_12.dll` and `cusolver64_11.dll` files when those
+libraries are not already on the loader path. The package does not copy or
+redistribute them.
 
 The option `cudaverse.cuda_backends` can still constrain backend order for
 testing, but it cannot bypass native contract, runtime, or self-test gates.

@@ -7,9 +7,10 @@ Authors@R:
 Description: Provides one coherent interface for experimental GPU-aware
     numerical computing in R. Includes dense tensors, sparse matrices,
     decompositions, distances, nearest neighbours, clustering, graph
-    workflows, and embeddings. Uses optional CUDA backend extensions for GPU
-    execution and portable R backends for development, testing, and
-    reproducible fallback behavior.
+    workflows, and embeddings. Includes a lightweight native CUDA backend that
+    discovers NVIDIA runtime libraries lazily, plus portable R and optional
+    'torch' backends for development, testing, and reproducible fallback
+    behavior.
 License: MIT + file LICENSE
 URL: https://cudaverse.github.io/cudaverse/,
     https://github.com/cudaverse/cudaverse
@@ -31,10 +32,10 @@ Suggests:
     SingleCellExperiment,
     testthat (>= 3.0.0),
     torch,
-    uwot,
-    cudaverseCUDA (>= 0.4.0.9000)
-Additional_repositories: https://cudaverse.github.io/cudaverseCUDA
-Remotes: cudaverse/cudaverseCUDA
+    uwot
 VignetteBuilder: knitr
 Config/testthat/edition: 3
 Config/roxygen2/version: 8.0.0
+SystemRequirements: Optional NVIDIA CUDA driver, NVIDIA cuBLAS 12, and NVIDIA
+    cuSOLVER 11 at runtime for native GPU execution
+NeedsCompilation: yes

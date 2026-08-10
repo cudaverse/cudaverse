@@ -1,5 +1,7 @@
 .cudaverse_backends <- new.env(parent = emptyenv())
-.cudaverse_backend_discovery <- new.env(parent = emptyenv())
+.cudaverse_backend_registration <- new.env(parent = emptyenv())
+.cudaverse_backend_registration$native_attempted <- FALSE
+.cudaverse_backend_registration$native_error <- NULL
 
 .backend_contract_schema <- "cudaverse-backend/1"
 
@@ -80,7 +82,6 @@
 
 .backend_get <- function(name) {
   .backend_register_builtins()
-  .backend_discover_native()
   if (!exists(name, envir = .cudaverse_backends, inherits = FALSE)) {
     .backend_stop(sprintf("Backend `%s` is not registered.", name),
                   "cudaverse_backend_unavailable", name)
@@ -468,33 +469,19 @@
   if (!exists("torch", envir = .cudaverse_backends, inherits = FALSE)) {
     .backend_register(.torch_backend_factory())
   }
+  if (!exists("native", envir = .cudaverse_backends, inherits = FALSE) &&
+      !isTRUE(.cudaverse_backend_registration$native_attempted)) {
+    .cudaverse_backend_registration$native_attempted <- TRUE
+    tryCatch(
+      .backend_register(.native_backend_factory()),
+      error = function(error) {
+        .cudaverse_backend_registration$native_error <-
+          conditionMessage(error)
+        NULL
+      }
+    )
+  }
   invisible(TRUE)
-}
-
-.backend_discover_native <- function() {
-  if (isTRUE(.cudaverse_backend_discovery$attempted)) return(invisible(NULL))
-  .cudaverse_backend_discovery$attempted <- TRUE
-  extension <- "cudaverseCUDA"
-  if (!requireNamespace(extension, quietly = TRUE)) {
-    .cudaverse_backend_discovery$error <- NULL
-    return(invisible(NULL))
-  }
-  factory <- tryCatch(
-    getExportedValue(extension, "cudaverse_cuda_backend_factory")(),
-    error = identity
-  )
-  if (inherits(factory, "error")) {
-    .cudaverse_backend_discovery$error <- conditionMessage(factory)
-    return(invisible(NULL))
-  }
-  tryCatch(
-    .backend_register(factory, replace = TRUE),
-    error = function(error) {
-      .cudaverse_backend_discovery$error <- conditionMessage(error)
-      NULL
-    }
-  )
-  invisible(NULL)
 }
 
 .backend_diagnostics <- function(name) {
@@ -620,7 +607,6 @@
 
 .backend_select_cuda <- function(diagnostics = NULL) {
   .backend_register_builtins()
-  .backend_discover_native()
   registered <- ls(.cudaverse_backends, all.names = TRUE)
   for (name in .backend_cuda_order()) {
     if (!name %in% registered) next

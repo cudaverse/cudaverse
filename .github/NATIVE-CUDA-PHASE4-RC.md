@@ -1,5 +1,9 @@
 # cudaverse 0.2 native CUDA release-candidate assessment
 
+> Historical Phase 4 assessment: the implementation described here was later
+> consolidated into the main `cudaverse` package. The pinned results remain
+> the pre-consolidation baseline for the integrated-backend validation.
+
 ## Decision
 
 **GO for integration as a cudaverse 0.2 release candidate; HOLD for any tag,
@@ -12,12 +16,13 @@ assessment.
 ## Candidate boundary
 
 - `cudaverse` remains the only user-facing compute API.
-- `cudaverseCUDA` 0.4 is an optional backend discovered lazily.
-- `device = "auto"` prefers native only when the extension contract,
+- The native implementation is built into `cudaverse` and loads NVIDIA
+  libraries lazily.
+- `device = "auto"` prefers native only when the backend contract,
   capabilities, driver/cuBLAS/cuSOLVER/PTX runtime, and cached self-test pass.
 - Explicit `device = "cuda"` never silently falls back.
 - torch remains an optional compatibility backend for the 0.2 cycle.
-- CPU installation and checks do not require CUDA or the extension.
+- CPU installation and checks do not require CUDA.
 - Windows and Linux provide the native backend; macOS installs a clear
   unsupported-CUDA stub.
 - Dense tensor arithmetic, broadcasting, reshape, transpose, reductions, and
@@ -45,10 +50,10 @@ assessment.
 | Supply chain | CycloneDX SBOM and third-party license inventory | pass |
 | Local source package | `R CMD check --as-cran --no-manual` | 0 errors / 0 warnings / 1 development-metadata note |
 
-The canonical evidence is the
-[`cudaverseCUDA` Phase 4 report](https://github.com/cudaverse/cudaverseCUDA/blob/main/inst/reports/STAGE4.md)
+The canonical evidence is the historical
+[`cudaverseCUDA` Phase 4 report](../inst/reports/native/STAGE4.md)
 and its
-[machine-readable JSON](https://github.com/cudaverse/cudaverseCUDA/blob/main/inst/reports/phase4-rtx2000.json).
+[machine-readable JSON](../inst/reports/native/phase4-rtx2000.json).
 The report records an RTX 2000 Ada Generation, R 4.6.0, cudaverse 0.2.0.9000,
 and cudaverseCUDA 0.4.0.9000. Its Phase 3 baseline SHA-256 is
 `e0d7f1120c21323d6e94ca7930a797f42ab7730fc254897eb2a2c3a4da67f43a`.
@@ -73,8 +78,7 @@ maintainer authorization. Before any later public binary release, rerun the
 SBOM/license gate on the exact artifact and retain its checksum with the source
 commit and hardware evidence.
 
-Before a future CRAN submission, replace the development version, remove the
-development-only `Remotes` field from the exact submission tarball, and rerun
-CRAN incoming checks after the optional repository is publicly reachable. The
-current local NOTE is expected for a development RC and is not being presented
-as a zero-NOTE CRAN candidate.
+Before a future CRAN submission, replace the development version and rerun
+CRAN incoming checks on the exact source tarball. The current local NOTE is
+expected for a development RC and is not being presented as a zero-NOTE CRAN
+candidate.
