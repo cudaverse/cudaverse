@@ -73,7 +73,8 @@
 #'   `torch_version`, `cuda_available`, `cuda_device_count`, `reason`, and
 #'   `detection_error`, plus `available_backends`, `auto_eligible_backends`,
 #'   `auto_selection_reason`, `selected_backend`, and per-backend diagnostic
-#'   details. Native automatic eligibility requires a compatible backend
+#'   details. Each backend detail distinguishes advertised `capabilities` from
+#'   callable internal `operations`. Native automatic eligibility requires a compatible backend
 #'   contract, the complete tensor/algorithm capability set, all runtime
 #'   components, and a passing cached self-test. The legacy fields are retained
 #'   throughout the 0.2 release cycle.
