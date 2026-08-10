@@ -71,6 +71,10 @@ must also exist below the manifest directory and match a freshly computed
 SHA-256, including the benchmark checker logs, pkgdown render log, and final
 decision report. An outside path, tampered artifact, or plausible-looking
 manifest assembled from different checkpoints is therefore not final evidence.
+The checker also parses the CycloneDX component, complete full benchmark JSON,
+and RTX report to require their internal schema, clean source commit, package
+version, and pass state to match the candidate rather than trusting manifest
+metadata alone.
 
 ## Final decision rule
 

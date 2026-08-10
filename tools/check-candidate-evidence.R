@@ -56,6 +56,17 @@ check_evidence_file <- function(path_value, sha_value, label) {
   }
   path
 }
+read_evidence_json <- function(path, label) {
+  value <- tryCatch(
+    jsonlite::read_json(path, simplifyVector = FALSE),
+    error = identity
+  )
+  if (inherits(value, "error")) {
+    require_gate(FALSE, paste(label, "is not valid JSON"))
+    return(NULL)
+  }
+  value
+}
 
 require_gate(
   identical(text_value(manifest$schema), "cudaverse-candidate-evidence/1"),
@@ -158,7 +169,7 @@ require_gate(
   identical(text_value(manifest$supply_chain$source_commit), commit),
   "supply-chain evidence is from another source commit"
 )
-check_evidence_file(
+sbom_path <- check_evidence_file(
   manifest$supply_chain$sbom_file,
   manifest$supply_chain$sbom_sha256,
   "SBOM"
@@ -168,6 +179,16 @@ check_evidence_file(
   manifest$supply_chain$license_inventory_sha256,
   "license inventory"
 )
+sbom <- if (file.exists(sbom_path)) read_evidence_json(sbom_path, "SBOM")
+if (!is.null(sbom)) {
+  require_gate(identical(text_value(sbom$bomFormat), "CycloneDX"),
+               "SBOM is not CycloneDX")
+  require_gate(
+    identical(text_value(sbom$metadata$component$name), "cudaverse") &&
+      identical(text_value(sbom$metadata$component$version), version),
+    "SBOM component does not match the candidate package/version"
+  )
+}
 require_gate(
   identical(number(manifest$supply_chain$bundled_nvidia_runtime_bytes), 0) &&
     identical(number(manifest$supply_chain$bundled_libtorch_bytes), 0),
@@ -178,11 +199,31 @@ require_gate(
   identical(text_value(manifest$rtx$source_commit), commit),
   "RTX evidence is from another source commit"
 )
-check_evidence_file(
+rtx_path <- check_evidence_file(
   manifest$rtx$report_file,
   manifest$rtx$report_sha256,
   "RTX report"
 )
+rtx_report <- if (file.exists(rtx_path)) {
+  read_evidence_json(rtx_path, "RTX report")
+}
+if (!is.null(rtx_report)) {
+  require_gate(
+    identical(text_value(rtx_report$schema), text_value(manifest$rtx$schema)),
+    "RTX report schema does not match the manifest"
+  )
+  require_gate(
+    identical(text_value(rtx_report$source$cudaverse$commit), commit) &&
+      !logical_value(rtx_report$source$cudaverse$tracked_dirty),
+    "RTX report source does not match the clean candidate commit"
+  )
+  require_gate(
+    identical(text_value(rtx_report$software$cudaverse), version),
+    "RTX report package version does not match the candidate"
+  )
+  require_gate(logical_value(rtx_report$overall_pass),
+               "RTX report does not record overall_pass")
+}
 for (gate in c("parity", "structured_recovery", "interruption",
                "backend_reuse", "no_skips")) {
   require_gate(logical_value(manifest$rtx[[gate]]),
@@ -202,7 +243,7 @@ require_gate(
   identical(text_value(manifest$benchmark$source_commit), commit),
   "benchmark evidence is from another source commit"
 )
-check_evidence_file(
+benchmark_path <- check_evidence_file(
   manifest$benchmark$report_file,
   manifest$benchmark$report_sha256,
   "benchmark report"
@@ -222,6 +263,26 @@ check_evidence_file(
   manifest$benchmark$summary_checker_log_sha256,
   "benchmark summary-checker log"
 )
+benchmark_report <- if (file.exists(benchmark_path)) {
+  read_evidence_json(benchmark_path, "benchmark report")
+}
+if (!is.null(benchmark_report)) {
+  require_gate(
+    identical(text_value(benchmark_report$schema), "cudaverse-benchmark/1") &&
+      identical(text_value(benchmark_report$profile), "full") &&
+      logical_value(benchmark_report$complete),
+    "benchmark JSON is not a complete full-profile report"
+  )
+  require_gate(
+    identical(text_value(benchmark_report$source$commit), commit) &&
+      !logical_value(benchmark_report$source$tracked_dirty),
+    "benchmark report source does not match the clean candidate commit"
+  )
+  require_gate(
+    identical(text_value(benchmark_report$software$cudaverse), version),
+    "benchmark report package version does not match the candidate"
+  )
+}
 require_gate(logical_value(manifest$benchmark$complete) &&
                logical_value(manifest$benchmark$report_checker_passed) &&
                logical_value(manifest$benchmark$summary_checker_passed),

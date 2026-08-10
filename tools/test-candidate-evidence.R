@@ -22,6 +22,7 @@ expect_error_message <- function(code, pattern) {
 }
 
 commit <- paste(rep("a", 40L), collapse = "")
+version <- "0.3.0.9000"
 work <- tempfile("cudaverse-candidate-evidence-")
 dir.create(work)
 evidence_files <- c(
@@ -42,11 +43,54 @@ evidence_files <- c(
 write_fixture <- function(name, value = "synthetic retained evidence") {
   writeBin(charToRaw(value), file.path(work, evidence_files[[name]]))
 }
-for (name in names(evidence_files)) write_fixture(name)
-sha <- digest::digest(
-  file.path(work, evidence_files[[1L]]),
-  algo = "sha256", file = TRUE, serialize = FALSE
-)
+plain_files <- setdiff(names(evidence_files), c("sbom", "rtx", "benchmark"))
+for (name in plain_files) write_fixture(name)
+write_sbom <- function(component_version = version) {
+  jsonlite::write_json(
+    list(
+      bomFormat = "CycloneDX",
+      metadata = list(component = list(
+        name = "cudaverse", version = component_version
+      ))
+    ),
+    file.path(work, evidence_files[["sbom"]]),
+    auto_unbox = TRUE, pretty = TRUE
+  )
+}
+write_rtx <- function(source_commit = commit) {
+  jsonlite::write_json(
+    list(
+      schema = "cudaverse-native-candidate/1",
+      source = list(cudaverse = list(
+        commit = source_commit, tracked_dirty = FALSE
+      )),
+      software = list(cudaverse = version),
+      overall_pass = TRUE
+    ),
+    file.path(work, evidence_files[["rtx"]]),
+    auto_unbox = TRUE, pretty = TRUE
+  )
+}
+write_benchmark <- function(source_commit = commit) {
+  jsonlite::write_json(
+    list(
+      schema = "cudaverse-benchmark/1", profile = "full",
+      source = list(commit = source_commit, tracked_dirty = FALSE),
+      software = list(cudaverse = version), complete = TRUE
+    ),
+    file.path(work, evidence_files[["benchmark"]]),
+    auto_unbox = TRUE, pretty = TRUE
+  )
+}
+write_sbom()
+write_rtx()
+write_benchmark()
+sha_for <- function(name) {
+  digest::digest(
+    file.path(work, evidence_files[[name]]),
+    algo = "sha256", file = TRUE, serialize = FALSE
+  )
+}
 check <- function() list(
   source_commit = commit,
   conclusion = "success",
@@ -55,7 +99,7 @@ check <- function() list(
 artifact <- function(name) list(
   source_commit = commit,
   file = evidence_files[[name]],
-  sha256 = sha,
+  sha256 = sha_for(name),
   bytes = as.numeric(file.info(file.path(work, evidence_files[[name]]))$size)
 )
 lifecycle <- function() list(
@@ -76,8 +120,9 @@ manifest <- list(
   ),
   source_tarball = list(
     source_commit = commit, file = evidence_files[["tarball"]],
-    sha256 = sha, check_log_file = evidence_files[["check_log"]],
-    check_log_sha256 = sha,
+    sha256 = sha_for("tarball"),
+    check_log_file = evidence_files[["check_log"]],
+    check_log_sha256 = sha_for("check_log"),
     check = list(errors = 0L, warnings = 0L)
   ),
   github_checks = setNames(
@@ -95,37 +140,40 @@ manifest <- list(
   ),
   supply_chain = list(
     source_commit = commit,
-    sbom_file = evidence_files[["sbom"]], sbom_sha256 = sha,
+    sbom_file = evidence_files[["sbom"]], sbom_sha256 = sha_for("sbom"),
     license_inventory_file = evidence_files[["licenses"]],
-    license_inventory_sha256 = sha,
+    license_inventory_sha256 = sha_for("licenses"),
     bundled_nvidia_runtime_bytes = 0L, bundled_libtorch_bytes = 0L
   ),
   rtx = list(
     source_commit = commit, report_file = evidence_files[["rtx"]],
-    report_sha256 = sha, parity = TRUE,
+    report_sha256 = sha_for("rtx"),
+    schema = "cudaverse-native-candidate/1", parity = TRUE,
     structured_recovery = TRUE, interruption = TRUE, backend_reuse = TRUE,
     no_skips = TRUE,
     lifecycle = list(dense = lifecycle(), sparse = lifecycle())
   ),
   benchmark = list(
     source_commit = commit, report_file = evidence_files[["benchmark"]],
-    report_sha256 = sha, summary_file = evidence_files[["summary"]],
-    summary_sha256 = sha,
+    report_sha256 = sha_for("benchmark"),
+    summary_file = evidence_files[["summary"]],
+    summary_sha256 = sha_for("summary"),
     report_checker_log_file = evidence_files[["benchmark_check"]],
-    report_checker_log_sha256 = sha,
+    report_checker_log_sha256 = sha_for("benchmark_check"),
     summary_checker_log_file = evidence_files[["summary_check"]],
-    summary_checker_log_sha256 = sha,
+    summary_checker_log_sha256 = sha_for("summary_check"),
     complete = TRUE, report_checker_passed = TRUE,
     summary_checker_passed = TRUE
   ),
   documentation = list(
     source_commit = commit, pkgdown_passed = TRUE, render_reviewed = TRUE,
     render_log_file = evidence_files[["pkgdown"]],
-    render_log_sha256 = sha, pages_deployed = FALSE
+    render_log_sha256 = sha_for("pkgdown"), pages_deployed = FALSE
   ),
   decision = list(
     source_commit = commit, outcome = "defer",
-    report_file = evidence_files[["decision"]], report_sha256 = sha,
+    report_file = evidence_files[["decision"]],
+    report_sha256 = sha_for("decision"),
     limitations = list("synthetic limitation"),
     external_release_action_taken = FALSE
   )
@@ -145,7 +193,28 @@ run_checker()
 write_fixture("benchmark", "tampered evidence")
 write_manifest()
 expect_error_message(run_checker(), "benchmark report SHA-256 does not match")
-write_fixture("benchmark")
+write_benchmark()
+
+write_benchmark(paste(rep("c", 40L), collapse = ""))
+manifest$benchmark$report_sha256 <- sha_for("benchmark")
+write_manifest()
+expect_error_message(run_checker(), "benchmark report source does not match")
+write_benchmark()
+manifest$benchmark$report_sha256 <- sha_for("benchmark")
+
+write_rtx(paste(rep("d", 40L), collapse = ""))
+manifest$rtx$report_sha256 <- sha_for("rtx")
+write_manifest()
+expect_error_message(run_checker(), "RTX report source does not match")
+write_rtx()
+manifest$rtx$report_sha256 <- sha_for("rtx")
+
+write_sbom("0.2.0.9000")
+manifest$supply_chain$sbom_sha256 <- sha_for("sbom")
+write_manifest()
+expect_error_message(run_checker(), "SBOM component does not match")
+write_sbom()
+manifest$supply_chain$sbom_sha256 <- sha_for("sbom")
 
 manifest$benchmark$report_file <- "../outside-bundle.json"
 write_manifest()
