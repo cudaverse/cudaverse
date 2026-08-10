@@ -237,9 +237,13 @@ Required evidence before merge:
   2000 and its report passes the machine-readable checker;
 - [x] dirty-source smoke evidence is visibly marked and a full dirty-source
   report is rejected;
-- [ ] an exact clean commit repeats the RTX smoke run and retains a checked
+- [x] exact clean commit
+  `cf40e4793ed33fe98bf7967641194aede0431d40` repeats the RTX smoke run and
+  retains a checked
   report summary without committing bulky transient output;
-- [ ] local CPU/package checks and all GitHub cross-platform, pkgdown,
+- [x] the local CPU suite and source package check pass, including vignette
+  rebuild, with `R CMD check --no-manual` reporting `Status: OK`;
+- [ ] all GitHub cross-platform, pkgdown,
   supply-chain, ABI/PTX, and artifact gates pass.
 
 Deferred beyond CP-05:
