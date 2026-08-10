@@ -7,6 +7,10 @@ sys.source(
   file.path("tools", "native-candidate-report-io.R"),
   envir = environment()
 )
+sys.source(
+  file.path("tools", "check-redistributables.R"),
+  envir = environment()
+)
 
 input <- Sys.getenv("CUDAVERSE_CANDIDATE_MANIFEST", unset = "")
 if (!nzchar(input) || !file.exists(input)) {
@@ -133,6 +137,72 @@ require_gate(
   identical(basename(tarball_path), paste0("cudaverse_", version, ".tar.gz")),
   "source tarball name does not match the candidate version"
 )
+inspect_source_tarball <- function(path) {
+  members <- tryCatch(utils::untar(path, list = TRUE), error = identity)
+  if (inherits(members, "error")) {
+    require_gate(FALSE, "source tarball is not a readable tar archive")
+    return(invisible(FALSE))
+  }
+  normalized <- gsub("\\\\", "/", members)
+  unsafe <- vapply(normalized, function(member) {
+    components <- strsplit(member, "/", fixed = TRUE)[[1L]]
+    grepl("^([A-Za-z]:|/)", member) || any(components == "..")
+  }, logical(1L))
+  require_gate(!any(unsafe), "source tarball contains an unsafe member path")
+  root <- unique(vapply(
+    strsplit(normalized, "/", fixed = TRUE), `[[`, character(1L), 1L
+  ))
+  require_gate(
+    identical(root, "cudaverse") &&
+      "cudaverse/DESCRIPTION" %in% normalized,
+    "source tarball does not contain one cudaverse package root"
+  )
+  if (any(unsafe) || !identical(root, "cudaverse") ||
+      !"cudaverse/DESCRIPTION" %in% normalized) {
+    return(invisible(FALSE))
+  }
+  extracted <- tempfile("cudaverse-source-tarball-")
+  dir.create(extracted)
+  on.exit(unlink(extracted, recursive = TRUE, force = TRUE), add = TRUE)
+  result <- tryCatch({
+    utils::untar(path, exdir = extracted)
+    TRUE
+  }, error = identity)
+  if (inherits(result, "error")) {
+    require_gate(FALSE, "source tarball could not be extracted safely")
+    return(invisible(FALSE))
+  }
+  description <- tryCatch(
+    read.dcf(file.path(extracted, "cudaverse", "DESCRIPTION")),
+    error = identity
+  )
+  if (inherits(description, "error")) {
+    require_gate(FALSE, "source tarball DESCRIPTION is unreadable")
+    return(invisible(FALSE))
+  }
+  require_gate(
+    identical(unname(description[[1L, "Package"]]), "cudaverse") &&
+      identical(unname(description[[1L, "Version"]]), version),
+    "source tarball DESCRIPTION does not match the candidate package/version"
+  )
+  redistribution <- tryCatch(
+    suppressMessages(check_redistributables(
+      file.path(extracted, "cudaverse")
+    )),
+    error = identity
+  )
+  require_gate(
+    !inherits(redistribution, "error"),
+    if (inherits(redistribution, "error")) {
+      paste("source tarball redistribution gate failed:",
+            conditionMessage(redistribution))
+    } else {
+      "source tarball redistribution gate failed"
+    }
+  )
+  invisible(TRUE)
+}
+if (file.exists(tarball_path)) inspect_source_tarball(tarball_path)
 check_log_path <- check_evidence_file(
   manifest$source_tarball$check_log_file,
   manifest$source_tarball$check_log_sha256,

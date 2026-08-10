@@ -51,7 +51,10 @@ write_fixture <- function(name, value = "synthetic retained evidence") {
 }
 plain_files <- setdiff(
   names(evidence_files),
-  c("sbom", "rtx", "consolidation", "package_tests", "benchmark", "decision")
+  c(
+    "tarball", "sbom", "rtx", "consolidation", "package_tests",
+    "benchmark", "decision"
+  )
 )
 for (name in plain_files) write_fixture(name)
 write_fixture("check_log", "* checking candidate\nStatus: OK")
@@ -81,6 +84,36 @@ write_sbom <- function(component_version = version) {
     ),
     file.path(work, evidence_files[["sbom"]]),
     auto_unbox = TRUE, pretty = TRUE
+  )
+}
+write_tarball <- function(component_version = version) {
+  stage <- tempfile("cudaverse-source-stage-")
+  package_root <- file.path(stage, "cudaverse")
+  dir.create(file.path(package_root, "inst", "kernels"), recursive = TRUE)
+  writeLines(
+    c(
+      "Package: cudaverse", "Title: Synthetic Candidate",
+      paste0("Version: ", component_version),
+      "Description: Synthetic source evidence used by rejection tests.",
+      "License: MIT", "Encoding: UTF-8"
+    ),
+    file.path(package_root, "DESCRIPTION"), useBytes = TRUE
+  )
+  writeLines(
+    "// synthetic package-owned PTX",
+    file.path(
+      package_root, "inst", "kernels", "cudaverse_dense_kernels.ptx"
+    ),
+    useBytes = TRUE
+  )
+  old <- setwd(stage)
+  on.exit({
+    setwd(old)
+    unlink(stage, recursive = TRUE, force = TRUE)
+  }, add = TRUE)
+  utils::tar(
+    file.path(work, evidence_files[["tarball"]]),
+    files = "cudaverse", compression = "gzip", tar = "internal"
   )
 }
 lifecycle <- function() list(
@@ -206,6 +239,7 @@ write_decision <- function(source_commit = commit, outcome = "defer",
     useBytes = TRUE
   )
 }
+write_tarball()
 write_sbom()
 write_consolidation()
 write_package_tests()
@@ -334,6 +368,15 @@ Sys.setenv(CUDAVERSE_CANDIDATE_MANIFEST = path)
 
 write_manifest()
 run_checker()
+
+write_tarball("0.2.0.9000")
+manifest$source_tarball$sha256 <- sha_for("tarball")
+write_manifest()
+expect_error_message(
+  run_checker(), "source tarball DESCRIPTION does not match"
+)
+write_tarball()
+manifest$source_tarball$sha256 <- sha_for("tarball")
 
 write_fixture("check_log", "Status: 1 WARNING")
 manifest$source_tarball$check_log_sha256 <- sha_for("check_log")
