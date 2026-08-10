@@ -19,6 +19,9 @@
 - Added native float32 matmul plus device-native element-wise arithmetic,
   trailing-dimension broadcasting, reshape, and transpose coverage required by
   the global automatic-selection gate.
+- Required SVD and PCA prediction compatibility in that same fail-closed gate,
+  and published the bounded Phase 4 release-candidate assessment with links to
+  the checksum-pinned RTX evidence.
 
 # cudaverse 0.1.0
 

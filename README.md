@@ -49,9 +49,11 @@ back. Reproducible PTX, RTX 2000
 parity/lifecycle evidence, the CycloneDX SBOM, and the third-party
 redistribution inventory are published with the extension source. See the
 [native CUDA roadmap](.github/NATIVE-CUDA-ROADMAP.md) for the architecture and
-acceptance criteria, and the extension's
-[RTX 2000 Phase 3 report](https://github.com/cudaverse/cudaverseCUDA/blob/main/inst/reports/STAGE3.md)
-for raw-contract-linked timings, parity, provenance, and lifecycle evidence.
+  acceptance criteria, the extension's
+  [Phase 4 RTX report](https://github.com/cudaverse/cudaverseCUDA/blob/main/inst/reports/STAGE4.md)
+  for machine-backed evidence, and the
+  [0.2 release-candidate assessment](.github/NATIVE-CUDA-PHASE4-RC.md) for the
+  bounded release decision.
 
 ## Installation
 
