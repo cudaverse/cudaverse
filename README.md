@@ -91,7 +91,10 @@ The option `cudaverse.cuda_backends` can still constrain backend order for
 testing, but it cannot bypass native contract, runtime, or self-test gates.
 The [backend support article](vignettes/backend-support.Rmd) distinguishes
 direct, hybrid, CPU-only, metadata, probe, and host-materializing APIs across
-the base, torch, and native backends.
+the base, torch, and native backends. Its installed matrix also assigns every
+export to an executable conformance case. Hardware gates run those same public
+workflows on both CUDA backends rather than maintaining separate hand-written
+feature lists.
 
 On the 0.3 development line, native CUDA subsetting and replacement keep tensor
 values on the GPU. Only index metadata is evaluated in R. Missing subscripts

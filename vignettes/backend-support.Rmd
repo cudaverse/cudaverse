@@ -35,6 +35,9 @@ The table below covers every exported function. Its status vocabulary is:
 `direct` does not imply that the public return value remains on the device.
 The `result_location` column states whether the result is host-resident,
 device-resident, cached for a native continuation, or backend-dependent.
+The `contract_case` column connects every export to one of six executable
+public-API workflows: diagnostics, tensor, sparse, algorithm, graph, or
+embedding.
 
 ```{r capability-matrix, echo = FALSE}
 matrix_path <- system.file(
@@ -51,7 +54,13 @@ knitr::kable(support, row.names = FALSE)
 ```
 
 The installed matrix and `NAMESPACE` are checked together: a new or removed
-export fails the package tests until this table is updated.
+export fails the package tests until this table is updated. The same compact
+contract workflows always run against base. On the protected hardware gate,
+they must also pass against both torch and native without skipped cases. The
+suite checks numerical parity, metadata, provenance, intentional CPU/hybrid
+boundaries, missing-runtime behavior, invalid inputs, and backend reuse after
+an error. Backend-specific ownership, injected CUDA failure, interruption, and
+1,000-cycle lifecycle tests continue to run beside this public surface suite.
 
 ## Intentional 0.2 CPU boundaries
 

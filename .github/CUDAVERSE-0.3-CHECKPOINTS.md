@@ -124,8 +124,8 @@ Deferred beyond CP-02:
 
 ## CP-03: same-device sparse transpose
 
-Status: implementation and validation complete on
-`agent/native-sparse-transpose`; PR 18 is ready to merge.
+Status: completed and merged as PR 18 into `develop/native-cuda` at
+`ccd0da77c5624ac87eac75d4605af59e9a08673e`.
 
 Scope:
 
@@ -164,3 +164,45 @@ Deferred beyond CP-03:
   guarantee that device storage and public COO order stay aligned; a parallel
   stable scatter is benchmark-driven follow-up work, not a release claim;
 - float32 sparse storage remains evidence-gated and is not introduced here.
+
+## CP-04: executable public-backend conformance
+
+Status: implementation and validation in progress on
+`agent/backend-conformance`.
+
+Scope:
+
+- assign every public export to one executable diagnostics, tensor, sparse,
+  algorithm, graph, or embedding contract case in the installed capability
+  matrix;
+- run identical compact public workflows on base, torch, and native whenever
+  protected CUDA coverage is required;
+- compare values, stable indices, shapes, dimnames, devices, backend identity,
+  provenance, and intentional host/hybrid boundaries;
+- require visible automatic fallback, strict explicit CUDA errors, consistent
+  invalid-input behavior, and successful backend reuse after those errors;
+- retain the deeper native ownership, injected OOM, interruption, structured
+  error, and 1,000-cycle lifecycle tests as part of the same no-skip hardware
+  package gate.
+
+Required evidence before merge:
+
+- [x] the capability-matrix checker covers all 38 exports and validates every
+  `contract_case` value;
+- [x] the complete local CPU suite passes with the new base contract cases;
+- [x] the focused public conformance suite passes locally on the RTX 2000 for
+  base, torch, and native together;
+- [x] the complete package-owned hardware suite passes on the RTX 2000 with no
+  skipped cases, including all pre-existing recovery and lifecycle tests;
+- [x] a local source build and `R CMD check --no-manual` complete with
+  `Status: OK`;
+- [ ] Windows, macOS, Ubuntu, R-devel, pkgdown, supply-chain, CPU contract,
+  CUDA ABI/PTX, and Windows/Linux artifact CI pass on the exact PR source.
+
+Deferred beyond CP-04:
+
+- this checkpoint increases correctness evidence but makes no performance
+  claim; cold/warm timing, transfer, and peak-VRAM reporting remain the later
+  benchmark milestone;
+- torch remains a compatibility backend through 0.2 and its future status is
+  still an evidence-based 0.3 decision.

@@ -6,7 +6,7 @@ check_capability_matrix <- function(root = ".") {
 
   matrix <- utils::read.csv(path, stringsAsFactors = FALSE, check.names = FALSE)
   required_columns <- c(
-    "api", "category", "cpu_base", "torch_cuda", "native_cuda",
+    "api", "category", "contract_case", "cpu_base", "torch_cuda", "native_cuda",
     "result_location", "notes"
   )
   if (!identical(names(matrix), required_columns)) {
@@ -44,6 +44,19 @@ check_capability_matrix <- function(root = ".") {
         call. = FALSE
       )
     }
+  }
+  allowed_contract_cases <- c(
+    "diagnostics", "tensor", "sparse", "algorithm", "graph", "embedding"
+  )
+  invalid_contract_cases <- setdiff(
+    unique(matrix$contract_case), allowed_contract_cases
+  )
+  if (length(invalid_contract_cases)) {
+    stop(
+      "Invalid executable contract case: ",
+      paste(invalid_contract_cases, collapse = ", "),
+      call. = FALSE
+    )
   }
   allowed_locations <- c(
     "host", "same_device", "host_with_native_cache", "backend_dependent"

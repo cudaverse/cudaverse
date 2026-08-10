@@ -14,4 +14,8 @@ test_that("backend capability matrix covers the exported API", {
   for (column in c("cpu_base", "torch_cuda", "native_cuda")) {
     expect_setequal(intersect(unique(matrix[[column]]), allowed), unique(matrix[[column]]))
   }
+  expect_setequal(
+    unique(matrix$contract_case),
+    c("diagnostics", "tensor", "sparse", "algorithm", "graph", "embedding")
+  )
 })

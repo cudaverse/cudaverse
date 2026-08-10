@@ -1,5 +1,9 @@
 # cudaverse 0.2.0.9000
 
+- Added an executable public-backend conformance matrix. Every exported
+  function is assigned to a diagnostics, tensor, sparse, algorithm, graph, or
+  embedding contract case, and the shared suite runs the same small workflows
+  on base, torch, and native when CUDA hardware coverage is required.
 - Added `t()` for `cudasparse` matrices. Native CUDA transposes CSR backing
   storage on device while preserving stable COO metadata, logical format,
   dimnames, shared ownership, and same-device provenance; compatibility
