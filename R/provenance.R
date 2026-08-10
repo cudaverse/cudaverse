@@ -71,9 +71,12 @@
 #'
 #' @return A named list containing the legacy fields `torch_installed`,
 #'   `torch_version`, `cuda_available`, `cuda_device_count`, `reason`, and
-#'   `detection_error`, plus `available_backends`, `selected_backend`, and
-#'   per-backend diagnostic details. The legacy fields are retained throughout
-#'   the 0.2 release cycle.
+#'   `detection_error`, plus `available_backends`, `auto_eligible_backends`,
+#'   `auto_selection_reason`, `selected_backend`, and per-backend diagnostic
+#'   details. Native automatic eligibility requires a compatible backend
+#'   contract, the complete tensor/algorithm capability set, all runtime
+#'   components, and a passing cached self-test. The legacy fields are retained
+#'   throughout the 0.2 release cycle.
 #' @export
 #' @examples
 #' cuda_diagnostics()
@@ -98,6 +101,8 @@ cuda_diagnostics <- function() {
       detection_error = .cudaverse_backend_discovery$error
     )
   }
+  torch <- .backend_selection_status("torch", torch)
+  native <- .backend_selection_status("native", native)
   backend_diagnostics <- list(torch = torch, native = native)
   selected_backend <- .backend_select_cuda(list(
     backend_diagnostics = backend_diagnostics
@@ -128,6 +133,18 @@ cuda_diagnostics <- function() {
     "base",
     names(Filter(function(x) isTRUE(x$available), backend_diagnostics))
   )
+  auto_eligible_backends <- names(Filter(
+    function(x) isTRUE(x$auto_eligible),
+    backend_diagnostics
+  ))
+  auto_selection_reason <- if (available) {
+    selected_details$auto_selection_reason
+  } else if (isTRUE(native$installed) ||
+             !identical(native$reason, "extension_not_installed")) {
+    native$auto_selection_reason
+  } else {
+    torch$auto_selection_reason
+  }
 
   structure(
     list(
@@ -138,11 +155,22 @@ cuda_diagnostics <- function() {
       reason = reason,
       detection_error = detection_error,
       available_backends = available_backends,
+      auto_eligible_backends = auto_eligible_backends,
+      auto_selection_reason = auto_selection_reason,
       selected_backend = if (available) selected_backend else "base",
       backend_diagnostics = backend_diagnostics
     ),
     class = "cuda_diagnostics"
   )
+}
+
+.cuda_auto_selection_reason <- function(diagnostics) {
+  reason <- diagnostics$auto_selection_reason
+  if (!is.character(reason) || length(reason) != 1L ||
+      is.na(reason) || !nzchar(reason)) {
+    reason <- diagnostics$reason
+  }
+  reason
 }
 
 #' Select a computation device without hiding fallback
@@ -175,6 +203,7 @@ cuda_select_device <- function(device = c("auto", "cuda", "cpu")) {
   }
 
   diagnostics <- cuda_diagnostics()
+  auto_selection_reason <- .cuda_auto_selection_reason(diagnostics)
   if (isTRUE(diagnostics$cuda_available)) {
     return(structure(
       list(
@@ -188,7 +217,7 @@ cuda_select_device <- function(device = c("auto", "cuda", "cpu")) {
         selection_reason = if (identical(requested_device, "cuda")) {
           "explicit_cuda"
         } else {
-          "cuda_available"
+          auto_selection_reason
         },
         fallback = FALSE,
         diagnostics = diagnostics
@@ -199,7 +228,7 @@ cuda_select_device <- function(device = c("auto", "cuda", "cpu")) {
 
   if (identical(requested_device, "cuda")) {
     message <- paste0(
-      "CUDA is unavailable (", diagnostics$reason, "). ",
+      "CUDA is unavailable (", auto_selection_reason, "). ",
       "Install `cudaverseCUDA` or a CUDA-enabled `torch` backend, or use ",
       "`device = \"cpu\"`."
     )
@@ -223,7 +252,7 @@ cuda_select_device <- function(device = c("auto", "cuda", "cpu")) {
       requested_device = "auto",
       device = "cpu",
       backend = "base",
-      selection_reason = diagnostics$reason,
+      selection_reason = auto_selection_reason,
       fallback = TRUE,
       diagnostics = diagnostics
     ),

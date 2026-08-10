@@ -40,7 +40,8 @@ optional compatibility backend and the CPU path remains the portable fallback.
 
 The optional
 [`cudaverseCUDA`](https://github.com/cudaverse/cudaverseCUDA) extension now
-implements the native sparse Phase 3 prototype. The main package discovers it
+implements the native sparse Phase 3 pipeline and Phase 4 release-hardening
+candidate. The main package discovers it
 lazily; it remains installable and fully checkable without the extension or
 CUDA. The native implementation uses NVIDIA's focused numerical libraries
 where they are a good fit:
@@ -65,10 +66,12 @@ where they are a good fit:
 4. **Complete (sparse Phase 3):** shared-ownership COO/CSR storage, Matrix
    conversion, sparse matvec/matmul, row/column reductions, normalization, and
    sparse-input PCA/kNN through a device-resident dense continuation.
-5. Make `native` the automatic CUDA choice only after every operation reachable
-   through automatic device selection passes the same CPU/GPU parity contract.
-   Selecting native globally before element-wise and broadcasting coverage
-   would still regress existing workflows.
+5. **Complete (Phase 4 release candidate):** make `native` the preferred automatic CUDA
+   choice only after every operation reachable through automatic device
+   selection passes the same CPU/GPU parity contract. The candidate now covers
+   arithmetic, trailing-dimension broadcasting, reshape, transpose, and
+   float32/float64 matmul, and additionally requires a versioned contract,
+   complete runtime components, and a cached self-test before selection.
 6. Retain torch for one compatibility cycle, then reassess whether it still
    belongs in `Suggests`.
 
@@ -93,11 +96,21 @@ Stage-one, dense Phase 2, and sparse Phase 3 parity, provenance, error recovery,
 interruption, allocation high-water, and benchmark contracts are versioned in
 the `cudaverseCUDA` repository. The CycloneDX SBOM and third-party license
 inventory explicitly distinguish package-owned PTX from dynamically discovered
-NVIDIA runtime libraries. Native can be released as an explicit backend, but
-global automatic preference remains gated on the uncovered tensor arithmetic
-and broadcasting surface.
+NVIDIA runtime libraries. Native automatic preference is now fail-closed behind
+the versioned contract, complete capability set, healthy runtime components,
+and cached self-test. The Phase 4 RTX, benchmark-regression, cross-platform,
+artifact-install, SBOM, and license evidence has passed; torch remains
+available for the 0.2 compatibility cycle.
 
 The completed
 [RTX 2000 sparse Phase 3 report](https://github.com/cudaverse/cudaverseCUDA/blob/main/inst/reports/STAGE3.md)
 links its human-readable summary to the full machine-readable timing, parity,
 provenance, error-recovery, and lifecycle evidence.
+
+The completed
+[RTX 2000 Phase 4 release-hardening report](https://github.com/cudaverse/cudaverseCUDA/blob/main/inst/reports/STAGE4.md)
+adds automatic-selection evidence, float32/float64 tensor parity, dense and
+sparse 1,000-cycle lifecycle checks, Windows/Linux artifact installation, and
+checksum-pinned regression gates against Phase 3. The bounded
+[0.2 release-candidate assessment](NATIVE-CUDA-PHASE4-RC.md) records the release
+decision and remaining boundaries.

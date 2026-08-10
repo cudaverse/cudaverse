@@ -9,9 +9,12 @@ cuda_diagnostics()
 \value{
 A named list containing the legacy fields \code{torch_installed},
 \code{torch_version}, \code{cuda_available}, \code{cuda_device_count}, \code{reason}, and
-\code{detection_error}, plus \code{available_backends}, \code{selected_backend}, and
-per-backend diagnostic details. The legacy fields are retained throughout
-the 0.2 release cycle.
+\code{detection_error}, plus \code{available_backends}, \code{auto_eligible_backends},
+\code{auto_selection_reason}, \code{selected_backend}, and per-backend diagnostic
+details. Native automatic eligibility requires a compatible backend
+contract, the complete tensor/algorithm capability set, all runtime
+components, and a passing cached self-test. The legacy fields are retained
+throughout the 0.2 release cycle.
 }
 \description{
 Inspecting the runtime is non-destructive and never installs or downloads

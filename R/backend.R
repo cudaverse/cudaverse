@@ -1,6 +1,18 @@
 .cudaverse_backends <- new.env(parent = emptyenv())
 .cudaverse_backend_discovery <- new.env(parent = emptyenv())
 
+.backend_contract_schema <- "cudaverse-backend/1"
+
+.native_auto_required_capabilities <- c(
+  "driver-detection", "allocation", "transfer", "cast", "matmul",
+  "reduce", "arithmetic", "reshape", "broadcast", "transpose", "svd",
+  "pca", "pca-predict", "distance", "knn", "stable-topk", "sparse",
+  "sparse-coo", "sparse-csr", "sparse-normalize", "sparse-matmul",
+  "sparse-reduce", "sparse-pca", "sparse-knn", "synchronize",
+  "shared-ownership", "dtype-float32", "dtype-float64",
+  "runtime-self-test"
+)
+
 .backend_condition <- function(message, subclass, backend = NULL,
                                operation = NULL, parent = NULL) {
   structure(
@@ -498,8 +510,111 @@
   )
 }
 
+.backend_selection_status <- function(name, details) {
+  if (!is.list(details)) {
+    details <- list(
+      available = FALSE,
+      reason = "backend_error",
+      detection_error = "Backend diagnostics did not return a list."
+    )
+  }
+  registered <- exists(name, envir = .cudaverse_backends, inherits = FALSE)
+  factory <- if (registered) {
+    get(name, envir = .cudaverse_backends, inherits = FALSE)
+  } else {
+    NULL
+  }
+  contract_error <- NULL
+  capabilities <- if (!is.null(factory) && is.function(factory$capabilities)) {
+    tryCatch(
+      unique(as.character(factory$capabilities())),
+      error = function(error) {
+        contract_error <<- conditionMessage(error)
+        character()
+      }
+    )
+  } else {
+    character()
+  }
+  contract <- if (!is.null(factory) && is.function(factory$contract)) {
+    tryCatch(
+      factory$contract(),
+      error = function(error) {
+        contract_error <<- conditionMessage(error)
+        NULL
+      }
+    )
+  } else {
+    NULL
+  }
+  contract_schema <- if (is.list(contract) &&
+                         is.character(contract$schema) &&
+                         length(contract$schema) == 1L) {
+    contract$schema
+  } else {
+    NA_character_
+  }
+
+  details$capabilities <- capabilities
+  details$contract_schema <- contract_schema
+  details$contract_error <- contract_error
+  if (!identical(name, "native")) {
+    details$missing_auto_capabilities <- character()
+    details$capability_compatible <- TRUE
+    details$self_test_passed <- NA
+    details$auto_eligible <- isTRUE(details$available)
+    details$auto_selection_reason <- if (isTRUE(details$available)) {
+      "cuda_available"
+    } else if (is.character(details$reason) && length(details$reason) == 1L) {
+      details$reason
+    } else {
+      "cuda_unavailable"
+    }
+    return(details)
+  }
+
+  missing_capabilities <- setdiff(
+    .native_auto_required_capabilities,
+    capabilities
+  )
+  capability_compatible <- identical(
+    contract_schema,
+    .backend_contract_schema
+  ) && !length(missing_capabilities) && is.null(contract_error)
+  self_test_passed <- is.list(details$self_test) &&
+    isTRUE(details$self_test$passed)
+  runtime_complete <- isTRUE(details$runtime_complete)
+  auto_eligible <- isTRUE(details$available) &&
+    capability_compatible && runtime_complete && self_test_passed
+  auto_reason <- if (auto_eligible) {
+    "native_auto_eligible"
+  } else if (!isTRUE(details$available)) {
+    if (is.character(details$reason) && length(details$reason) == 1L) {
+      details$reason
+    } else {
+      "native_unavailable"
+    }
+  } else if (!is.null(contract_error) ||
+             !identical(contract_schema, .backend_contract_schema)) {
+    "native_contract_incompatible"
+  } else if (length(missing_capabilities)) {
+    "native_capability_incompatible"
+  } else if (!runtime_complete) {
+    "native_runtime_incomplete"
+  } else {
+    "native_self_test_failed"
+  }
+
+  details$missing_auto_capabilities <- missing_capabilities
+  details$capability_compatible <- capability_compatible
+  details$self_test_passed <- self_test_passed
+  details$auto_eligible <- auto_eligible
+  details$auto_selection_reason <- auto_reason
+  details
+}
+
 .backend_cuda_order <- function() {
-  requested <- getOption("cudaverse.cuda_backends", c("torch", "native"))
+  requested <- getOption("cudaverse.cuda_backends", c("native", "torch"))
   intersect(unique(as.character(requested)), c("torch", "native"))
 }
 
@@ -515,7 +630,8 @@
     } else {
       .backend_diagnostics(name)
     }
-    if (isTRUE(details$available)) return(name)
+    details <- .backend_selection_status(name, details)
+    if (isTRUE(details$auto_eligible)) return(name)
   }
   NULL
 }
