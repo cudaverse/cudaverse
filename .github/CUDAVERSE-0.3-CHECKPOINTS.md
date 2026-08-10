@@ -49,7 +49,9 @@ Required evidence before merge:
 
 - [x] native bridge compiles on local Windows without a CUDA Toolkit;
 - [x] local CPU suite passes without weakening tests;
-- [ ] CUDA 12.8.1 PTX rebuilt reproducibly and checksum updated;
+- [x] CUDA 12.8.1 PTX rebuilt by the pinned CI container; committed SHA-256
+  `42f0bf069d4c4b5ec507658f43e01088391508f10e63358a2a4b68d0bd331bd4`
+  is recorded in `SHA256SUMS` and the CycloneDX SBOM;
 - [ ] Windows, macOS, Ubuntu, R-devel, pkgdown, supply-chain, and artifact CI;
 - [ ] RTX 2000 integer/float32/float64 subset and replacement parity;
 - [ ] RTX 2000 error recovery and lifecycle ceiling;
