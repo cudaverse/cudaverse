@@ -1,8 +1,7 @@
 if (!requireNamespace("jsonlite", quietly = TRUE) ||
-    !requireNamespace("testthat", quietly = TRUE) ||
-    !requireNamespace("cudaverse", quietly = TRUE)) {
+    !requireNamespace("testthat", quietly = TRUE)) {
   stop(
-    "Native package reporting requires jsonlite, testthat, and cudaverse.",
+    "Native package reporting requires jsonlite and testthat.",
     call. = FALSE
   )
 }
@@ -40,29 +39,40 @@ source_state <- function(path = ".") {
   )
 }
 
-diagnostics <- cudaverse::cuda_diagnostics()
-native <- diagnostics$backend_diagnostics$native
-native_ready <-
-  is.list(native) && isTRUE(native$available) &&
-  isTRUE(native$runtime_complete) && isTRUE(native$self_test$passed) &&
-  identical(diagnostics$selected_backend, "native") &&
-  "native" %in% unlist(
-    diagnostics$auto_eligible_backends,
-    recursive = TRUE, use.names = FALSE
-  )
-
 source <- source_state(".")
 test_error <- NULL
 results <- tryCatch(
   testthat::test_local(
     ".", reporter = "summary", stop_on_failure = FALSE,
-    stop_on_warning = FALSE, load_package = "installed"
+    stop_on_warning = FALSE, load_package = "source"
   ),
   error = function(error) {
     test_error <<- conditionMessage(error)
     NULL
   }
 )
+diagnostics <- if (is.null(results)) {
+  simpleError("Package source did not load.")
+} else {
+  tryCatch(cudaverse::cuda_diagnostics(), error = identity)
+}
+if (inherits(diagnostics, "error")) {
+  native <- list(
+    available = FALSE,
+    detection_error = conditionMessage(diagnostics)
+  )
+  native_ready <- FALSE
+} else {
+  native <- diagnostics$backend_diagnostics$native
+  native_ready <-
+    is.list(native) && isTRUE(native$available) &&
+    isTRUE(native$runtime_complete) && isTRUE(native$self_test$passed) &&
+    identical(diagnostics$selected_backend, "native") &&
+    "native" %in% unlist(
+      diagnostics$auto_eligible_backends,
+      recursive = TRUE, use.names = FALSE
+    )
+}
 expectations <- if (is.null(results)) {
   list()
 } else {
@@ -96,7 +106,7 @@ report <- list(
   )),
   software = list(
     R = R.version.string,
-    cudaverse = as.character(utils::packageVersion("cudaverse")),
+    cudaverse = unname(read.dcf("DESCRIPTION", fields = "Version")[[1L]]),
     native_diagnostics = native
   ),
   testthat = c(counts, list(
