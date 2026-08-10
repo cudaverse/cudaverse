@@ -209,8 +209,8 @@ Deferred beyond CP-04:
 
 ## CP-05: reproducible benchmark contract
 
-Status: implementation and smoke validation in progress on
-`agent/benchmark-contract`.
+Status: implementation and smoke validation complete on
+`agent/benchmark-contract`; PR 20 is ready for final exact-head CI.
 
 Scope:
 
@@ -243,7 +243,7 @@ Required evidence before merge:
   report summary without committing bulky transient output;
 - [x] the local CPU suite and source package check pass, including vignette
   rebuild, with `R CMD check --no-manual` reporting `Status: OK`;
-- [ ] all GitHub cross-platform, pkgdown,
+- [x] all GitHub cross-platform, pkgdown,
   supply-chain, ABI/PTX, and artifact gates pass.
 
 Deferred beyond CP-05:
