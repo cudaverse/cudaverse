@@ -212,6 +212,16 @@ check_evidence_file(
   manifest$benchmark$summary_sha256,
   "benchmark summary"
 )
+check_evidence_file(
+  manifest$benchmark$report_checker_log_file,
+  manifest$benchmark$report_checker_log_sha256,
+  "benchmark report-checker log"
+)
+check_evidence_file(
+  manifest$benchmark$summary_checker_log_file,
+  manifest$benchmark$summary_checker_log_sha256,
+  "benchmark summary-checker log"
+)
 require_gate(logical_value(manifest$benchmark$complete) &&
                logical_value(manifest$benchmark$report_checker_passed) &&
                logical_value(manifest$benchmark$summary_checker_passed),
@@ -238,6 +248,11 @@ require_gate(outcome %in% c("release", "defer", "reduce-scope"),
 require_gate(
   identical(text_value(manifest$decision$source_commit), commit),
   "candidate decision is from another source commit"
+)
+check_evidence_file(
+  manifest$decision$report_file,
+  manifest$decision$report_sha256,
+  "candidate decision report"
 )
 require_gate(length(manifest$decision$limitations) > 0,
              "candidate decision does not record remaining limitations")

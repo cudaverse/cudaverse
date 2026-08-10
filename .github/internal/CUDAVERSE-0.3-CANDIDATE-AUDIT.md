@@ -33,8 +33,8 @@ Status vocabulary:
 | COO/CSR sparse operations, normalization, multiplication, reductions, transpose, PCA/kNN preparation | proven for the current float64 sparse surface; float32 is evidence-deferred | Sparse Phase 3 evidence, CP-03 transpose evidence, CP-04 conformance and 1,000-cycle sparse lifecycle; `.github/internal/CUDAVERSE-0.3-SPARSE-FLOAT32-DECISION.md` records the bounded dtype decision and re-entry gates | Complete the full float64 sparse benchmark and repeat the sparse gates on the final candidate. |
 | One base/torch/native public conformance suite for every export and failure boundary | proven at CP-04 | PR 19, 38-export capability matrix, public workflow suite, no-skip RTX package gate | Repeat on the final candidate and confirm no exports changed without matrix coverage. |
 | Matmul and dense/sparse PCA-kNN benchmark contract | in progress | CP-05 contract/smoke; full matmul and dense 1k/10k results complete from clean source `acd105f`; reproducible summary/checker commit `2d8a010` | Finish dense 50k and every sparse case; validate exact JSON; investigate regressions; retain JSON/SHA/summary. |
-| Cross-platform packaging, ABI/PTX, SBOM, license, and small artifacts | proven at checkpoint, pending for final | CP-05 CI and the previous green CP-07 head cover Windows, macOS, Ubuntu, R-devel, artifacts, ABI/PTX, supply chain, and pkgdown; exact-head checks for the rendered-doc fixes are running | Require every check to be green on current CP-07 head `c6132b565e344235ff0110ccdc29668bfb46b13d`, then repeat at the final merged candidate and retain exact run/artifact identifiers. |
-| README, NEWS, reference, examples, diagnostics, troubleshooting, and pkgdown alignment | in progress | CP-07 draft PR 21 at `c6132b565e344235ff0110ccdc29668bfb46b13d` adds native-first troubleshooting; an isolated local pkgdown build and browser review passed after moving maintainer records out of the public site and repairing rendered links; CI now runs the same public-boundary check after every pkgdown build | Require exact-head CI, run the post-benchmark local source check, merge CP-07 after CP-06, then re-audit rendered final pages and benchmark claims. |
+| Cross-platform packaging, ABI/PTX, SBOM, license, and small artifacts | proven at checkpoint, pending for final | CP-05 CI and all 11 required checks on CP-07 head `c6132b565e344235ff0110ccdc29668bfb46b13d` cover Windows, macOS, Ubuntu, R-devel, artifacts, ABI/PTX, supply chain, CPU contract, and pkgdown | Repeat on the final merged candidate and retain exact run/artifact identifiers. |
+| README, NEWS, reference, examples, diagnostics, troubleshooting, and pkgdown alignment | proven at CP-07 head, pending final-candidate repeat | CP-07 draft PR 21 at `c6132b565e344235ff0110ccdc29668bfb46b13d` adds native-first troubleshooting; an isolated local pkgdown build and browser review passed after moving maintainer records out of the public site and repairing rendered links; its exact-head pkgdown CI also passed the public-boundary checker | Run the post-benchmark local source check, merge CP-07 after CP-06, then re-audit rendered final pages and benchmark claims. |
 | Exact review-ready 0.3 candidate and release decision | pending | None yet; checkpoint evidence cannot substitute for final-candidate evidence | Merge remaining checkpoints, choose candidate version, build one exact tarball, run all final gates, and write the decision report. |
 
 ## Final candidate evidence manifest
@@ -68,8 +68,9 @@ check, artifact, RTX report, benchmark, documentation render, and decision to
 identify the same 40-character candidate commit. Its positive and rejection
 cases run in CI through `tools/test-candidate-evidence.R`. Every retained file
 must also exist below the manifest directory and match a freshly computed
-SHA-256, so an outside path, tampered artifact, or plausible-looking manifest
-assembled from different checkpoints is not final evidence.
+SHA-256, including the benchmark checker logs, pkgdown render log, and final
+decision report. An outside path, tampered artifact, or plausible-looking
+manifest assembled from different checkpoints is therefore not final evidence.
 
 ## Final decision rule
 

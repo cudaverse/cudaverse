@@ -34,7 +34,10 @@ evidence_files <- c(
   rtx = "rtx.json",
   benchmark = "benchmark.json",
   summary = "benchmark-summary.md",
-  pkgdown = "pkgdown.log"
+  benchmark_check = "benchmark-check.log",
+  summary_check = "benchmark-summary-check.log",
+  pkgdown = "pkgdown.log",
+  decision = "candidate-decision.md"
 )
 write_fixture <- function(name, value = "synthetic retained evidence") {
   writeBin(charToRaw(value), file.path(work, evidence_files[[name]]))
@@ -108,6 +111,10 @@ manifest <- list(
     source_commit = commit, report_file = evidence_files[["benchmark"]],
     report_sha256 = sha, summary_file = evidence_files[["summary"]],
     summary_sha256 = sha,
+    report_checker_log_file = evidence_files[["benchmark_check"]],
+    report_checker_log_sha256 = sha,
+    summary_checker_log_file = evidence_files[["summary_check"]],
+    summary_checker_log_sha256 = sha,
     complete = TRUE, report_checker_passed = TRUE,
     summary_checker_passed = TRUE
   ),
@@ -118,6 +125,7 @@ manifest <- list(
   ),
   decision = list(
     source_commit = commit, outcome = "defer",
+    report_file = evidence_files[["decision"]], report_sha256 = sha,
     limitations = list("synthetic limitation"),
     external_release_action_taken = FALSE
   )
