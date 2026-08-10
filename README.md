@@ -1,10 +1,8 @@
 # cudaverse
 
-`cudaverse` gives R users one package for GPU-aware numerical workflows. It
-combines the former `cudatensr`, `cudasparsr`, `cudalearnr`, `cudagraphR`, and
-`cudaembedr` projects behind a single installation and documentation site.
+`cudaverse` provides GPU-aware numerical workflows for R.
 
-The public API is organized by topic rather than by package:
+The public API is organized by topic:
 
 - device selection and compute provenance;
 - dense tensors and sparse matrices;
@@ -121,9 +119,3 @@ neighbors <- cuda_knn(pca$x, k = 15, device = "cuda")
 
 Single-cell-specific workflows live in the separate `cudacellr` extension so
 general users do not need the SingleCellExperiment or Seurat ecosystems.
-
-## Project history
-
-The original component repositories remain available as archived development
-history. New features, bug reports, documentation, and releases for the
-general-purpose API belong in this repository.
