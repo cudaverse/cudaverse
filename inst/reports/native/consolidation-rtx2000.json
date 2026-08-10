@@ -1,0 +1,1295 @@
+{
+  "schema": "cudaverse-native-consolidation/1",
+  "generated_at_utc": "2026-08-10 03:33:45 UTC",
+  "source": {
+    "cudaverse": {
+      "commit": "61f5d4e7353ccb82c69ffd1a5bc0ff5e4834b061",
+      "tracked_dirty": false
+    }
+  },
+  "hardware": {
+    "nvidia_smi": "NVIDIA RTX 2000 Ada Generation, 595.97, 16380, 8.9"
+  },
+  "software": {
+    "R": "R version 4.6.0 (2026-04-24 ucrt)",
+    "cudaverse": "0.2.0.9000",
+    "native_diagnostics": {
+      "installed": true,
+      "available": true,
+      "device_count": 1,
+      "version": "13020",
+      "reason": "cuda_available",
+      "detection_error": null,
+      "driver_version": 13020,
+      "cublas_loaded": true,
+      "cusolver_loaded": true,
+      "cusolver_error": null,
+      "kernels_loaded": true,
+      "runtime_complete": true,
+      "self_test": {
+        "passed": true,
+        "reason": "self_test_passed",
+        "error": null,
+        "checks": ["float64-transfer-matmul-reduce", "float32-transfer-matmul-reduce", "arithmetic-reshape-broadcast-transpose", "sparse-transfer-normalize"],
+        "duration_ms": 50.000000000000043
+      },
+      "auto_eligible": true
+    }
+  },
+  "contract": {
+    "warmup_runs": 2,
+    "timed_runs": 5,
+    "k": 15,
+    "requested_components": 20,
+    "batch_size": 256,
+    "tensor_dtypes": ["float32", "float64"],
+    "sparse_pipeline_dtype": "float64",
+    "metric": "euclidean",
+    "normalization": "row sum to 1000 followed by log1p",
+    "full_pipeline_boundary": "host dgCMatrix -> backend COO/CSR transfer -> sparse normalization -> PCA -> device-resident scores -> exact distance -> stable top-k -> host n-by-k result",
+    "native_selection": "automatic; contract, capabilities, runtime components, and cached self-test passed",
+    "tolerances": {
+      "normalization_relative": 1e-10,
+      "pca_projector_absolute": 1e-08,
+      "pca_reconstruction_relative": 1e-08,
+      "knn_distance_relative": 1e-08,
+      "knn_indices": "identical with original-row stable tie ordering"
+    },
+    "cases": {
+      "1000x50@0.1": {
+        "rows": 1000,
+        "columns": 50,
+        "density": 0.10000000000000001
+      },
+      "5000x100@0.03": {
+        "rows": 5000,
+        "columns": 100,
+        "density": 0.029999999999999999
+      },
+      "10000x128@0.01": {
+        "rows": 10000,
+        "columns": 128,
+        "density": 0.01
+      }
+    },
+    "backends": ["base", "native", "torch"]
+  },
+  "installed_size_bytes": {
+    "cudaverse": 994113
+  },
+  "benchmarks": {
+    "1000x50@0.1": {
+      "base": {
+        "status": "complete",
+        "rows": 1000,
+        "columns": 50,
+        "requested_density": 0.10000000000000001,
+        "observed_density": 0.095699999999999993,
+        "nnz": 4785,
+        "n_components": 20,
+        "cold_seconds": {
+          "transfer": 0,
+          "normalization": 0,
+          "pca": 0.020000000000000018,
+          "knn": 0.16999999999999993,
+          "full_pipeline": 0.18999999999999995
+        },
+        "transfer": {
+          "median_seconds": 0,
+          "p95_seconds": 0.0099999999999997868,
+          "runs_seconds": [0, 0, 0, 0.0099999999999997868, 0]
+        },
+        "normalization": {
+          "median_seconds": 0,
+          "p95_seconds": 0,
+          "runs_seconds": [0, 0, 0, 0, 0]
+        },
+        "pca": {
+          "median_seconds": 0,
+          "p95_seconds": 0.020000000000000018,
+          "runs_seconds": [0, 0.020000000000000018, 0, 0, 0.019999999999999574]
+        },
+        "knn": {
+          "median_seconds": 0.11000000000000032,
+          "p95_seconds": 0.19000000000000039,
+          "runs_seconds": [0.19000000000000039, 0.070000000000000284, 0.11999999999999966, 0.10000000000000009, 0.11000000000000032]
+        },
+        "full_pipeline": {
+          "median_seconds": 0.11999999999999966,
+          "p95_seconds": 0.19000000000000039,
+          "runs_seconds": [0.19000000000000039, 0.090000000000000302, 0.11999999999999966, 0.10999999999999988, 0.12999999999999989]
+        },
+        "validation": {
+          "normalized_max_absolute_error": 0,
+          "normalized_max_relative_error": 0,
+          "pca_sdev_max_absolute_error": 0,
+          "pca_effective_rank": 20,
+          "pca_rank_threshold": 3.966802577068578e-13,
+          "pca_subspace_projector_max_absolute_error": 0,
+          "pca_reconstruction_max_absolute_error": 0,
+          "pca_reconstruction_max_relative_error": 0,
+          "knn_indices_identical": true,
+          "knn_distance_max_absolute_error": 0,
+          "knn_distance_max_relative_error": 0,
+          "passed": true
+        },
+        "provenance": {
+          "normalized": {
+            "schema": "cudaverse-stage/1",
+            "compute_device": "cpu",
+            "stages": {
+              "stage": "normalization",
+              "requested_device": "inherited",
+              "device": "cpu",
+              "backend": "Matrix",
+              "selection_reason": "inherited_device",
+              "fallback": false,
+              "output_device": "cpu"
+            }
+          },
+          "pca": {
+            "schema": "cudaverse-stage/1",
+            "compute_device": "cpu",
+            "stages": {
+              "stage": ["normalization", "sparse_to_dense", "preprocessing", "decomposition"],
+              "requested_device": ["inherited", "fixed-cpu", "cpu", "cpu"],
+              "device": ["cpu", "cpu", "cpu", "cpu"],
+              "backend": ["Matrix", "Matrix", "stats", "stats"],
+              "selection_reason": ["inherited_device", "algorithm_materialization", "explicit_cpu", "explicit_cpu"],
+              "fallback": [false, false, false, false],
+              "output_device": ["cpu", "cpu", "cpu", "cpu"]
+            }
+          },
+          "knn": {
+            "schema": "cudaverse-stage/1",
+            "compute_device": "cpu",
+            "stages": {
+              "stage": ["distance", "neighbor_selection"],
+              "requested_device": ["cpu", "fixed-cpu"],
+              "device": ["cpu", "cpu"],
+              "backend": ["base", "base"],
+              "selection_reason": ["explicit_cpu", "algorithm_cpu_only"],
+              "fallback": [false, false],
+              "output_device": ["cpu", "cpu"]
+            }
+          },
+          "sparse_storage_device_resident": false,
+          "pca_scores_device_resident": false
+        },
+        "memory": {
+          "native_tracker_current_before_bytes": 0,
+          "native_tracker_peak_delta_bytes": 0,
+          "native_tracker_current_with_result_delta_bytes": 0,
+          "native_tracker_post_cleanup_difference_bytes": 0,
+          "whole_device_used_before_bytes": 1209401344,
+          "whole_device_used_with_result_bytes": 1209401344,
+          "whole_device_used_after_cleanup_bytes": 1209401344,
+          "whole_device_post_cleanup_absolute_difference_bytes": 0,
+          "backend_allocator_peak_bytes": 0,
+          "backend_allocator_reserved_peak_bytes": null,
+          "backend_allocator_peak_source": "not applicable (CPU)"
+        }
+      },
+      "native": {
+        "status": "complete",
+        "rows": 1000,
+        "columns": 50,
+        "requested_density": 0.10000000000000001,
+        "observed_density": 0.095699999999999993,
+        "nnz": 4785,
+        "n_components": 20,
+        "cold_seconds": {
+          "transfer": 0,
+          "normalization": 0,
+          "pca": 0.030000000000000249,
+          "knn": 0,
+          "full_pipeline": 0.030000000000000249
+        },
+        "transfer": {
+          "median_seconds": 0,
+          "p95_seconds": 0.020000000000000462,
+          "runs_seconds": [0.019999999999999574, 0, 0.020000000000000462, 0, 0]
+        },
+        "normalization": {
+          "median_seconds": 0,
+          "p95_seconds": 0,
+          "runs_seconds": [0, 0, 0, 0, 0]
+        },
+        "pca": {
+          "median_seconds": 0.010000000000000675,
+          "p95_seconds": 0.019999999999999574,
+          "runs_seconds": [0.010000000000000675, 0.019999999999999574, 0.0099999999999997868, 0.010000000000000675, 0.019999999999999574]
+        },
+        "knn": {
+          "median_seconds": 0.0099999999999997868,
+          "p95_seconds": 0.019999999999999574,
+          "runs_seconds": [0, 0, 0.019999999999999574, 0.019999999999999574, 0.0099999999999997868]
+        },
+        "full_pipeline": {
+          "median_seconds": 0.030000000000000249,
+          "p95_seconds": 0.049999999999999822,
+          "runs_seconds": [0.030000000000000249, 0.019999999999999574, 0.049999999999999822, 0.030000000000000249, 0.029999999999999361]
+        },
+        "validation": {
+          "normalized_max_absolute_error": 8.8817841970012523e-16,
+          "normalized_max_relative_error": 1.2923947366444562e-16,
+          "pca_sdev_max_absolute_error": 4.2188474935755949e-15,
+          "pca_effective_rank": 20,
+          "pca_rank_threshold": 3.966802577068578e-13,
+          "pca_subspace_projector_max_absolute_error": 2.886579864025407e-14,
+          "pca_reconstruction_max_absolute_error": 1.9850787680297799e-13,
+          "pca_reconstruction_max_relative_error": 3.4378940215040633e-14,
+          "knn_indices_identical": true,
+          "knn_distance_max_absolute_error": 2.922107000813412e-13,
+          "knn_distance_max_relative_error": 3.1631930154134364e-14,
+          "passed": true
+        },
+        "provenance": {
+          "normalized": {
+            "schema": "cudaverse-stage/1",
+            "compute_device": "cuda",
+            "stages": {
+              "stage": "normalization",
+              "requested_device": "inherited",
+              "device": "cuda",
+              "backend": "native",
+              "selection_reason": "inherited_device",
+              "fallback": false,
+              "output_device": "cuda"
+            }
+          },
+          "pca": {
+            "schema": "cudaverse-stage/1",
+            "compute_device": "cuda",
+            "stages": {
+              "stage": ["normalization", "sparse_to_dense", "preprocessing", "decomposition", "scores_resident"],
+              "requested_device": ["inherited", "auto", "auto", "auto", "auto"],
+              "device": ["cuda", "cuda", "cuda", "cuda", "cuda"],
+              "backend": ["native", "native", "native", "native", "native"],
+              "selection_reason": ["inherited_device", "device_resident_conversion", "native_auto_eligible", "native_auto_eligible", "device_resident_output"],
+              "fallback": [false, false, false, false, false],
+              "output_device": ["cuda", "cuda", "cuda", "cpu", "cuda"]
+            }
+          },
+          "knn": {
+            "schema": "cudaverse-stage/1",
+            "compute_device": "cuda",
+            "stages": {
+              "stage": ["input_materialization", "distance", "neighbor_selection"],
+              "requested_device": ["inherited", "auto", "auto"],
+              "device": ["cuda", "cuda", "cuda"],
+              "backend": ["native", "native", "native"],
+              "selection_reason": ["device_resident_input", "native_auto_eligible", "native_auto_eligible"],
+              "fallback": [false, false, false],
+              "output_device": ["cuda", "cuda", "cpu"]
+            }
+          },
+          "sparse_storage_device_resident": true,
+          "pca_scores_device_resident": true
+        },
+        "memory": {
+          "native_tracker_current_before_bytes": 0,
+          "native_tracker_peak_delta_bytes": 9868772,
+          "native_tracker_current_with_result_delta_bytes": 321128,
+          "native_tracker_post_cleanup_difference_bytes": 0,
+          "whole_device_used_before_bytes": 1209401344,
+          "whole_device_used_with_result_bytes": 1209401344,
+          "whole_device_used_after_cleanup_bytes": 1209401344,
+          "whole_device_post_cleanup_absolute_difference_bytes": 0,
+          "backend_allocator_peak_bytes": 9868772,
+          "backend_allocator_reserved_peak_bytes": null,
+          "backend_allocator_peak_source": "cudaverse native operation-owned allocation tracker"
+        }
+      },
+      "torch": {
+        "status": "complete",
+        "rows": 1000,
+        "columns": 50,
+        "requested_density": 0.10000000000000001,
+        "observed_density": 0.095699999999999993,
+        "nnz": 4785,
+        "n_components": 20,
+        "cold_seconds": {
+          "transfer": 0.059999999999999609,
+          "normalization": 0,
+          "pca": 0.030000000000000249,
+          "knn": 0.099999999999999645,
+          "full_pipeline": 0.1899999999999995
+        },
+        "transfer": {
+          "median_seconds": 0,
+          "p95_seconds": 0.010000000000000675,
+          "runs_seconds": [0, 0, 0.010000000000000675, 0, 0]
+        },
+        "normalization": {
+          "median_seconds": 0,
+          "p95_seconds": 0.019999999999999574,
+          "runs_seconds": [0.019999999999999574, 0, 0, 0, 0]
+        },
+        "pca": {
+          "median_seconds": 0.029999999999999361,
+          "p95_seconds": 0.030000000000000249,
+          "runs_seconds": [0.010000000000000675, 0.030000000000000249, 0.019999999999999574, 0.029999999999999361, 0.030000000000000249]
+        },
+        "knn": {
+          "median_seconds": 0.049999999999999822,
+          "p95_seconds": 0.059999999999999609,
+          "runs_seconds": [0.049999999999999822, 0.059999999999999609, 0.040000000000000036, 0.040000000000000036, 0.049999999999999822]
+        },
+        "full_pipeline": {
+          "median_seconds": 0.080000000000000071,
+          "p95_seconds": 0.089999999999999858,
+          "runs_seconds": [0.080000000000000071, 0.089999999999999858, 0.070000000000000284, 0.069999999999999396, 0.080000000000000071]
+        },
+        "validation": {
+          "normalized_max_absolute_error": 0,
+          "normalized_max_relative_error": 0,
+          "pca_sdev_max_absolute_error": 1.2878587085651816e-14,
+          "pca_effective_rank": 20,
+          "pca_rank_threshold": 3.966802577068578e-13,
+          "pca_subspace_projector_max_absolute_error": 3.2640556923979602e-14,
+          "pca_reconstruction_max_absolute_error": 3.7614356074300304e-13,
+          "pca_reconstruction_max_relative_error": 6.5143092532750371e-14,
+          "knn_indices_identical": true,
+          "knn_distance_max_absolute_error": 5.2846615972157451e-13,
+          "knn_distance_max_relative_error": 5.720668219364726e-14,
+          "passed": true
+        },
+        "provenance": {
+          "normalized": {
+            "schema": "cudaverse-stage/1",
+            "compute_device": "cuda",
+            "stages": {
+              "stage": "normalization",
+              "requested_device": "inherited",
+              "device": "cuda",
+              "backend": "Matrix",
+              "selection_reason": "inherited_device",
+              "fallback": false,
+              "output_device": "cuda"
+            }
+          },
+          "pca": {
+            "schema": "cudaverse-stage/1",
+            "compute_device": "hybrid",
+            "stages": {
+              "stage": ["normalization", "sparse_to_dense", "preprocessing", "decomposition"],
+              "requested_device": ["inherited", "fixed-cpu", "cuda", "cuda"],
+              "device": ["cuda", "cpu", "cuda", "cuda"],
+              "backend": ["Matrix", "Matrix", "torch", "torch"],
+              "selection_reason": ["inherited_device", "algorithm_materialization", "explicit_cuda", "explicit_cuda"],
+              "fallback": [false, false, false, false],
+              "output_device": ["cuda", "cpu", "cuda", "cpu"]
+            }
+          },
+          "knn": {
+            "schema": "cudaverse-stage/1",
+            "compute_device": "hybrid",
+            "stages": {
+              "stage": ["distance", "neighbor_selection"],
+              "requested_device": ["cuda", "fixed-cpu"],
+              "device": ["cuda", "cpu"],
+              "backend": ["torch", "base"],
+              "selection_reason": ["explicit_cuda", "algorithm_cpu_only"],
+              "fallback": [false, false],
+              "output_device": ["cpu", "cpu"]
+            }
+          },
+          "sparse_storage_device_resident": true,
+          "pca_scores_device_resident": false
+        },
+        "memory": {
+          "native_tracker_current_before_bytes": 0,
+          "native_tracker_peak_delta_bytes": 0,
+          "native_tracker_current_with_result_delta_bytes": 0,
+          "native_tracker_post_cleanup_difference_bytes": 0,
+          "whole_device_used_before_bytes": 1291190272,
+          "whole_device_used_with_result_bytes": 1291190272,
+          "whole_device_used_after_cleanup_bytes": 1291190272,
+          "whole_device_post_cleanup_absolute_difference_bytes": 0,
+          "backend_allocator_peak_bytes": 19625472,
+          "backend_allocator_reserved_peak_bytes": 25165824,
+          "backend_allocator_peak_source": "torch CUDA allocator session high-water mark"
+        }
+      }
+    },
+    "5000x100@0.03": {
+      "base": {
+        "status": "complete",
+        "rows": 5000,
+        "columns": 100,
+        "requested_density": 0.029999999999999999,
+        "observed_density": 0.029732000000000001,
+        "nnz": 14866,
+        "n_components": 20,
+        "cold_seconds": {
+          "transfer": 0,
+          "normalization": 0,
+          "pca": 0.059999999999999609,
+          "knn": 4.7500000000000009,
+          "full_pipeline": 4.8100000000000005
+        },
+        "transfer": {
+          "median_seconds": 0,
+          "p95_seconds": 0,
+          "runs_seconds": [0, 0, 0, 0, 0]
+        },
+        "normalization": {
+          "median_seconds": 0,
+          "p95_seconds": 0,
+          "runs_seconds": [0, 0, 0, 0, 0]
+        },
+        "pca": {
+          "median_seconds": 0.079999999999998295,
+          "p95_seconds": 0.089999999999999858,
+          "runs_seconds": [0.089999999999999858, 0.080000000000001847, 0.059999999999998721, 0.059999999999995168, 0.079999999999998295]
+        },
+        "knn": {
+          "median_seconds": 4.1600000000000037,
+          "p95_seconds": 4.2800000000000011,
+          "runs_seconds": [4.1099999999999994, 4.2800000000000011, 4.1699999999999982, 4.0600000000000023, 4.1600000000000037]
+        },
+        "full_pipeline": {
+          "median_seconds": 4.2299999999999969,
+          "p95_seconds": 4.360000000000003,
+          "runs_seconds": [4.1999999999999993, 4.360000000000003, 4.2299999999999969, 4.1199999999999974, 4.240000000000002]
+        },
+        "validation": {
+          "normalized_max_absolute_error": 0,
+          "normalized_max_relative_error": 0,
+          "pca_sdev_max_absolute_error": 0,
+          "pca_effective_rank": 20,
+          "pca_rank_threshold": 1.1960908891989471e-12,
+          "pca_subspace_projector_max_absolute_error": 0,
+          "pca_reconstruction_max_absolute_error": 0,
+          "pca_reconstruction_max_relative_error": 0,
+          "knn_indices_identical": true,
+          "knn_distance_max_absolute_error": 0,
+          "knn_distance_max_relative_error": 0,
+          "passed": true
+        },
+        "provenance": {
+          "normalized": {
+            "schema": "cudaverse-stage/1",
+            "compute_device": "cpu",
+            "stages": {
+              "stage": "normalization",
+              "requested_device": "inherited",
+              "device": "cpu",
+              "backend": "Matrix",
+              "selection_reason": "inherited_device",
+              "fallback": false,
+              "output_device": "cpu"
+            }
+          },
+          "pca": {
+            "schema": "cudaverse-stage/1",
+            "compute_device": "cpu",
+            "stages": {
+              "stage": ["normalization", "sparse_to_dense", "preprocessing", "decomposition"],
+              "requested_device": ["inherited", "fixed-cpu", "cpu", "cpu"],
+              "device": ["cpu", "cpu", "cpu", "cpu"],
+              "backend": ["Matrix", "Matrix", "stats", "stats"],
+              "selection_reason": ["inherited_device", "algorithm_materialization", "explicit_cpu", "explicit_cpu"],
+              "fallback": [false, false, false, false],
+              "output_device": ["cpu", "cpu", "cpu", "cpu"]
+            }
+          },
+          "knn": {
+            "schema": "cudaverse-stage/1",
+            "compute_device": "cpu",
+            "stages": {
+              "stage": ["distance", "neighbor_selection"],
+              "requested_device": ["cpu", "fixed-cpu"],
+              "device": ["cpu", "cpu"],
+              "backend": ["base", "base"],
+              "selection_reason": ["explicit_cpu", "algorithm_cpu_only"],
+              "fallback": [false, false],
+              "output_device": ["cpu", "cpu"]
+            }
+          },
+          "sparse_storage_device_resident": false,
+          "pca_scores_device_resident": false
+        },
+        "memory": {
+          "native_tracker_current_before_bytes": 0,
+          "native_tracker_peak_delta_bytes": 0,
+          "native_tracker_current_with_result_delta_bytes": 0,
+          "native_tracker_post_cleanup_difference_bytes": 0,
+          "whole_device_used_before_bytes": 1291190272,
+          "whole_device_used_with_result_bytes": 1291190272,
+          "whole_device_used_after_cleanup_bytes": 1291190272,
+          "whole_device_post_cleanup_absolute_difference_bytes": 0,
+          "backend_allocator_peak_bytes": 0,
+          "backend_allocator_reserved_peak_bytes": null,
+          "backend_allocator_peak_source": "not applicable (CPU)"
+        }
+      },
+      "native": {
+        "status": "complete",
+        "rows": 5000,
+        "columns": 100,
+        "requested_density": 0.029999999999999999,
+        "observed_density": 0.029732000000000001,
+        "nnz": 14866,
+        "n_components": 20,
+        "cold_seconds": {
+          "transfer": 0.020000000000003126,
+          "normalization": 0,
+          "pca": 0.030000000000001137,
+          "knn": 0.060000000000002274,
+          "full_pipeline": 0.11000000000000654
+        },
+        "transfer": {
+          "median_seconds": 0,
+          "p95_seconds": 0.020000000000003126,
+          "runs_seconds": [0, 0, 0, 0, 0.020000000000003126]
+        },
+        "normalization": {
+          "median_seconds": 0,
+          "p95_seconds": 0,
+          "runs_seconds": [0, 0, 0, 0, 0]
+        },
+        "pca": {
+          "median_seconds": 0.049999999999997158,
+          "p95_seconds": 0.050000000000004263,
+          "runs_seconds": [0.030000000000001137, 0.049999999999997158, 0.050000000000004263, 0.049999999999997158, 0.030000000000001137]
+        },
+        "knn": {
+          "median_seconds": 0.059999999999995168,
+          "p95_seconds": 0.060000000000002274,
+          "runs_seconds": [0.059999999999995168, 0.060000000000002274, 0.049999999999997158, 0.060000000000002274, 0.059999999999995168]
+        },
+        "full_pipeline": {
+          "median_seconds": 0.10999999999999943,
+          "p95_seconds": 0.10999999999999943,
+          "runs_seconds": [0.089999999999996305, 0.10999999999999943, 0.10000000000000142, 0.10999999999999943, 0.10999999999999943]
+        },
+        "validation": {
+          "normalized_max_absolute_error": 8.8817841970012523e-16,
+          "normalized_max_relative_error": 1.2881889291628147e-16,
+          "pca_sdev_max_absolute_error": 8.4376949871511897e-15,
+          "pca_effective_rank": 20,
+          "pca_rank_threshold": 1.1960908891989471e-12,
+          "pca_subspace_projector_max_absolute_error": 2.9765079290200447e-13,
+          "pca_reconstruction_max_absolute_error": 2.5528468228230849e-12,
+          "pca_reconstruction_max_relative_error": 4.6377702004864546e-13,
+          "knn_indices_identical": true,
+          "knn_distance_max_absolute_error": 5.0095108454235177e-12,
+          "knn_distance_max_relative_error": 7.7256554816221729e-13,
+          "passed": true
+        },
+        "provenance": {
+          "normalized": {
+            "schema": "cudaverse-stage/1",
+            "compute_device": "cuda",
+            "stages": {
+              "stage": "normalization",
+              "requested_device": "inherited",
+              "device": "cuda",
+              "backend": "native",
+              "selection_reason": "inherited_device",
+              "fallback": false,
+              "output_device": "cuda"
+            }
+          },
+          "pca": {
+            "schema": "cudaverse-stage/1",
+            "compute_device": "cuda",
+            "stages": {
+              "stage": ["normalization", "sparse_to_dense", "preprocessing", "decomposition", "scores_resident"],
+              "requested_device": ["inherited", "auto", "auto", "auto", "auto"],
+              "device": ["cuda", "cuda", "cuda", "cuda", "cuda"],
+              "backend": ["native", "native", "native", "native", "native"],
+              "selection_reason": ["inherited_device", "device_resident_conversion", "native_auto_eligible", "native_auto_eligible", "device_resident_output"],
+              "fallback": [false, false, false, false, false],
+              "output_device": ["cuda", "cuda", "cuda", "cpu", "cuda"]
+            }
+          },
+          "knn": {
+            "schema": "cudaverse-stage/1",
+            "compute_device": "cuda",
+            "stages": {
+              "stage": ["input_materialization", "distance", "neighbor_selection"],
+              "requested_device": ["inherited", "auto", "auto"],
+              "device": ["cuda", "cuda", "cuda"],
+              "backend": ["native", "native", "native"],
+              "selection_reason": ["device_resident_input", "native_auto_eligible", "native_auto_eligible"],
+              "fallback": [false, false, false],
+              "output_device": ["cuda", "cuda", "cpu"]
+            }
+          },
+          "sparse_storage_device_resident": true,
+          "pca_scores_device_resident": true
+        },
+        "memory": {
+          "native_tracker_current_before_bytes": 0,
+          "native_tracker_peak_delta_bytes": 39728900,
+          "native_tracker_current_with_result_delta_bytes": 1315720,
+          "native_tracker_post_cleanup_difference_bytes": 0,
+          "whole_device_used_before_bytes": 1293287424,
+          "whole_device_used_with_result_bytes": 1295384576,
+          "whole_device_used_after_cleanup_bytes": 1293287424,
+          "whole_device_post_cleanup_absolute_difference_bytes": 0,
+          "backend_allocator_peak_bytes": 39728900,
+          "backend_allocator_reserved_peak_bytes": null,
+          "backend_allocator_peak_source": "cudaverse native operation-owned allocation tracker"
+        }
+      },
+      "torch": {
+        "status": "complete",
+        "rows": 5000,
+        "columns": 100,
+        "requested_density": 0.029999999999999999,
+        "observed_density": 0.029732000000000001,
+        "nnz": 14866,
+        "n_components": 20,
+        "cold_seconds": {
+          "transfer": 0,
+          "normalization": 0,
+          "pca": 0.049999999999997158,
+          "knn": 1.5300000000000011,
+          "full_pipeline": 1.5799999999999983
+        },
+        "transfer": {
+          "median_seconds": 0,
+          "p95_seconds": 0,
+          "runs_seconds": [0, 0, 0, 0, 0]
+        },
+        "normalization": {
+          "median_seconds": 0,
+          "p95_seconds": 0.020000000000003126,
+          "runs_seconds": [0, 0, 0, 0.020000000000003126, 0.0099999999999980105]
+        },
+        "pca": {
+          "median_seconds": 0.070000000000000284,
+          "p95_seconds": 0.31000000000000227,
+          "runs_seconds": [0.31000000000000227, 0.050000000000004263, 0.070000000000000284, 0.14000000000000057, 0.050000000000004263]
+        },
+        "knn": {
+          "median_seconds": 1.7199999999999989,
+          "p95_seconds": 1.9699999999999989,
+          "runs_seconds": [1.5899999999999963, 1.7199999999999989, 1.9699999999999989, 1.4799999999999969, 1.7199999999999989]
+        },
+        "full_pipeline": {
+          "median_seconds": 1.7800000000000011,
+          "p95_seconds": 2.0399999999999991,
+          "runs_seconds": [1.8999999999999986, 1.7700000000000031, 2.0399999999999991, 1.6400000000000006, 1.7800000000000011]
+        },
+        "validation": {
+          "normalized_max_absolute_error": 0,
+          "normalized_max_relative_error": 0,
+          "pca_sdev_max_absolute_error": 2.7311486405778851e-14,
+          "pca_effective_rank": 20,
+          "pca_rank_threshold": 1.1960908891989471e-12,
+          "pca_subspace_projector_max_absolute_error": 3.1019631308026874e-13,
+          "pca_reconstruction_max_absolute_error": 2.8261837314857985e-12,
+          "pca_reconstruction_max_relative_error": 5.1343427947979119e-13,
+          "knn_indices_identical": true,
+          "knn_distance_max_absolute_error": 4.3738172805785069e-12,
+          "knn_distance_max_relative_error": 6.745290406983514e-13,
+          "passed": true
+        },
+        "provenance": {
+          "normalized": {
+            "schema": "cudaverse-stage/1",
+            "compute_device": "cuda",
+            "stages": {
+              "stage": "normalization",
+              "requested_device": "inherited",
+              "device": "cuda",
+              "backend": "Matrix",
+              "selection_reason": "inherited_device",
+              "fallback": false,
+              "output_device": "cuda"
+            }
+          },
+          "pca": {
+            "schema": "cudaverse-stage/1",
+            "compute_device": "hybrid",
+            "stages": {
+              "stage": ["normalization", "sparse_to_dense", "preprocessing", "decomposition"],
+              "requested_device": ["inherited", "fixed-cpu", "cuda", "cuda"],
+              "device": ["cuda", "cpu", "cuda", "cuda"],
+              "backend": ["Matrix", "Matrix", "torch", "torch"],
+              "selection_reason": ["inherited_device", "algorithm_materialization", "explicit_cuda", "explicit_cuda"],
+              "fallback": [false, false, false, false],
+              "output_device": ["cuda", "cpu", "cuda", "cpu"]
+            }
+          },
+          "knn": {
+            "schema": "cudaverse-stage/1",
+            "compute_device": "hybrid",
+            "stages": {
+              "stage": ["distance", "neighbor_selection"],
+              "requested_device": ["cuda", "fixed-cpu"],
+              "device": ["cuda", "cpu"],
+              "backend": ["torch", "base"],
+              "selection_reason": ["explicit_cuda", "algorithm_cpu_only"],
+              "fallback": [false, false],
+              "output_device": ["cpu", "cpu"]
+            }
+          },
+          "sparse_storage_device_resident": true,
+          "pca_scores_device_resident": false
+        },
+        "memory": {
+          "native_tracker_current_before_bytes": 0,
+          "native_tracker_peak_delta_bytes": 0,
+          "native_tracker_current_with_result_delta_bytes": 0,
+          "native_tracker_post_cleanup_difference_bytes": 0,
+          "whole_device_used_before_bytes": 1333133312,
+          "whole_device_used_with_result_bytes": 1333133312,
+          "whole_device_used_after_cleanup_bytes": 1333133312,
+          "whole_device_post_cleanup_absolute_difference_bytes": 0,
+          "backend_allocator_peak_bytes": 50907136,
+          "backend_allocator_reserved_peak_bytes": 65011712,
+          "backend_allocator_peak_source": "torch CUDA allocator session high-water mark"
+        }
+      }
+    },
+    "10000x128@0.01": {
+      "base": {
+        "status": "complete",
+        "rows": 10000,
+        "columns": 128,
+        "requested_density": 0.01,
+        "observed_density": 0.015724999999999999,
+        "nnz": 20128,
+        "n_components": 20,
+        "cold_seconds": {
+          "transfer": 0,
+          "normalization": 0,
+          "pca": 0.26000000000000512,
+          "knn": 18.629999999999995,
+          "full_pipeline": 18.890000000000001
+        },
+        "transfer": {
+          "median_seconds": 0,
+          "p95_seconds": 0,
+          "runs_seconds": [0, 0, 0, 0, 0]
+        },
+        "normalization": {
+          "median_seconds": 0,
+          "p95_seconds": 0,
+          "runs_seconds": [0, 0, 0, 0, 0]
+        },
+        "pca": {
+          "median_seconds": 0.26999999999998181,
+          "p95_seconds": 0.28000000000000114,
+          "runs_seconds": [0.25, 0.27000000000001023, 0.28000000000000114, 0.23000000000001819, 0.26999999999998181]
+        },
+        "knn": {
+          "median_seconds": 17.090000000000003,
+          "p95_seconds": 17.22999999999999,
+          "runs_seconds": [17.090000000000003, 17.22999999999999, 16.030000000000001, 17.139999999999986, 15.620000000000005]
+        },
+        "full_pipeline": {
+          "median_seconds": 17.340000000000003,
+          "p95_seconds": 17.5,
+          "runs_seconds": [17.340000000000003, 17.5, 16.310000000000002, 17.370000000000005, 15.889999999999986]
+        },
+        "validation": {
+          "normalized_max_absolute_error": 0,
+          "normalized_max_relative_error": 0,
+          "pca_sdev_max_absolute_error": 0,
+          "pca_effective_rank": 20,
+          "pca_rank_threshold": 1.8930633661806459e-12,
+          "pca_subspace_projector_max_absolute_error": 0,
+          "pca_reconstruction_max_absolute_error": 0,
+          "pca_reconstruction_max_relative_error": 0,
+          "knn_indices_identical": true,
+          "knn_distance_max_absolute_error": 0,
+          "knn_distance_max_relative_error": 0,
+          "passed": true
+        },
+        "provenance": {
+          "normalized": {
+            "schema": "cudaverse-stage/1",
+            "compute_device": "cpu",
+            "stages": {
+              "stage": "normalization",
+              "requested_device": "inherited",
+              "device": "cpu",
+              "backend": "Matrix",
+              "selection_reason": "inherited_device",
+              "fallback": false,
+              "output_device": "cpu"
+            }
+          },
+          "pca": {
+            "schema": "cudaverse-stage/1",
+            "compute_device": "cpu",
+            "stages": {
+              "stage": ["normalization", "sparse_to_dense", "preprocessing", "decomposition"],
+              "requested_device": ["inherited", "fixed-cpu", "cpu", "cpu"],
+              "device": ["cpu", "cpu", "cpu", "cpu"],
+              "backend": ["Matrix", "Matrix", "stats", "stats"],
+              "selection_reason": ["inherited_device", "algorithm_materialization", "explicit_cpu", "explicit_cpu"],
+              "fallback": [false, false, false, false],
+              "output_device": ["cpu", "cpu", "cpu", "cpu"]
+            }
+          },
+          "knn": {
+            "schema": "cudaverse-stage/1",
+            "compute_device": "cpu",
+            "stages": {
+              "stage": ["distance", "neighbor_selection"],
+              "requested_device": ["cpu", "fixed-cpu"],
+              "device": ["cpu", "cpu"],
+              "backend": ["base", "base"],
+              "selection_reason": ["explicit_cpu", "algorithm_cpu_only"],
+              "fallback": [false, false],
+              "output_device": ["cpu", "cpu"]
+            }
+          },
+          "sparse_storage_device_resident": false,
+          "pca_scores_device_resident": false
+        },
+        "memory": {
+          "native_tracker_current_before_bytes": 0,
+          "native_tracker_peak_delta_bytes": 0,
+          "native_tracker_current_with_result_delta_bytes": 0,
+          "native_tracker_post_cleanup_difference_bytes": 0,
+          "whole_device_used_before_bytes": 1333133312,
+          "whole_device_used_with_result_bytes": 1333133312,
+          "whole_device_used_after_cleanup_bytes": 1333133312,
+          "whole_device_post_cleanup_absolute_difference_bytes": 0,
+          "backend_allocator_peak_bytes": 0,
+          "backend_allocator_reserved_peak_bytes": null,
+          "backend_allocator_peak_source": "not applicable (CPU)"
+        }
+      },
+      "native": {
+        "status": "complete",
+        "rows": 10000,
+        "columns": 128,
+        "requested_density": 0.01,
+        "observed_density": 0.015724999999999999,
+        "nnz": 20128,
+        "n_components": 20,
+        "cold_seconds": {
+          "transfer": 0,
+          "normalization": 0,
+          "pca": 0.28999999999999204,
+          "knn": 0.18999999999999773,
+          "full_pipeline": 0.47999999999998977
+        },
+        "transfer": {
+          "median_seconds": 0,
+          "p95_seconds": 0.010000000000019327,
+          "runs_seconds": [0.010000000000019327, 0, 0, 0.0099999999999909051, 0]
+        },
+        "normalization": {
+          "median_seconds": 0,
+          "p95_seconds": 0,
+          "runs_seconds": [0, 0, 0, 0, 0]
+        },
+        "pca": {
+          "median_seconds": 0.049999999999982947,
+          "p95_seconds": 0.080000000000012506,
+          "runs_seconds": [0.049999999999982947, 0.049999999999982947, 0.060000000000002274, 0.080000000000012506, 0.040000000000020464]
+        },
+        "knn": {
+          "median_seconds": 0.15999999999999659,
+          "p95_seconds": 0.16999999999998749,
+          "runs_seconds": [0.15999999999999659, 0.15999999999999659, 0.15000000000000568, 0.15999999999999659, 0.16999999999998749]
+        },
+        "full_pipeline": {
+          "median_seconds": 0.21000000000000796,
+          "p95_seconds": 0.25,
+          "runs_seconds": [0.21999999999999886, 0.20999999999997954, 0.21000000000000796, 0.25, 0.21000000000000796]
+        },
+        "validation": {
+          "normalized_max_absolute_error": 8.8817841970012523e-16,
+          "normalized_max_relative_error": 1.2875126992918656e-16,
+          "pca_sdev_max_absolute_error": 9.6589403142388619e-15,
+          "pca_effective_rank": 20,
+          "pca_rank_threshold": 1.8930633661806459e-12,
+          "pca_subspace_projector_max_absolute_error": 1.5906165273804618e-12,
+          "pca_reconstruction_max_absolute_error": 1.2942091842660375e-11,
+          "pca_reconstruction_max_relative_error": 2.0478252969165238e-12,
+          "knn_indices_identical": true,
+          "knn_distance_max_absolute_error": 1.5333223839925081e-11,
+          "knn_distance_max_relative_error": 2.7846889641804963e-12,
+          "passed": true
+        },
+        "provenance": {
+          "normalized": {
+            "schema": "cudaverse-stage/1",
+            "compute_device": "cuda",
+            "stages": {
+              "stage": "normalization",
+              "requested_device": "inherited",
+              "device": "cuda",
+              "backend": "native",
+              "selection_reason": "inherited_device",
+              "fallback": false,
+              "output_device": "cuda"
+            }
+          },
+          "pca": {
+            "schema": "cudaverse-stage/1",
+            "compute_device": "cuda",
+            "stages": {
+              "stage": ["normalization", "sparse_to_dense", "preprocessing", "decomposition", "scores_resident"],
+              "requested_device": ["inherited", "auto", "auto", "auto", "auto"],
+              "device": ["cuda", "cuda", "cuda", "cuda", "cuda"],
+              "backend": ["native", "native", "native", "native", "native"],
+              "selection_reason": ["inherited_device", "device_resident_conversion", "native_auto_eligible", "native_auto_eligible", "device_resident_output"],
+              "fallback": [false, false, false, false, false],
+              "output_device": ["cuda", "cuda", "cuda", "cpu", "cuda"]
+            }
+          },
+          "knn": {
+            "schema": "cudaverse-stage/1",
+            "compute_device": "cuda",
+            "stages": {
+              "stage": ["input_materialization", "distance", "neighbor_selection"],
+              "requested_device": ["inherited", "auto", "auto"],
+              "device": ["cuda", "cuda", "cuda"],
+              "backend": ["native", "native", "native"],
+              "selection_reason": ["device_resident_input", "native_auto_eligible", "native_auto_eligible"],
+              "fallback": [false, false, false],
+              "output_device": ["cuda", "cuda", "cpu"]
+            }
+          },
+          "sparse_storage_device_resident": true,
+          "pca_scores_device_resident": true
+        },
+        "memory": {
+          "native_tracker_current_before_bytes": 0,
+          "native_tracker_peak_delta_bytes": 94153092,
+          "native_tracker_current_with_result_delta_bytes": 2324104,
+          "native_tracker_post_cleanup_difference_bytes": 0,
+          "whole_device_used_before_bytes": 1333133312,
+          "whole_device_used_with_result_bytes": 1335230464,
+          "whole_device_used_after_cleanup_bytes": 1333133312,
+          "whole_device_post_cleanup_absolute_difference_bytes": 0,
+          "backend_allocator_peak_bytes": 94153092,
+          "backend_allocator_reserved_peak_bytes": null,
+          "backend_allocator_peak_source": "cudaverse native operation-owned allocation tracker"
+        }
+      },
+      "torch": {
+        "status": "complete",
+        "rows": 10000,
+        "columns": 128,
+        "requested_density": 0.01,
+        "observed_density": 0.015724999999999999,
+        "nnz": 20128,
+        "n_components": 20,
+        "cold_seconds": {
+          "transfer": 0,
+          "normalization": 0.020000000000010232,
+          "pca": 0.049999999999982947,
+          "knn": 6.5800000000000125,
+          "full_pipeline": 6.6500000000000057
+        },
+        "transfer": {
+          "median_seconds": 0.0099999999999909051,
+          "p95_seconds": 0.01999999999998181,
+          "runs_seconds": [0.0099999999999909051, 0.0099999999999909051, 0, 0.01999999999998181, 0.0099999999999909051]
+        },
+        "normalization": {
+          "median_seconds": 0,
+          "p95_seconds": 0.0099999999999909051,
+          "runs_seconds": [0, 0, 0, 0.0099999999999909051, 0]
+        },
+        "pca": {
+          "median_seconds": 0.24000000000000909,
+          "p95_seconds": 0.34000000000003183,
+          "runs_seconds": [0.060000000000002274, 0.24000000000000909, 0.069999999999993179, 0.34000000000003183, 0.24000000000000909]
+        },
+        "knn": {
+          "median_seconds": 6.42999999999995,
+          "p95_seconds": 7.1500000000000057,
+          "runs_seconds": [7.1500000000000057, 7.1199999999999761, 6.25, 6.42999999999995, 6.4200000000000159]
+        },
+        "full_pipeline": {
+          "median_seconds": 6.7999999999999545,
+          "p95_seconds": 7.3699999999999761,
+          "runs_seconds": [7.2199999999999989, 7.3699999999999761, 6.3199999999999932, 6.7999999999999545, 6.6700000000000159]
+        },
+        "validation": {
+          "normalized_max_absolute_error": 0,
+          "normalized_max_relative_error": 0,
+          "pca_sdev_max_absolute_error": 2.7422508708241367e-14,
+          "pca_effective_rank": 20,
+          "pca_rank_threshold": 1.8930633661806459e-12,
+          "pca_subspace_projector_max_absolute_error": 1.4209189380665066e-12,
+          "pca_reconstruction_max_absolute_error": 1.1313172620930345e-11,
+          "pca_reconstruction_max_relative_error": 1.7900816470146669e-12,
+          "knn_indices_identical": true,
+          "knn_distance_max_absolute_error": 1.1997150668741074e-11,
+          "knn_distance_max_relative_error": 2.1788198892567116e-12,
+          "passed": true
+        },
+        "provenance": {
+          "normalized": {
+            "schema": "cudaverse-stage/1",
+            "compute_device": "cuda",
+            "stages": {
+              "stage": "normalization",
+              "requested_device": "inherited",
+              "device": "cuda",
+              "backend": "Matrix",
+              "selection_reason": "inherited_device",
+              "fallback": false,
+              "output_device": "cuda"
+            }
+          },
+          "pca": {
+            "schema": "cudaverse-stage/1",
+            "compute_device": "hybrid",
+            "stages": {
+              "stage": ["normalization", "sparse_to_dense", "preprocessing", "decomposition"],
+              "requested_device": ["inherited", "fixed-cpu", "cuda", "cuda"],
+              "device": ["cuda", "cpu", "cuda", "cuda"],
+              "backend": ["Matrix", "Matrix", "torch", "torch"],
+              "selection_reason": ["inherited_device", "algorithm_materialization", "explicit_cuda", "explicit_cuda"],
+              "fallback": [false, false, false, false],
+              "output_device": ["cuda", "cpu", "cuda", "cpu"]
+            }
+          },
+          "knn": {
+            "schema": "cudaverse-stage/1",
+            "compute_device": "hybrid",
+            "stages": {
+              "stage": ["distance", "neighbor_selection"],
+              "requested_device": ["cuda", "fixed-cpu"],
+              "device": ["cuda", "cpu"],
+              "backend": ["torch", "base"],
+              "selection_reason": ["explicit_cuda", "algorithm_cpu_only"],
+              "fallback": [false, false],
+              "output_device": ["cpu", "cpu"]
+            }
+          },
+          "sparse_storage_device_resident": true,
+          "pca_scores_device_resident": false
+        },
+        "memory": {
+          "native_tracker_current_before_bytes": 0,
+          "native_tracker_peak_delta_bytes": 0,
+          "native_tracker_current_with_result_delta_bytes": 0,
+          "native_tracker_post_cleanup_difference_bytes": 0,
+          "whole_device_used_before_bytes": 1387659264,
+          "whole_device_used_with_result_bytes": 1387659264,
+          "whole_device_used_after_cleanup_bytes": 1387659264,
+          "whole_device_post_cleanup_absolute_difference_bytes": 0,
+          "backend_allocator_peak_bytes": 94990848,
+          "backend_allocator_reserved_peak_bytes": 119537664,
+          "backend_allocator_peak_source": "torch CUDA allocator session high-water mark"
+        }
+      }
+    }
+  },
+  "benchmark_regression": {
+    "schema": "cudaverse-native-consolidation-regression/1",
+    "baseline_report": "phase3-rtx2000.json",
+    "baseline_schema": "cudaverse-native-phase3/1",
+    "baseline_sha256": "e0d7f1120c21323d6e94ca7930a797f42ab7730fc254897eb2a2c3a4da67f43a",
+    "policy": {
+      "median": "no more than 20% or 0.02 seconds above Phase 3",
+      "p95": "no more than 25% or 0.03 seconds above Phase 3",
+      "native_peak_vram": "no more than 10% or 1 MiB above Phase 3",
+      "installed_size": "no more than 25% or 128 KiB above Phase 3"
+    },
+    "cases": {
+      "1000x50@0.1": {
+        "baseline_median_seconds": 0.029999999999999361,
+        "candidate_median_seconds": 0.030000000000000249,
+        "median_limit_seconds": 0.049999999999999364,
+        "median_passed": true,
+        "baseline_p95_seconds": 0.030000000000000249,
+        "candidate_p95_seconds": 0.049999999999999822,
+        "p95_limit_seconds": 0.060000000000000248,
+        "p95_passed": true,
+        "baseline_peak_bytes": 9868772,
+        "candidate_peak_bytes": 9868772,
+        "peak_limit_bytes": 10917348,
+        "peak_passed": true,
+        "passed": true
+      },
+      "5000x100@0.03": {
+        "baseline_median_seconds": 0.090000000000003411,
+        "candidate_median_seconds": 0.10999999999999943,
+        "median_limit_seconds": 0.11000000000000341,
+        "median_passed": true,
+        "baseline_p95_seconds": 0.10000000000000142,
+        "candidate_p95_seconds": 0.10999999999999943,
+        "p95_limit_seconds": 0.13000000000000142,
+        "p95_passed": true,
+        "baseline_peak_bytes": 39728900,
+        "candidate_peak_bytes": 39728900,
+        "peak_limit_bytes": 43701790,
+        "peak_passed": true,
+        "passed": true
+      },
+      "10000x128@0.01": {
+        "baseline_median_seconds": 0.21000000000000796,
+        "candidate_median_seconds": 0.21000000000000796,
+        "median_limit_seconds": 0.25200000000000955,
+        "median_passed": true,
+        "baseline_p95_seconds": 0.21999999999999886,
+        "candidate_p95_seconds": 0.25,
+        "p95_limit_seconds": 0.27499999999999858,
+        "p95_passed": true,
+        "baseline_peak_bytes": 94153092,
+        "candidate_peak_bytes": 94153092,
+        "peak_limit_bytes": 103568401.2,
+        "peak_passed": true,
+        "passed": true
+      }
+    },
+    "installed_size": {
+      "cudaverse": {
+        "baseline_bytes": 897619,
+        "baseline_definition": "cudaverse plus cudaverseCUDA installed sizes",
+        "candidate_bytes": 994113,
+        "limit_bytes": 1122023.75,
+        "passed": true
+      }
+    },
+    "passed": true
+  },
+  "hardware_validation": {
+    "schema": "cudaverse-native-consolidation-validation/1",
+    "auto_selection": {
+      "requested_device": "auto",
+      "selected_backend": "native",
+      "auto_eligible_backends": ["torch", "native"],
+      "selection_reason": "native_auto_eligible",
+      "contract_schema": "cudaverse-backend/1",
+      "capability_compatible": true,
+      "missing_auto_capabilities": [],
+      "runtime_complete": true,
+      "self_test": {
+        "passed": true,
+        "reason": "self_test_passed",
+        "error": null,
+        "checks": ["float64-transfer-matmul-reduce", "float32-transfer-matmul-reduce", "arithmetic-reshape-broadcast-transpose", "sparse-transfer-normalize"],
+        "duration_ms": 50.000000000000043
+      },
+      "passed": true
+    },
+    "dtype_surface": {
+      "operations": ["add", "subtract", "multiply", "divide", "power", "broadcast", "reshape", "transpose", "matmul", "reduction"],
+      "dtypes": {
+        "float32": {
+          "operation_max_absolute_error": {
+            "add": 1.9197340161980492e-07,
+            "subtract": 1.0372756364951385e-07,
+            "multiply": 1.48624568652167e-07,
+            "divide": 5.9974859967226735e-08,
+            "power": 2.2382152309319281e-07,
+            "broadcast": 2.7247837586230617e-07,
+            "reshape": 5.1089695585204709e-08,
+            "transpose": 5.1089695585204709e-08,
+            "matmul": 1.5457907887039823e-07,
+            "reduction": 4.0871756468163767e-07
+          },
+          "tolerance": 1.0000000000000001e-05,
+          "all_outputs_native": true,
+          "passed": true
+        },
+        "float64": {
+          "operation_max_absolute_error": {
+            "add": 0,
+            "subtract": 0,
+            "multiply": 0,
+            "divide": 0,
+            "power": 2.7755575615628914e-17,
+            "broadcast": 0,
+            "reshape": 0,
+            "transpose": 0,
+            "matmul": 2.2204460492503131e-16,
+            "reduction": 0
+          },
+          "tolerance": 1e-10,
+          "all_outputs_native": true,
+          "passed": true
+        }
+      },
+      "passed": true
+    },
+    "dense_lifecycle": {
+      "cycles": 1000,
+      "whole_device_absolute_difference_bytes": 0,
+      "tracked_current_difference_bytes": 0,
+      "tracked_peak_delta_bytes": 512,
+      "passed": true
+    },
+    "lifecycle": {
+      "cycles": 1000,
+      "whole_device_absolute_difference_bytes": 0,
+      "tracked_current_difference_bytes": 0,
+      "tracked_peak_delta_bytes": 1800,
+      "passed": true
+    },
+    "shared_ownership": {
+      "roundtrip_after_first_owner_release": true,
+      "final_release_succeeded": true,
+      "use_after_final_release_errors": true,
+      "passed": true
+    },
+    "structured_error": {
+      "classes": ["cudaverse_native_error", "cudaverse_backend_operation_error", "cudaverse_backend_error", "error", "condition"],
+      "backend": "native",
+      "operation": "sparse_matmul_dense",
+      "message": "Native CUDA backend failed during `sparse_matmul_dense`: Native sparse-dense multiplication requires a conformable float64 matrix.",
+      "backend_reusable": true,
+      "passed": true
+    },
+    "injected_cuda_error": {
+      "classes": ["cudaverse_native_error", "cudaverse_backend_operation_error", "cudaverse_backend_error", "error", "condition"],
+      "backend": "native",
+      "operation": "test_inject_cuda_error",
+      "message": "Native CUDA backend failed during `test_inject_cuda_error`: injected cuMemAlloc: CUDA error 2 (CUDA_ERROR_OUT_OF_MEMORY): out of memory",
+      "tracked_current_difference_bytes": 0,
+      "passed": true
+    },
+    "interruption": {
+      "condition_message": "reached elapsed time limit",
+      "interrupted": true,
+      "tracked_current_difference_bytes": 0,
+      "backend_reusable": true,
+      "passed": true
+    },
+    "resident_pipeline": {
+      "provenance_schema": ["cudaverse-stage/1", "cudaverse-stage/1", "cudaverse-stage/1"],
+      "normalized_stages": "normalization",
+      "pca_stages": ["normalization", "sparse_to_dense", "preprocessing", "decomposition", "scores_resident"],
+      "knn_stages": ["input_materialization", "distance", "neighbor_selection"],
+      "normalized_storage_external_pointer": true,
+      "pca_scores_storage_external_pointer": true,
+      "normalized_compute_device": "cuda",
+      "pca_compute_device": "cuda",
+      "knn_compute_device": "cuda",
+      "passed": true
+    },
+    "stable_ties": {
+      "native_index": [
+        [2, 3, 4, 5],
+        [6, 1, 4, 5],
+        [1, 4, 5, 2],
+        [1, 2, 3, 6],
+        [1, 2, 3, 6],
+        [2, 1, 4, 5]
+      ],
+      "cpu_index": [
+        [2, 3, 4, 5],
+        [6, 1, 4, 5],
+        [1, 4, 5, 2],
+        [1, 2, 3, 6],
+        [1, 2, 3, 6],
+        [2, 1, 4, 5]
+      ],
+      "indices_identical": true,
+      "distance_max_absolute_error": 0,
+      "rule": "equal distances are ordered by original one-based row index",
+      "passed": true
+    }
+  },
+  "overall_pass": true
+}

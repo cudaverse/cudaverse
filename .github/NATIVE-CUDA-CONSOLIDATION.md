@@ -57,7 +57,11 @@ with a redirect rather than deleted.
   `29b3d533b134e3e08f559f57b7a92ff14bd155de028070c9fa48c38c5999e49b`.
   The retained log is
   `.github/evidence/native-consolidation-windows-r46-check.log`.
-- [ ] Run the full integrated RTX consolidation report and benchmark gates.
+- [x] The full integrated RTX report passed numerical parity, automatic
+  selection, resident provenance, error recovery, interruption, dense and
+  sparse 1,000-cycle lifetime, timing, peak-VRAM, and combined installed-size
+  gates. Its SHA-256 is
+  `13ed0e28c1337dbfd934c5b6dbb1a81a26f2b58e73b04194c63c2c964f5f2888`.
 - [ ] Obtain green Windows, macOS, Ubuntu, R-devel, native integrity, and
   trusted RTX GitHub checks for the reviewed candidate.
 

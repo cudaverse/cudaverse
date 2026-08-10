@@ -26,6 +26,8 @@ jobs:
         run: Rscript tools/check-sbom.R
       - name: Validate the pinned pre-consolidation hardware baseline
         run: Rscript tools/check-phase4-report.R
+      - name: Validate the integrated RTX consolidation report
+        run: Rscript tools/check-consolidation-report.R
 
   cuda-12-8-1-abi:
     runs-on: ubuntu-latest
@@ -147,4 +149,3 @@ jobs:
             cudaverse_*.tar.gz
           if-no-files-found: error
           retention-days: 14
-
