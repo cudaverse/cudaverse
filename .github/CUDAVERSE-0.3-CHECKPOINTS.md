@@ -164,6 +164,8 @@ Deferred beyond CP-03:
   guarantee that device storage and public COO order stay aligned; a parallel
   stable scatter is benchmark-driven follow-up work, not a release claim;
 - float32 sparse storage remains evidence-gated and is not introduced here.
+  The 0.3 decision and quantitative re-entry gates are retained in
+  `CUDAVERSE-0.3-SPARSE-FLOAT32-DECISION.md`.
 
 ## CP-04: executable public-backend conformance
 
@@ -287,5 +289,8 @@ Required evidence before merge:
   the report SHA-256;
 - [ ] observed regressions and workload-specific conclusions are reviewed and
   documented;
+- [x] float32 sparse storage is explicitly evidence-deferred, with the current
+  float64 implementation evidence and quantitative re-entry gates retained in
+  `CUDAVERSE-0.3-SPARSE-FLOAT32-DECISION.md`;
 - [ ] local package checks and all required GitHub checks pass on the evidence
   branch.
