@@ -3,6 +3,14 @@ url: https://cudaverse.github.io/cudaverse/
 template:
   bootstrap: 5
 
+articles:
+- title: Start here
+  navbar: ~
+  contents:
+  - getting-started
+  - backend-provenance
+  - backend-support
+
 reference:
 - title: Device and provenance
   contents:

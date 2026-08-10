@@ -75,27 +75,23 @@ explicit host materializations. CUDA `[` and `[<-` currently round-trip
 through base R. PCA prediction uses the selected algorithm backend; k-means
 prediction is hybrid whenever distance uses CUDA.
 
-## Findings and next checkpoint
+## Checkpoint 2 resolution
 
-1. **Capability semantics need one source of truth.** Base and torch factories
-   implement algorithm operations that are not named in their human-readable
-   capability vectors, while native advertises a much richer feature list.
-   Operation availability and selection capabilities must be separated and
-   documented before 0.2 is frozen.
-2. **Optional operation dispatch is still backend-shaped.** Sparse PCA/kNN,
-   sparse reductions/normalization, and resident sparse multiplication contain
-   explicit native or storage-type branches. These branches are currently
-   correct, but checkpoint 2 should express them through generic registry
-   queries and explicit result contracts rather than backend identity where
-   practical.
-3. **Torch sparse normalization provenance is too compressed.** CPU
-   normalization and CUDA storage reconstruction appear as one Matrix stage
-   whose output is CUDA. The stage table should separately expose host compute
-   and upload.
+1. **Capability semantics resolved.** Backend registration now validates
+   capability declarations. Diagnostics expose human-readable `capabilities`
+   separately from callable internal `operations`; the legacy diagnostic
+   fields remain unchanged.
+2. **Optional dispatch generalized.** Sparse PCA and kNN now select their
+   specialized paths by registered operation rather than the literal backend
+   name. Storage-specific ownership checks remain where the object contract is
+   genuinely native-specific.
+3. **Torch sparse provenance resolved.** CPU normalization and CUDA sparse
+   reconstruction are separate `normalization` and `normalization_upload`
+   stages.
 4. **Known CPU boundaries are release limitations, not missing repositories.**
    Tensor subsetting/replacement, graph/community workflows, UMAP, t-SNE, the
    non-distance portion of diffusion maps, and k-means updates remain explicit
    CPU or hybrid paths for 0.2.
 
-Checkpoint 2 will address findings 1-3 with contract tests. Finding 4 remains
-documented unless evidence shows a correctness or provenance violation.
+Findings 1-3 are covered by backend contract and sparse provenance tests.
+Finding 4 remains an explicit 0.2 support boundary.

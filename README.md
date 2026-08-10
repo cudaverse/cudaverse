@@ -75,6 +75,8 @@ diagnostics <- cuda_diagnostics()
 diagnostics$selected_backend
 diagnostics$auto_eligible_backends
 diagnostics$backend_diagnostics$native$self_test
+diagnostics$backend_diagnostics$native$capabilities
+diagnostics$backend_diagnostics$native$operations
 ```
 
 On Windows, `CUDAVERSE_CUBLAS_PATH` and `CUDAVERSE_CUSOLVER_PATH` may point
@@ -84,6 +86,9 @@ redistribute them.
 
 The option `cudaverse.cuda_backends` can still constrain backend order for
 testing, but it cannot bypass native contract, runtime, or self-test gates.
+The [backend support article](vignettes/backend-support.Rmd) distinguishes
+direct, hybrid, CPU-only, metadata, probe, and host-materializing APIs across
+the base, torch, and native backends.
 
 ## One workflow, one package
 
