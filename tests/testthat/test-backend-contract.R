@@ -232,3 +232,70 @@ test_that("optional backend operations are discovered without changing contract"
   expect_false(cudaverse:::.backend_has_operation("base", "missing_method"))
   expect_true(cudaverse:::.backend_has_operation("base", "algorithm_distance"))
 })
+
+test_that("sparse algorithms dispatch by operation rather than backend name", {
+  dense <- matrix(c(1, 0, 2, 0, 3, 1, 4, 0), nrow = 4, byrow = TRUE)
+  calls <- new.env(parent = emptyenv())
+  calls$pca <- 0L
+  calls$knn <- 0L
+  factory <- cudaverse:::.base_backend_factory()
+  factory$name <- "sparse-contract-test"
+  factory$device <- "cuda"
+  factory$algorithm_sparse_pca <- function(storage, shape, n_components,
+                                           center, scale) {
+    calls$pca <- calls$pca + 1L
+    cudaverse:::.base_backend_factory()$algorithm_pca(
+      dense, n_components, center, scale
+    )
+  }
+  factory$algorithm_sparse_knn_prepare <- function(storage, shape, metric) {
+    calls$knn <- calls$knn + 1L
+    dense
+  }
+  factory$algorithm_knn_select <- function(storage, values, k, metric,
+                                           batch_size) {
+    distances <- as.matrix(stats::dist(storage))
+    diag(distances) <- Inf
+    index <- t(vapply(
+      seq_len(nrow(storage)),
+      function(row) order(distances[row, ], seq_len(nrow(storage)))[seq_len(k)],
+      integer(k)
+    ))
+    selected <- matrix(
+      distances[cbind(rep(seq_len(nrow(storage)), each = k), as.vector(t(index)))],
+      nrow = nrow(storage),
+      ncol = k,
+      byrow = TRUE
+    )
+    list(index = index, distance = selected)
+  }
+  cudaverse:::.backend_register(factory, replace = TRUE)
+  on.exit(
+    rm(list = "sparse-contract-test", envir = cudaverse:::.cudaverse_backends),
+    add = TRUE
+  )
+  testthat::local_mocked_bindings(
+    .learn_device = function(device) list(
+      requested_device = "cuda",
+      device = "cuda",
+      backend = "sparse-contract-test",
+      selection_reason = "contract_test",
+      fallback = FALSE
+    )
+  )
+
+  sparse <- cuda_sparse(dense, device = "cpu")
+  sparse$device <- "cuda"
+  sparse$backend <- "sparse-contract-test"
+  sparse$backend_id <- "sparse-contract-test"
+  sparse$storage <- list(test = TRUE)
+
+  pca <- cuda_pca(sparse, n_components = 1L, device = "cuda")
+  knn <- cuda_knn(sparse, k = 2L, device = "cuda")
+
+  expect_identical(calls$pca, 1L)
+  expect_identical(calls$knn, 1L)
+  expect_identical(pca$backend, "sparse-contract-test")
+  expect_identical(knn$backend, "sparse-contract-test")
+  expect_identical(knn$device, "cuda")
+})

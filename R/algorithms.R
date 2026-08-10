@@ -629,10 +629,10 @@ cuda_pca <- function(x, n_components = 2L, center = TRUE, scale. = FALSE,
   n_components <- as.integer(n_components)
 
   compute_backend <- .learn_selection_backend(selection, "base")
-  native_sparse <- sparse_input && identical(compute_backend, "native") &&
+  backend_sparse <- sparse_input &&
     .backend_has_operation(compute_backend, "algorithm_sparse_pca")
   sparse_transferred <- FALSE
-  if (native_sparse) {
+  if (backend_sparse) {
     sparse_compute <- x
     source_backend <- if (is.null(x$backend_id)) "base" else x$backend_id
     if (!identical(x$device, "cuda") ||
@@ -676,7 +676,7 @@ cuda_pca <- function(x, n_components = 2L, center = TRUE, scale. = FALSE,
     .learn_add_stage(list(), "input_materialization", input_stage)
   }
   backend <- if (identical(device, "cuda")) compute_backend else "stats"
-  if (native_sparse) {
+  if (backend_sparse) {
     if (sparse_transferred) {
       stages$sparse_transfer <- .learn_stage(
         selection,
@@ -1139,10 +1139,10 @@ cuda_knn <- function(x, k = 15L, metric = c("euclidean", "cosine"),
   device <- selection$device
   batch_size <- .knn_batch_size(batch_size, n_observations)
   compute_backend <- .learn_selection_backend(selection)
-  native_sparse <- sparse_input && identical(compute_backend, "native") &&
+  backend_sparse <- sparse_input &&
     .backend_has_operation(compute_backend, "algorithm_sparse_knn_prepare")
   sparse_transferred <- FALSE
-  if (native_sparse) {
+  if (backend_sparse) {
     sparse_compute <- sparse_source
     source_backend <- if (is.null(sparse_source$backend_id)) {
       "base"
@@ -1263,7 +1263,7 @@ cuda_knn <- function(x, k = 15L, metric = c("euclidean", "cosine"),
   } else {
     .learn_add_stage(list(), "input_materialization", input_stage)
   }
-  if (native_sparse) {
+  if (backend_sparse) {
     if (sparse_transferred) {
       stages$sparse_transfer <- .learn_stage(
         selection,
