@@ -40,7 +40,8 @@ optional compatibility backend and the CPU path remains the portable fallback.
 
 The optional
 [`cudaverseCUDA`](https://github.com/cudaverse/cudaverseCUDA) extension now
-implements the native sparse Phase 3 prototype. The main package discovers it
+implements the native sparse Phase 3 pipeline and Phase 4 release-hardening
+candidate. The main package discovers it
 lazily; it remains installable and fully checkable without the extension or
 CUDA. The native implementation uses NVIDIA's focused numerical libraries
 where they are a good fit:
@@ -65,10 +66,12 @@ where they are a good fit:
 4. **Complete (sparse Phase 3):** shared-ownership COO/CSR storage, Matrix
    conversion, sparse matvec/matmul, row/column reductions, normalization, and
    sparse-input PCA/kNN through a device-resident dense continuation.
-5. Make `native` the automatic CUDA choice only after every operation reachable
-   through automatic device selection passes the same CPU/GPU parity contract.
-   Selecting native globally before element-wise and broadcasting coverage
-   would still regress existing workflows.
+5. **In validation (Phase 4):** make `native` the preferred automatic CUDA
+   choice only after every operation reachable through automatic device
+   selection passes the same CPU/GPU parity contract. The candidate now covers
+   arithmetic, trailing-dimension broadcasting, reshape, transpose, and
+   float32/float64 matmul, and additionally requires a versioned contract,
+   complete runtime components, and a cached self-test before selection.
 6. Retain torch for one compatibility cycle, then reassess whether it still
    belongs in `Suggests`.
 
@@ -94,8 +97,9 @@ interruption, allocation high-water, and benchmark contracts are versioned in
 the `cudaverseCUDA` repository. The CycloneDX SBOM and third-party license
 inventory explicitly distinguish package-owned PTX from dynamically discovered
 NVIDIA runtime libraries. Native can be released as an explicit backend, but
-global automatic preference remains gated on the uncovered tensor arithmetic
-and broadcasting surface.
+global automatic preference remains gated until the complete Phase 4 RTX,
+benchmark-regression, cross-platform, artifact, and release-candidate report
+evidence is merged.
 
 The completed
 [RTX 2000 sparse Phase 3 report](https://github.com/cudaverse/cudaverseCUDA/blob/main/inst/reports/STAGE3.md)

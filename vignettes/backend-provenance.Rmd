@@ -31,12 +31,27 @@ diagnostics <- cuda_diagnostics()
 diagnostics
 ```
 
-`cuda_diagnostics()` is non-destructive: it does not install an extension,
-torch, or a CUDA runtime. `available_backends`, `selected_backend`, and
-`backend_diagnostics` describe the registry. The legacy fields
+`cuda_diagnostics()` never installs an extension, torch, or a CUDA runtime.
+`available_backends`, `auto_eligible_backends`, `auto_selection_reason`,
+`selected_backend`, and `backend_diagnostics` describe the registry. The first
+native diagnostic in a session runs and caches a small transfer, float32 and
+float64 matmul/reduction, arithmetic/broadcast/reshape/transpose, and sparse
+normalization self-test. The legacy fields
 `torch_installed`, `torch_version`, `cuda_available`, `cuda_device_count`,
 `reason`, and `detection_error` remain available for the 0.2 compatibility
 cycle.
+
+Native is eligible for `"auto"` only when all four gates pass:
+
+1. backend contract schema `cudaverse-backend/1` matches;
+2. the complete tensor and resident PCA/kNN capability set is present;
+3. driver, cuBLAS, cuSOLVER, and package PTX components load; and
+4. the cached runtime self-test passes without retaining tracked device memory.
+
+If any gate fails, diagnostics preserve its reason and automatic selection
+tries the torch compatibility backend before using the observable CPU fallback.
+Setting `options(cudaverse.cuda_backends = ...)` can constrain test order, but
+cannot bypass these gates.
 
 Device requests have these semantics:
 

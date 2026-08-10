@@ -21,10 +21,12 @@ functions use their documented portable backend and record what actually ran.
 
 Version 0.1.0 uses `torch` only as an optional CUDA backend; it is not a hard
 package dependency. Development version 0.2 now has a backend registry and a
-separate `cudaverseCUDA` extension behind the same public R API. Phase 3 adds
+separate `cudaverseCUDA` extension behind the same public R API. Phase 3 added
 shared-ownership COO/CSR storage, sparse multiplication and reductions,
 sparse-preserving normalization, and sparse-input PCA/kNN to the validated
-dense Phase 2 pipeline. Its measured design benefits are:
+dense Phase 2 pipeline. Phase 4 adds the remaining arithmetic, broadcasting,
+reshape, transpose, and float32 matmul surface needed for safe automatic
+selection. Its measured design benefits are:
 
 - avoid requiring the full LibTorch installation, which occupied 6.86 GB in
   our Windows RTX 2000 development environment;
@@ -36,11 +38,14 @@ dense Phase 2 pipeline. Its measured design benefits are:
   provenance directly; and
 - allow future backends to be added without changing user code.
 
-These are development-line results, not claims about release 0.1.0. Native
-CUDA remains opt-in in 0.2 because element-wise arithmetic and broadcasting do
-not yet satisfy the same full-surface gate; making it the global automatic
-choice would regress currently supported torch workflows. CPU and torch
-compatibility behavior is unchanged. Reproducible PTX, RTX 2000
+These are development-line results, not claims about release 0.1.0. In the
+Phase 4 candidate, native becomes the preferred CUDA backend for `device =
+"auto"` only when extension version 0.4 is installed, its backend contract and
+capabilities match, driver/cuBLAS/cuSOLVER/PTX components are healthy, and a
+cached runtime self-test passes. An older, incomplete, or unhealthy extension
+cannot become automatic; torch remains the compatibility CUDA backend and CPU
+remains the observable fallback. Explicit CUDA requests never silently fall
+back. Reproducible PTX, RTX 2000
 parity/lifecycle evidence, the CycloneDX SBOM, and the third-party
 redistribution inventory are published with the extension source. See the
 [native CUDA roadmap](.github/NATIVE-CUDA-ROADMAP.md) for the architecture and
@@ -65,10 +70,14 @@ toolkit:
 pak::pak("cudaverse/cudaverse@develop/native-cuda")
 pak::pak("cudaverse/cudaverseCUDA")
 
-# During native development, request native before the compatibility backend.
-options(cudaverse.cuda_backends = c("native", "torch"))
-cuda_diagnostics()
+diagnostics <- cuda_diagnostics()
+diagnostics$selected_backend
+diagnostics$auto_eligible_backends
+diagnostics$backend_diagnostics$native$self_test
 ```
+
+The option `cudaverse.cuda_backends` can still constrain backend order for
+testing, but it cannot bypass native contract, runtime, or self-test gates.
 
 ## One workflow, one package
 

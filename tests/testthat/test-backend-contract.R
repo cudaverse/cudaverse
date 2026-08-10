@@ -23,6 +23,9 @@ test_that("diagnostics extend rather than replace legacy fields", {
   ) %in% names(diagnostics)))
   expect_type(diagnostics$available_backends, "character")
   expect_true("base" %in% diagnostics$available_backends)
+  expect_type(diagnostics$auto_eligible_backends, "character")
+  expect_type(diagnostics$auto_selection_reason, "character")
+  expect_length(diagnostics$auto_selection_reason, 1L)
   expect_type(diagnostics$selected_backend, "character")
   expect_length(diagnostics$selected_backend, 1L)
   expect_named(diagnostics$backend_diagnostics, c("torch", "native"))
@@ -99,6 +102,89 @@ test_that("missing backend capabilities return structured conditions", {
   expect_s3_class(condition, "cudaverse_backend_error")
   expect_identical(condition$backend, "contract-test")
   expect_identical(condition$operation, "reduce")
+})
+
+test_that("native auto-selection requires its contract, capabilities, and self-test", {
+  old_option <- options(cudaverse.cuda_backends = NULL)
+  on.exit(options(old_option), add = TRUE)
+  testthat::local_mocked_bindings(
+    .backend_discover_native = function() invisible(NULL)
+  )
+
+  registry <- cudaverse:::.cudaverse_backends
+  had_native <- exists("native", envir = registry, inherits = FALSE)
+  old_native <- if (had_native) get("native", envir = registry) else NULL
+  on.exit({
+    if (had_native) {
+      assign("native", old_native, envir = registry)
+    } else if (exists("native", envir = registry, inherits = FALSE)) {
+      rm(list = "native", envir = registry)
+    }
+  }, add = TRUE)
+
+  capabilities <- cudaverse:::.native_auto_required_capabilities
+  factory <- cudaverse:::.base_backend_factory()
+  factory$name <- "native"
+  factory$device <- "cuda"
+  factory$contract <- function() list(schema = "cudaverse-backend/1")
+  factory$capabilities <- function() capabilities
+  cudaverse:::.backend_register(factory, replace = TRUE)
+
+  healthy <- list(
+    installed = TRUE,
+    available = TRUE,
+    device_count = 1L,
+    version = "test",
+    reason = "cuda_available",
+    detection_error = NULL,
+    runtime_complete = TRUE,
+    self_test = list(passed = TRUE)
+  )
+  torch <- list(
+    installed = TRUE,
+    available = TRUE,
+    device_count = 1L,
+    version = "test",
+    reason = "cuda_available",
+    detection_error = NULL
+  )
+
+  status <- cudaverse:::.backend_selection_status("native", healthy)
+  expect_true(status$capability_compatible)
+  expect_true(status$self_test_passed)
+  expect_true(status$auto_eligible)
+  expect_length(status$missing_auto_capabilities, 0L)
+  expect_identical(
+    cudaverse:::.backend_select_cuda(list(
+      backend_diagnostics = list(torch = torch, native = healthy)
+    )),
+    "native"
+  )
+
+  capabilities <- setdiff(capabilities, "stable-topk")
+  incompatible <- cudaverse:::.backend_selection_status("native", healthy)
+  expect_false(incompatible$auto_eligible)
+  expect_identical(
+    incompatible$auto_selection_reason,
+    "native_capability_incompatible"
+  )
+  expect_identical(incompatible$missing_auto_capabilities, "stable-topk")
+  expect_identical(
+    cudaverse:::.backend_select_cuda(list(
+      backend_diagnostics = list(torch = torch, native = healthy)
+    )),
+    "torch"
+  )
+
+  capabilities <- cudaverse:::.native_auto_required_capabilities
+  failed <- healthy
+  failed$self_test <- list(passed = FALSE, error = "injected")
+  failed_status <- cudaverse:::.backend_selection_status("native", failed)
+  expect_false(failed_status$auto_eligible)
+  expect_identical(
+    failed_status$auto_selection_reason,
+    "native_self_test_failed"
+  )
 })
 
 test_that("optional backend operations are discovered without changing contract", {

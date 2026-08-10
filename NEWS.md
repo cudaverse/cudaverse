@@ -12,8 +12,13 @@
 - Kept `PCA -> distance -> top-k` intermediate data on the GPU for the native
   path and retained the `cudaverse-stage/1` provenance schema.
 - Preserved portable CPU behavior and the optional torch compatibility backend.
-  Native remains opt-in because global automatic selection must still cover
-  the element-wise and broadcasting surface without regressions.
+- Added capability-gated automatic native selection. Native is preferred only
+  when the extension contract, complete tensor/algorithm capability set,
+  driver/cuBLAS/cuSOLVER/PTX runtime, and cached runtime self-test all pass;
+  otherwise torch or the recorded CPU fallback retains compatibility.
+- Added native float32 matmul plus device-native element-wise arithmetic,
+  trailing-dimension broadcasting, reshape, and transpose coverage required by
+  the global automatic-selection gate.
 
 # cudaverse 0.1.0
 
