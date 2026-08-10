@@ -322,7 +322,7 @@ require_gate(
   identical(text_value(manifest$decision$source_commit), commit),
   "candidate decision is from another source commit"
 )
-check_evidence_file(
+decision_path <- check_evidence_file(
   manifest$decision$report_file,
   manifest$decision$report_sha256,
   "candidate decision report"
@@ -331,6 +331,37 @@ require_gate(length(manifest$decision$limitations) > 0,
              "candidate decision does not record remaining limitations")
 require_gate(!logical_value(manifest$decision$external_release_action_taken),
              "an external release action was taken before approval")
+if (file.exists(decision_path)) {
+  decision_text <- paste(readLines(decision_path, warn = FALSE), collapse = "\n")
+  require_decision_text <- function(value, message) {
+    require_gate(grepl(value, decision_text, fixed = TRUE), message)
+  }
+  require_decision_text(
+    paste0("Source commit: `", commit, "`"),
+    "candidate decision report source commit does not match"
+  )
+  require_decision_text(
+    paste0("Candidate version: `", version, "`"),
+    "candidate decision report version does not match"
+  )
+  require_decision_text(
+    paste0("Outcome: `", outcome, "`"),
+    "candidate decision report outcome does not match"
+  )
+  require_decision_text(
+    "External release action taken: `false`",
+    "candidate decision report does not stop before external release action"
+  )
+  limitations <- unlist(
+    manifest$decision$limitations, recursive = TRUE, use.names = FALSE
+  )
+  for (limitation in limitations) {
+    require_decision_text(
+      as.character(limitation),
+      paste("candidate decision report omits limitation:", limitation)
+    )
+  }
+}
 
 if (length(failures)) {
   stop(

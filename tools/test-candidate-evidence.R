@@ -43,7 +43,9 @@ evidence_files <- c(
 write_fixture <- function(name, value = "synthetic retained evidence") {
   writeBin(charToRaw(value), file.path(work, evidence_files[[name]]))
 }
-plain_files <- setdiff(names(evidence_files), c("sbom", "rtx", "benchmark"))
+plain_files <- setdiff(
+  names(evidence_files), c("sbom", "rtx", "benchmark", "decision")
+)
 for (name in plain_files) write_fixture(name)
 write_sbom <- function(component_version = version) {
   jsonlite::write_json(
@@ -82,9 +84,29 @@ write_benchmark <- function(source_commit = commit) {
     auto_unbox = TRUE, pretty = TRUE
   )
 }
+write_decision <- function(source_commit = commit, outcome = "defer",
+                           limitation = "synthetic limitation") {
+  writeLines(
+    c(
+      "# Synthetic candidate decision",
+      "",
+      paste0("- Source commit: `", source_commit, "`"),
+      paste0("- Candidate version: `", version, "`"),
+      paste0("- Outcome: `", outcome, "`"),
+      "- External release action taken: `false`",
+      "",
+      "## Remaining limitations",
+      "",
+      paste0("- ", limitation)
+    ),
+    file.path(work, evidence_files[["decision"]]),
+    useBytes = TRUE
+  )
+}
 write_sbom()
 write_rtx()
 write_benchmark()
+write_decision()
 sha_for <- function(name) {
   digest::digest(
     file.path(work, evidence_files[[name]]),
@@ -249,6 +271,25 @@ manifest$benchmark$source_commit <- paste(rep("c", 40L), collapse = "")
 write_manifest()
 expect_error_message(run_checker(), "benchmark evidence is from another")
 manifest$benchmark$source_commit <- commit
+
+write_decision(outcome = "release")
+manifest$decision$report_sha256 <- sha_for("decision")
+write_manifest()
+expect_error_message(run_checker(), "decision report outcome does not match")
+write_decision(source_commit = paste(rep("e", 40L), collapse = ""))
+manifest$decision$report_sha256 <- sha_for("decision")
+write_manifest()
+expect_error_message(
+  run_checker(), "decision report source commit does not match"
+)
+write_decision(limitation = "different limitation")
+manifest$decision$report_sha256 <- sha_for("decision")
+write_manifest()
+expect_error_message(
+  run_checker(), "decision report omits limitation: synthetic limitation"
+)
+write_decision()
+manifest$decision$report_sha256 <- sha_for("decision")
 
 manifest$github_checks$ubuntu_r_devel$conclusion <- "skipped"
 write_manifest()

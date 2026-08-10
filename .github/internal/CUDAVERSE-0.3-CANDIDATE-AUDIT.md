@@ -72,9 +72,11 @@ SHA-256, including the benchmark checker logs, pkgdown render log, and final
 decision report. An outside path, tampered artifact, or plausible-looking
 manifest assembled from different checkpoints is therefore not final evidence.
 The checker also parses the CycloneDX component, complete full benchmark JSON,
-and RTX report to require their internal schema, clean source commit, package
-version, and pass state to match the candidate rather than trusting manifest
-metadata alone.
+RTX report, and candidate decision report to require their internal schema or
+fixed metadata, clean source commit, package version, outcome, limitations, and
+pass/release-boundary state to match the candidate rather than trusting
+manifest metadata alone. The required decision structure is retained in
+`.github/internal/CUDAVERSE-0.3-CANDIDATE-DECISION-TEMPLATE.md`.
 
 ## Final decision rule
 
