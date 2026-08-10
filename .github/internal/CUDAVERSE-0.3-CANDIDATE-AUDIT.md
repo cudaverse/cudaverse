@@ -1,4 +1,4 @@
-# cudaverse 0.3 candidate completion audit
+# Internal cudaverse 0.3 candidate completion audit
 
 This is the requirement-by-requirement completion record for the 0.3
 development line. It is intentionally stricter than a roadmap: a requirement
@@ -19,7 +19,7 @@ Status vocabulary:
 | Requirement | Status | Authoritative evidence | Remaining work |
 |---|---|---|---|
 | Freeze `main` and `release/cran-0.1.0` | proven | Remote refs both equal `59e15c8c5a56d26e09a594886c875b1b8249f6f9` | Recheck before the final decision. |
-| Develop only through reviewed checkpoints | proven at current checkpoint | `develop/native-cuda` remote is `acd105fe8ef0ed8703e9e16f9ca4ce68a0d3db7d`; CP-01 through CP-05 are recorded in `CUDAVERSE-0.3-CHECKPOINTS.md` | Merge CP-06 and CP-07 only after their exact gates pass. |
+| Develop only through reviewed checkpoints | proven at current checkpoint | `develop/native-cuda` remote is `acd105fe8ef0ed8703e9e16f9ca4ce68a0d3db7d`; CP-01 through CP-05 are recorded in `.github/internal/CUDAVERSE-0.3-CHECKPOINTS.md` | Merge CP-06 and CP-07 only after their exact gates pass. |
 | No release-side action without approval | proven so far | No 0.3 tag, release, main Pages deployment, or CRAN/Bioconductor submission exists in this work | Stop again for approval after the final decision report. |
 | One optional, lazy, lightweight package backend | proven at current checkpoint | Registry contract, redistribution gate, SBOM, artifact checks, and installed-footprint evidence | Re-run all gates on the exact final candidate. |
 
@@ -30,7 +30,7 @@ Status vocabulary:
 | Ordered roadmap, export/API audit, CI and footprint baseline | proven | `CUDAVERSE-0.3-ROADMAP.md`, capability matrix, baseline section of the checkpoint log | Refresh counts and remote state at the final candidate. |
 | Native dense object semantics, ownership, errors, interruption, and lifecycle | proven at CP-01 | PR 16 evidence, exact RTX test source, reproducible PTX, 1,000 gather/scatter cycles, and package check recorded in the checkpoint log | Repeat the complete RTX gate on the final candidate. |
 | Resident PCA/SVD prediction, distance, stable top-k/kNN, and k-means | proven at CP-02/current dense surface | Native Phase 2 evidence, CP-02 resident k-means evidence, CP-04 public conformance | Final full workload benchmark and final-candidate RTX repetition. |
-| COO/CSR sparse operations, normalization, multiplication, reductions, transpose, PCA/kNN preparation | proven for the current float64 sparse surface; float32 is evidence-deferred | Sparse Phase 3 evidence, CP-03 transpose evidence, CP-04 conformance and 1,000-cycle sparse lifecycle; `CUDAVERSE-0.3-SPARSE-FLOAT32-DECISION.md` records the bounded dtype decision and re-entry gates | Complete the full float64 sparse benchmark and repeat the sparse gates on the final candidate. |
+| COO/CSR sparse operations, normalization, multiplication, reductions, transpose, PCA/kNN preparation | proven for the current float64 sparse surface; float32 is evidence-deferred | Sparse Phase 3 evidence, CP-03 transpose evidence, CP-04 conformance and 1,000-cycle sparse lifecycle; `.github/internal/CUDAVERSE-0.3-SPARSE-FLOAT32-DECISION.md` records the bounded dtype decision and re-entry gates | Complete the full float64 sparse benchmark and repeat the sparse gates on the final candidate. |
 | One base/torch/native public conformance suite for every export and failure boundary | proven at CP-04 | PR 19, 38-export capability matrix, public workflow suite, no-skip RTX package gate | Repeat on the final candidate and confirm no exports changed without matrix coverage. |
 | Matmul and dense/sparse PCA-kNN benchmark contract | in progress | CP-05 contract/smoke; full matmul and dense 1k/10k results complete from clean source `acd105f`; reproducible summary/checker commit `2d8a010` | Finish dense 50k and every sparse case; validate exact JSON; investigate regressions; retain JSON/SHA/summary. |
 | Cross-platform packaging, ABI/PTX, SBOM, license, and small artifacts | proven at checkpoint, pending for final | CP-05 CI and green CP-07 draft checks cover Windows, macOS, Ubuntu, R-devel, artifacts, ABI/PTX, supply chain, and pkgdown | Repeat at the final merged candidate and retain exact run/artifact identifiers. |

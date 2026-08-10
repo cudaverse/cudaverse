@@ -106,7 +106,8 @@ external release action for maintainer approval.
 
 ## Checkpoint policy
 
-Each short feature branch must update `.github/CUDAVERSE-0.3-CHECKPOINTS.md`
+Each short feature branch must update
+`.github/internal/CUDAVERSE-0.3-CHECKPOINTS.md`
 with its scope, evidence, and unresolved risks. A checkpoint can merge only
 after its meaningful required checks pass. Evidence-deferred work must name the
 missing proof and cannot be presented as completed.

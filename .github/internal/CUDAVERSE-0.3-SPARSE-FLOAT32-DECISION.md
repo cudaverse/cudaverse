@@ -1,4 +1,4 @@
-# cudaverse 0.3 sparse float32 decision
+# Internal cudaverse 0.3 sparse float32 decision
 
 ## Decision
 
