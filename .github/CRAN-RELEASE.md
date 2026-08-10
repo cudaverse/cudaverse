@@ -1,8 +1,6 @@
 # CRAN release checklist for cudaverse 0.1.0
 
-This is the first CRAN submission of the consolidated `cudaverse` package.
-Evidence prepared for the former `cudatensr` package is historical context and
-does not validate this candidate.
+This is the first CRAN submission of `cudaverse`.
 
 ## Candidate
 
