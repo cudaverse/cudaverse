@@ -45,7 +45,7 @@ with a redirect rather than deleted.
 - [x] A dedicated workflow covers CUDA 12.8.1 ABI/PTX reproducibility and
   Windows/Linux no-CUDA artifact installation.
 
-### 3. Remaining validation
+### 3. Final validation
 
 - [x] An isolated R library in which `cudaverseCUDA` was unavailable built,
   installed, loaded, diagnosed the integrated native backend, and executed a
@@ -62,16 +62,47 @@ with a redirect rather than deleted.
   sparse 1,000-cycle lifetime, timing, peak-VRAM, and combined installed-size
   gates. Its SHA-256 is
   `13ed0e28c1337dbfd934c5b6dbb1a81a26f2b58e73b04194c63c2c964f5f2888`.
-- [ ] Obtain green Windows, macOS, Ubuntu, R-devel, native integrity, and
-  trusted RTX GitHub checks for the reviewed candidate.
+- [x] The reviewed head `43f4d7e` passed Windows, macOS, Ubuntu, R-devel,
+  native integrity, CPU integration, pkgdown, and the trusted ephemeral RTX
+  hardware contract. The retained workflow runs are
+  [R CMD check](https://github.com/cudaverse/cudaverse/actions/runs/31353780047),
+  [native integrity](https://github.com/cudaverse/cudaverse/actions/runs/31353780039),
+  [CPU integration](https://github.com/cudaverse/cudaverse/actions/runs/31353780260),
+  [pkgdown](https://github.com/cudaverse/cudaverse/actions/runs/31353780038),
+  and [RTX parity](https://github.com/cudaverse/cudaverse/actions/runs/31353780240).
 
 ### 4. Repository transition
 
-- [ ] Merge the reviewed consolidation into `develop/native-cuda`.
-- [ ] Add a migration notice to `cudaverseCUDA` and archive it on GitHub.
-- [ ] Move its clean local checkout under `cudaverse/_archived`.
-- [ ] Record final commits, checks, artifact checksums, sizes, and remaining
-  release/CRAN risks here.
+- [x] The reviewed consolidation was merged into `develop/native-cuda` as
+  `35568af` by [PR #9](https://github.com/cudaverse/cudaverse/pull/9).
+- [x] The migration notice was merged as `cudaverseCUDA` commit `1cf973f`;
+  the repository is archived on GitHub with a redirect to `cudaverse`.
+- [x] Its clean local checkout, including full Git history, was moved to
+  `cudaverse/_archived/cudaverseCUDA`.
+- [x] Final commits, checks, artifact checksums, sizes, and remaining release
+  boundaries are recorded below.
+
+## Final record
+
+- frozen CRAN lines: `main` and `release/cran-0.1.0` remain at `59e15c8`;
+- integrated development line: `develop/native-cuda` at merge `35568af`;
+- reviewed candidate head: `43f4d7e`;
+- shared CI contract: `cudaverse/.github` `4891a17`;
+- archived backend history: `cudaverseCUDA` `1cf973f`;
+- RTX report SHA-256:
+  `13ed0e28c1337dbfd934c5b6dbb1a81a26f2b58e73b04194c63c2c964f5f2888`;
+- checked source archive: 164,578 bytes; integrated installed tree:
+  1,063,677 bytes; benchmark-installed measurement: 994,113 bytes;
+- ephemeral runner footprint removed after the successful GitHub contract:
+  no repository runner, service, WSL distribution, CUDA Toolkit, NVIDIA
+  runtime, or LibTorch payload was left or bundled.
+
+The remaining risks belong to a future 0.2 release decision, not this
+consolidation: native CUDA still requires compatible external NVIDIA driver,
+cuBLAS, and cuSOLVER libraries; macOS reports native CUDA as unsupported;
+`auto` must remain fail-closed; and the CRAN 0.1 candidate must not receive
+these development changes. No CRAN submission, tag, release, or `cudacellr`
+development was performed here.
 
 ## Safety boundaries
 

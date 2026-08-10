@@ -15,6 +15,8 @@ size gate.
 ## Candidate identity
 
 - consolidation source commit: `61f5d4e7353ccb82c69ffd1a5bc0ff5e4834b061`;
+- reviewed branch head: `43f4d7e035b2e80a4d95b9e815a0186e32f34b62`;
+- `develop/native-cuda` merge: `35568af7ed6955e5072f24f19520cf18b4f99269`;
 - imported extension source commit:
   `38266cd254947235615baf71d8a1de433ceb02d5`;
 - hardware report:
@@ -41,6 +43,8 @@ paths; neither library was copied into the source package or artifacts.
 | Sparse allocate/normalize/free lifecycle | 1,000 cycles; 0 tracked and whole-device byte difference |
 | Shared ownership, injected CUDA error, R interruption | pass; backend reusable |
 | SBOM, third-party inventory, PTX checksum, redistribution scan | pass |
+| Windows, macOS, Ubuntu, and R-devel GitHub checks | pass |
+| Trusted ephemeral RTX GitHub contract | pass; no skipped hardware cases |
 
 ## End-to-end benchmark
 
@@ -61,10 +65,20 @@ consolidation ceiling was 1,122,024 bytes. The checked source archive was
 164,578 bytes; no CUDA Toolkit, NVIDIA runtime DLL, or LibTorch payload is
 included.
 
-## Repository transition gate
+## Repository transition
 
-The engineering replacement is ready for cross-platform and GitHub review.
-`cudaverseCUDA` must remain available until the reviewed branch and required
-CI jobs are green. After that, its README will redirect to `cudaverse`, the
-repository will be archived rather than deleted, and its local checkout will
-move under `_archived`.
+The reviewed replacement passed all required GitHub checks and was merged by
+[PR #9](https://github.com/cudaverse/cudaverse/pull/9). The cross-platform,
+native-integrity, CPU-integration, pkgdown, and trusted RTX evidence is linked
+from `.github/NATIVE-CUDA-CONSOLIDATION.md`.
+
+`cudaverseCUDA` now contains a migration notice at final commit `1cf973f`, is
+archived read-only on GitHub, and has a clean local checkout under
+`cudaverse/_archived/cudaverseCUDA`. The 260 MB ephemeral Actions runner used
+for the final RTX contract automatically deregistered and was deleted after
+the successful run.
+
+The only active user package repositories in the organization are now
+`cudaverse` and `cudacellr`; `.github` remains organization infrastructure.
+The frozen 0.1 release branches remain at `59e15c8`. This consolidation did
+not create a tag or release, submit to CRAN, or start `cudacellr` development.
