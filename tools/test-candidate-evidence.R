@@ -3,6 +3,10 @@ if (!requireNamespace("jsonlite", quietly = TRUE) ||
   stop("Candidate-evidence self-tests require jsonlite and digest.",
        call. = FALSE)
 }
+sys.source(
+  file.path("tools", "candidate-evidence-io.R"),
+  envir = environment()
+)
 
 run_checker <- function() {
   sys.source(
@@ -298,6 +302,26 @@ manifest <- list(
     limitations = list("synthetic limitation"),
     external_release_action_taken = FALSE
   )
+)
+
+spec <- manifest
+spec$schema <- "cudaverse-candidate-evidence-input/1"
+manifest <- build_candidate_evidence_manifest(spec, work)
+stopifnot(
+  identical(manifest$schema, "cudaverse-candidate-evidence/1"),
+  identical(manifest$candidate$source_commit, commit),
+  identical(manifest$rtx$report_sha256, sha_for("rtx")),
+  identical(manifest$benchmark$report_sha256, sha_for("benchmark")),
+  identical(manifest$artifacts$windows$bytes,
+            as.numeric(file.info(file.path(
+              work, evidence_files[["windows_artifact"]]
+            ))$size))
+)
+bad_spec <- spec
+bad_spec$benchmark$report_file <- "../outside.json"
+expect_error_message(
+  build_candidate_evidence_manifest(bad_spec, work),
+  "must be a relative path inside the evidence bundle"
 )
 
 path <- file.path(work, "manifest.json")
