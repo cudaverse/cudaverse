@@ -1,0 +1,39 @@
+api,category,cpu_base,torch_cuda,native_cuda,result_location,notes
+as_adjacency_matrix,graph,metadata,metadata,metadata,host,Returns the already CPU-resident sparse adjacency matrix
+as_coo,sparse,metadata,metadata,metadata,same_device,Changes the logical public format view without numerical work
+as_csr,sparse,metadata,metadata,metadata,same_device,Changes the logical public format view without numerical work
+cuda_available,diagnostics,probe,probe,probe,host,Reports whether native or torch can satisfy an explicit CUDA request
+cuda_diagnostics,diagnostics,probe,probe,probe,host,Reports legacy torch fields plus registered and selected backends
+cuda_diffusion_map,embedding,direct,hybrid,hybrid,host,GPU backends cover distance only while kernel and eigendecomposition are CPU
+cuda_distance,algorithm,direct,direct,direct,host,Distance kernels use the selected backend and return an R matrix
+cuda_kmeans,algorithm,direct,hybrid,hybrid,host,GPU backends cover repeated distance while assignment and centre updates are CPU
+cuda_knn,algorithm,direct,hybrid,direct,host,Torch transfers distance blocks for CPU stable top-k while native selects on device
+cuda_knn_graph,graph,direct,cpu_only,cpu_only,host,Graph assembly always uses Matrix on CPU from a completed kNN result
+cuda_leiden,graph,direct,cpu_only,cpu_only,host,Community detection always uses igraph on CPU
+cuda_louvain,graph,direct,cpu_only,cpu_only,host,Community detection always uses igraph on CPU
+cuda_pca,algorithm,direct,hybrid,direct,host_with_native_cache,Torch sparse input materializes before dense PCA while native has a sparse path
+cuda_provenance,provenance,metadata,metadata,metadata,host,Returns the recorded stage table without new numerical work
+cuda_select_device,diagnostics,probe,probe,probe,host,Selects native then torch for auto and records CPU fallback
+cuda_sparse,sparse,direct,direct,direct,same_device,Constructs Matrix torch COO or native shared storage
+cuda_stage,provenance,metadata,metadata,metadata,host,Validates and constructs one provenance stage
+cuda_svd,algorithm,direct,direct,direct,host,SVD uses the selected backend and materializes the public result
+cuda_tensor,tensor,direct,direct,direct,same_device,Constructs storage in the selected backend
+cuda_tsne,embedding,direct,cpu_only,cpu_only,host,Always uses Rtsne on CPU and preserves upstream provenance
+cuda_umap,embedding,direct,cpu_only,cpu_only,host,Always uses uwot on CPU and preserves upstream provenance
+embedding_coordinates,embedding,metadata,metadata,metadata,host,Returns coordinates already stored in the embedding result
+sparse_col_sums,sparse,direct,cpu_only,direct,host,Torch uses the host metadata mirror while native reduces on device
+sparse_info,sparse,metadata,metadata,metadata,host,Returns public sparse metadata only
+sparse_matmul_dense,sparse,direct,hybrid,direct,backend_dependent,Torch computes on CUDA then returns CPU while native keeps a dense tensor resident
+sparse_matvec,sparse,direct,hybrid,hybrid,host,GPU multiplication is followed by explicit host vector materialization
+sparse_normalize,sparse,direct,hybrid,direct,same_device,Torch normalizes the host mirror then uploads while native normalizes device storage
+sparse_row_sums,sparse,direct,cpu_only,direct,host,Torch uses the host metadata mirror while native reduces on device
+tensor_broadcast_to,tensor,direct,direct,direct,same_device,Uses the selected tensor backend
+tensor_device,tensor,metadata,metadata,metadata,host,Returns tensor metadata only
+tensor_matmul,tensor,direct,direct,direct,same_device,Uses the selected tensor backend
+tensor_mean,tensor,direct,direct,direct,same_device,Uses the selected tensor backend
+tensor_reshape,tensor,direct,direct,direct,same_device,Native reshape shares storage ownership
+tensor_shape,tensor,metadata,metadata,metadata,host,Returns tensor metadata only
+tensor_sum,tensor,direct,direct,direct,same_device,Uses the selected tensor backend
+to_cpu,transfer,host,host,host,host,Explicitly materializes a base R object
+to_device,transfer,direct,direct,direct,same_device,CPU uses base while CUDA uses the selected compatible backend
+to_dgCMatrix,transfer,host,host,host,host,Explicitly materializes a Matrix dgCMatrix

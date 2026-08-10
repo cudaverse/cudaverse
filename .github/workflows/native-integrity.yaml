@@ -28,6 +28,8 @@ jobs:
         run: Rscript tools/check-phase4-report.R
       - name: Validate the integrated RTX consolidation report
         run: Rscript tools/check-consolidation-report.R
+      - name: Validate the exported API backend capability matrix
+        run: Rscript tools/check-capability-matrix.R
 
   cuda-12-8-1-abi:
     runs-on: ubuntu-latest
