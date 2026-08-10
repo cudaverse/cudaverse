@@ -274,6 +274,9 @@ Scope:
   supports release, deferral, or a reduced benchmark/release scope;
 - maintain a candidate completion audit that maps every long-term requirement
   to exact evidence and does not infer final completion from checkpoint tests;
+- stage and parse every report update, retain the previous valid checkpoint
+  during multi-hour execution, self-test interrupted-write recovery, and remove
+  the recovery copy only after a complete report is installed;
 - define and self-test a `cudaverse-candidate-evidence/1` manifest checker that
   rejects mixed source commits, failed or skipped required checks, lifecycle
   leaks, bundled runtimes, unchecked benchmarks, unauthorized deployment,

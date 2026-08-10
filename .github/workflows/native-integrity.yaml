@@ -34,6 +34,8 @@ jobs:
         run: Rscript tools/check-benchmark-definition.R
       - name: Validate benchmark-summary generation and rejection gates
         run: Rscript tools/test-benchmark-summary.R
+      - name: Validate benchmark checkpoint recovery
+        run: Rscript tools/test-benchmark-checkpoint-io.R
       - name: Validate exact-candidate evidence rejection gates
         run: Rscript tools/test-candidate-evidence.R
 

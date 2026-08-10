@@ -8,6 +8,10 @@ if (length(missing_packages)) {
     call. = FALSE
   )
 }
+sys.source(
+  file.path("tools", "benchmark-checkpoint-io.R"),
+  envir = environment()
+)
 
 truthy <- function(name, default = "false") {
   tolower(Sys.getenv(name, unset = default)) %in% c("1", "true", "yes")
@@ -625,10 +629,7 @@ report <- list(
 
 write_report <- function() {
   report$generated_at_utc <<- format(Sys.time(), tz = "UTC", usetz = TRUE)
-  jsonlite::write_json(
-    report, output, auto_unbox = TRUE, pretty = TRUE, digits = 16,
-    null = "null", na = "null"
-  )
+  write_benchmark_checkpoint(report, output)
 }
 
 for (row in seq_len(nrow(cases))) {
@@ -679,4 +680,5 @@ for (row in seq_len(nrow(cases))) {
 
 report$complete <- TRUE
 write_report()
+finalize_benchmark_checkpoint(output)
 message("Benchmark report complete: ", normalizePath(output, winslash = "/"))

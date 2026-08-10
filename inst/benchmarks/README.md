@@ -54,5 +54,21 @@ case/backend timing, validation, footprint, and peak-memory row. The checker
 rejects an incomplete report, a draft summary, a mismatched digest, or a
 missing case/backend row. During a long protected-machine run, setting
 `CUDAVERSE_BENCHMARK_ALLOW_INCOMPLETE=true` can produce a visibly marked draft
-from atomically completed results. Such a draft is for monitoring only and
+from recoverably checkpointed results. Such a draft is for monitoring only and
 cannot pass the retained-summary checker.
+
+Each backend completion is first written and parsed as a staging JSON. The
+runner then rotates the last valid report to `<output>.previous` before
+installing the new checkpoint. A completed report removes that recovery file
+only after its `complete = true` JSON has been parsed successfully. If an
+interrupted filesystem write leaves the current path invalid, recover the last
+fully parsed checkpoint without treating it as final evidence:
+
+```r
+sys.source("tools/benchmark-checkpoint-io.R", envir = environment())
+recover_benchmark_checkpoint("benchmark-full.json")
+```
+
+Recovery preserves completed machine evidence but does not invent unrecorded
+timings or mark an incomplete run complete. The final report and summary still
+have to pass their normal checkers.
