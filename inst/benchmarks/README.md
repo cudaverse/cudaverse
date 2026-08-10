@@ -72,3 +72,22 @@ recover_benchmark_checkpoint("benchmark-full.json")
 Recovery preserves completed machine evidence but does not invent unrecorded
 timings or mark an incomplete run complete. The final report and summary still
 have to pass their normal checkers.
+
+To continue an interrupted run, ask the runner to validate and resume the same
+output explicitly:
+
+```powershell
+$env:CUDAVERSE_BENCHMARK_RESUME = "true"
+Rscript tools/run-benchmark-contract.R
+```
+
+Resume is intentionally strict. It requires the same clean source commit,
+package/R/torch versions, GPU identity, profile, backend order, and ordered case
+contract. Only a case with every requested backend marked complete and passing
+validation is reused. An incomplete case is discarded and rerun as a whole,
+starting with the base reference, so a partial backend result cannot be joined
+to a missing or different reference.
+
+By default, a non-resume run refuses to replace an existing output or recovery
+file. Set `CUDAVERSE_BENCHMARK_OVERWRITE=true` only when intentionally starting
+fresh. Resume and overwrite cannot be enabled together.

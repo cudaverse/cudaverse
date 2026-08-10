@@ -277,6 +277,9 @@ Scope:
 - stage and parse every report update, retain the previous valid checkpoint
   during multi-hour execution, self-test interrupted-write recovery, and remove
   the recovery copy only after a complete report is installed;
+- permit explicit resume only when the clean source, software, GPU, profile,
+  backend order, and ordered case contract match exactly; reuse only complete,
+  passing whole cases and rerun every incomplete case from its base reference;
 - define and self-test a `cudaverse-candidate-evidence/1` manifest checker that
   rejects mixed source commits, failed or skipped required checks, lifecycle
   leaks, bundled runtimes, unchecked benchmarks, unauthorized deployment,

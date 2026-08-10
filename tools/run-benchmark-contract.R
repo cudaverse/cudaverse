@@ -51,6 +51,14 @@ output <- Sys.getenv(
   unset = file.path(tempdir(), paste0("cudaverse-benchmark-", profile, ".json"))
 )
 dir.create(dirname(output), recursive = TRUE, showWarnings = FALSE)
+resume <- truthy("CUDAVERSE_BENCHMARK_RESUME")
+overwrite <- truthy("CUDAVERSE_BENCHMARK_OVERWRITE")
+if (resume && overwrite) {
+  stop(
+    "CUDAVERSE_BENCHMARK_RESUME and CUDAVERSE_BENCHMARK_OVERWRITE cannot ",
+    "both be true.", call. = FALSE
+  )
+}
 
 elapsed <- function() as.numeric(Sys.time())
 summary_times <- function(values) {
@@ -582,7 +590,7 @@ pipeline_case <- function(case, backend, source, reference) {
   })
 }
 
-report <- list(
+expected_report <- list(
   schema = "cudaverse-benchmark/1",
   generated_at_utc = format(Sys.time(), tz = "UTC", usetz = TRUE),
   profile = profile,
@@ -627,6 +635,49 @@ report <- list(
   complete = FALSE
 )
 
+previous_output <- benchmark_checkpoint_previous(output)
+if (resume) {
+  if (!benchmark_checkpoint_valid(output)) {
+    recover_benchmark_checkpoint(output)
+  }
+  report <- jsonlite::read_json(output, simplifyVector = FALSE)
+  validate_benchmark_resume(report, expected_report)
+  reusable_cases <- names(report$cases)[vapply(
+    report$cases,
+    benchmark_checkpoint_case_complete,
+    logical(1L),
+    backends = backends
+  )]
+  report$complete <- FALSE
+  history <- report$contract$resume_history
+  if (is.null(history)) history <- list()
+  history[[length(history) + 1L]] <- list(
+    resumed_at_utc = format(Sys.time(), tz = "UTC", usetz = TRUE),
+    reused_complete_cases = unname(reusable_cases)
+  )
+  report$contract$resume_history <- history
+  message(
+    "Validated benchmark resume; reusing ", length(reusable_cases),
+    " complete case(s)."
+  )
+} else {
+  existing_paths <- c(output, previous_output)[file.exists(c(output, previous_output))]
+  if (length(existing_paths) && !overwrite) {
+    stop(
+      "Benchmark output already exists. Set CUDAVERSE_BENCHMARK_RESUME=true ",
+      "for a validated resume or CUDAVERSE_BENCHMARK_OVERWRITE=true to ",
+      "replace it.", call. = FALSE
+    )
+  }
+  if (overwrite && length(existing_paths)) {
+    failed <- vapply(existing_paths, unlink, integer(1L), force = TRUE)
+    if (any(failed != 0L)) {
+      stop("Could not remove existing benchmark output.", call. = FALSE)
+    }
+  }
+  report <- expected_report
+}
+
 write_report <- function() {
   report$generated_at_utc <<- format(Sys.time(), tz = "UTC", usetz = TRUE)
   write_benchmark_checkpoint(report, output)
@@ -642,6 +693,12 @@ for (row in seq_len(nrow(cases))) {
   case$components <- if (is.na(case$components)) NA_integer_ else
     as.integer(case$components)
   message("Running benchmark case ", case$case_id)
+  if (resume && benchmark_checkpoint_case_complete(
+    report$cases[[case$case_id]], backends
+  )) {
+    message("  reusing complete checkpoint")
+    next
+  }
   report$cases[[case$case_id]] <- list(
     definition = case,
     backends = list()

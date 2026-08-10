@@ -62,4 +62,101 @@ jsonlite::write_json(
 )
 stopifnot(!benchmark_checkpoint_valid(path))
 
-message("Benchmark checkpoint write/recovery self-tests passed.")
+backend_result <- function(passed = TRUE, status = "complete") {
+  list(status = status, validation = list(passed = passed))
+}
+complete_case <- function() {
+  list(
+    case_id = "case-a",
+    backends = list(
+      base = backend_result(),
+      native = backend_result(),
+      torch = backend_result()
+    )
+  )
+}
+expected <- list(
+  schema = "cudaverse-benchmark/1",
+  profile = "full",
+  source = list(commit = "abc123", tracked_dirty = FALSE),
+  hardware = list(nvidia_smi = c("GPU A, UUID-A")),
+  software = list(R = "R 4.6.0", cudaverse = "0.3.0.9000",
+                  torch = NA_character_),
+  contract = list(
+    backends = c("base", "native", "torch"),
+    cases = data.frame(
+      case_id = c("case-a", "case-b"),
+      rows = c(100L, 200L),
+      dtype = c("float32", NA_character_)
+    )
+  )
+)
+existing <- expected
+existing$software$torch <- NULL
+existing$contract$cases <- list(
+  list(case_id = "case-a", rows = 100, dtype = "float32"),
+  list(case_id = "case-b", rows = 200, dtype = NULL)
+)
+existing$cases <- list(
+  `case-a` = complete_case(),
+  `case-b` = complete_case()
+)
+
+stopifnot(
+  isTRUE(validate_benchmark_resume(existing, expected)),
+  benchmark_checkpoint_case_complete(
+    existing$cases$`case-a`, expected$contract$backends
+  )
+)
+
+incomplete <- existing$cases$`case-a`
+incomplete$backends$torch <- NULL
+stopifnot(!benchmark_checkpoint_case_complete(
+  incomplete, expected$contract$backends
+))
+incomplete <- existing$cases$`case-a`
+incomplete$backends$native$validation$passed <- FALSE
+stopifnot(!benchmark_checkpoint_case_complete(
+  incomplete, expected$contract$backends
+))
+incomplete <- existing$cases$`case-a`
+incomplete$backends$base$status <- "running"
+stopifnot(!benchmark_checkpoint_case_complete(
+  incomplete, expected$contract$backends
+))
+
+expect_resume_rejection <- function(code, pattern) {
+  expect_error_message(validate_benchmark_resume(code, expected), pattern)
+}
+changed <- existing
+changed$source$commit <- "other"
+expect_resume_rejection(changed, "source commit changed")
+changed <- existing
+changed$source$tracked_dirty <- TRUE
+expect_resume_rejection(changed, "existing report source was dirty")
+dirty_expected <- expected
+dirty_expected$source$tracked_dirty <- TRUE
+expect_error_message(
+  validate_benchmark_resume(existing, dirty_expected),
+  "current benchmark source is dirty"
+)
+changed <- existing
+changed$profile <- "smoke"
+expect_resume_rejection(changed, "benchmark profile changed")
+changed <- existing
+changed$software$R <- "R 4.6.1"
+expect_resume_rejection(changed, "R software identity changed")
+changed <- existing
+changed$hardware$nvidia_smi <- "GPU B, UUID-B"
+expect_resume_rejection(changed, "GPU identity changed")
+changed <- existing
+changed$contract$backends <- c("base", "torch", "native")
+expect_resume_rejection(changed, "benchmark backend order changed")
+changed <- existing
+changed$contract$cases <- rev(changed$contract$cases)
+expect_resume_rejection(changed, "benchmark case contract changed")
+changed <- existing
+changed$contract$cases[[1L]]$rows <- 101
+expect_resume_rejection(changed, "benchmark case contract changed")
+
+message("Benchmark checkpoint write/recovery/resume self-tests passed.")

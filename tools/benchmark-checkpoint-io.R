@@ -1,5 +1,120 @@
 benchmark_checkpoint_previous <- function(path) paste0(path, ".previous")
 
+benchmark_checkpoint_scalar <- function(x, default = NA) {
+  value <- unlist(x, recursive = TRUE, use.names = FALSE)
+  if (!length(value) || is.na(value[[1L]])) default else value[[1L]]
+}
+
+benchmark_checkpoint_case_ids <- function(cases) {
+  if (is.data.frame(cases)) return(as.character(cases$case_id))
+  vapply(
+    cases,
+    function(value) as.character(benchmark_checkpoint_scalar(value$case_id, "")),
+    character(1L)
+  )
+}
+
+benchmark_checkpoint_case_rows <- function(cases) {
+  if (is.data.frame(cases)) {
+    return(lapply(seq_len(nrow(cases)), function(index) {
+      as.list(cases[index, , drop = FALSE])
+    }))
+  }
+  cases
+}
+
+benchmark_checkpoint_case_contract_same <- function(existing, expected) {
+  left <- benchmark_checkpoint_case_rows(existing)
+  right <- benchmark_checkpoint_case_rows(expected)
+  if (length(left) != length(right)) return(FALSE)
+  fields <- sort(unique(c(
+    unlist(lapply(left, names), use.names = FALSE),
+    unlist(lapply(right, names), use.names = FALSE)
+  )))
+  normalize <- function(rows) {
+    lapply(rows, function(row) {
+      setNames(vapply(fields, function(field) {
+        as.character(benchmark_checkpoint_scalar(row[[field]], "<absent>"))
+      }, character(1L)), fields)
+    })
+  }
+  identical(normalize(left), normalize(right))
+}
+
+benchmark_checkpoint_case_complete <- function(value, backends) {
+  if (!is.list(value) || !is.list(value$backends) ||
+      !setequal(names(value$backends), backends)) {
+    return(FALSE)
+  }
+  all(vapply(backends, function(backend) {
+    result <- value$backends[[backend]]
+    identical(benchmark_checkpoint_scalar(result$status, ""), "complete") &&
+      isTRUE(as.logical(benchmark_checkpoint_scalar(
+        result$validation$passed, FALSE
+      )))
+  }, logical(1L)))
+}
+
+validate_benchmark_resume <- function(existing, expected) {
+  failures <- character()
+  require_same <- function(left, right, message) {
+    if (!identical(left, right)) failures <<- c(failures, message)
+  }
+  require_same(
+    benchmark_checkpoint_scalar(existing$schema, ""),
+    "cudaverse-benchmark/1",
+    "existing report schema is not cudaverse-benchmark/1"
+  )
+  require_same(
+    benchmark_checkpoint_scalar(existing$profile, ""),
+    benchmark_checkpoint_scalar(expected$profile, ""),
+    "benchmark profile changed"
+  )
+  require_same(
+    benchmark_checkpoint_scalar(existing$source$commit, ""),
+    benchmark_checkpoint_scalar(expected$source$commit, ""),
+    "source commit changed"
+  )
+  if (isTRUE(as.logical(benchmark_checkpoint_scalar(
+    existing$source$tracked_dirty, TRUE
+  )))) {
+    failures <- c(failures, "existing report source was dirty")
+  }
+  if (isTRUE(as.logical(benchmark_checkpoint_scalar(
+    expected$source$tracked_dirty, TRUE
+  )))) {
+    failures <- c(failures, "current benchmark source is dirty")
+  }
+  for (field in c("R", "cudaverse", "torch")) {
+    require_same(
+      benchmark_checkpoint_scalar(existing$software[[field]], "<absent>"),
+      benchmark_checkpoint_scalar(expected$software[[field]], "<absent>"),
+      paste(field, "software identity changed")
+    )
+  }
+  require_same(
+    unlist(existing$hardware$nvidia_smi, recursive = TRUE, use.names = FALSE),
+    unlist(expected$hardware$nvidia_smi, recursive = TRUE, use.names = FALSE),
+    "GPU identity changed"
+  )
+  require_same(
+    unlist(existing$contract$backends, recursive = TRUE, use.names = FALSE),
+    unlist(expected$contract$backends, recursive = TRUE, use.names = FALSE),
+    "benchmark backend order changed"
+  )
+  if (!benchmark_checkpoint_case_contract_same(
+    existing$contract$cases, expected$contract$cases
+  )) failures <- c(failures, "benchmark case contract changed")
+  if (length(failures)) {
+    stop(
+      "Benchmark resume refused:\n- ",
+      paste(unique(failures), collapse = "\n- "),
+      call. = FALSE
+    )
+  }
+  invisible(TRUE)
+}
+
 benchmark_checkpoint_valid <- function(path) {
   if (!file.exists(path)) return(FALSE)
   value <- tryCatch(
