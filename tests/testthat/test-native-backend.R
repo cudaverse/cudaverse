@@ -450,7 +450,12 @@ test_that("native k-means keeps Lloyd updates resident and matches CPU", {
     )
   )
 
-  for (case in cases) {
+  rownames(cases$separated$values) <- paste0("sample_", seq_len(6L))
+  colnames(cases$separated$values) <- c("feature_a", "feature_b")
+  colnames(cases$separated$centers) <- colnames(cases$separated$values)
+
+  for (case_name in names(cases)) {
+    case <- cases[[case_name]]
     cpu <- cudaverse::cuda_kmeans(
       case$values, centers = case$centers, iter.max = 20L,
       tolerance = 1e-10, device = "cpu"
@@ -470,6 +475,14 @@ test_that("native k-means keeps Lloyd updates resident and matches CPU", {
     expect_identical(native$compute_stages$assignment$output_device, "cuda")
     expect_identical(native$compute_stages$center_update$output_device, "cuda")
     expect_identical(native$compute_stages$finalization$output_device, "cpu")
+    if (identical(case_name, "separated")) {
+      expect_identical(names(native$cluster), rownames(case$values))
+      expect_identical(colnames(native$centers), colnames(case$values))
+      expect_identical(
+        rownames(native$centers), paste0("cluster_", seq_len(2L))
+      )
+      expect_identical(names(native$withinss), rownames(native$centers))
+    }
   }
 })
 
