@@ -109,6 +109,20 @@ append_line("- Hardware: ", escape_markdown(
 append_line("- R: ", text_value(report$software$R))
 append_line("- cudaverse: `", text_value(report$software$cudaverse), "`")
 append_line("- torch: `", text_value(report$software$torch), "`")
+append_line(
+  "- Stage sampling: ",
+  text_value(
+    report$contract$stage_sampling,
+    "legacy/unspecified; inspect the runner at the recorded source commit"
+  )
+)
+append_line(
+  "- Memory sampling: ",
+  text_value(
+    report$contract$memory_sampling,
+    "legacy/unspecified; inspect the runner at the recorded source commit"
+  )
+)
 append_line("")
 append_line("## Installed footprint")
 append_line("")

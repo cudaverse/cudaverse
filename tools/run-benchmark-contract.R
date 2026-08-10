@@ -590,6 +590,14 @@ expected_report <- list(
     backends = backends,
     cases = cases,
     timing_clock = "wall clock with backend synchronization",
+    stage_sampling = paste(
+      "pipeline stages are collected from the same synchronized timed",
+      "host-boundary runs"
+    ),
+    memory_sampling = paste(
+      "one separate instrumented execution after timing; allocator tracking",
+      "is excluded from retained timing samples"
+    ),
     cold_runtime_diagnostics_seconds = diagnostics_cold_seconds,
     cold_scope = paste(
       "Cold case time is the first workload execution after package loading",

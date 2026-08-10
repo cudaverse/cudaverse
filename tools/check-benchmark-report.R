@@ -60,6 +60,30 @@ require_gate(
   identical(required_backends[[1L]], "base"),
   "base backend did not establish references first"
 )
+if (!is.null(report$contract$stage_sampling)) {
+  require_gate(
+    identical(
+      scalar(report$contract$stage_sampling),
+      paste(
+        "pipeline stages are collected from the same synchronized timed",
+        "host-boundary runs"
+      )
+    ),
+    "report has an unknown stage-sampling contract"
+  )
+}
+if (!is.null(report$contract$memory_sampling)) {
+  require_gate(
+    identical(
+      scalar(report$contract$memory_sampling),
+      paste(
+        "one separate instrumented execution after timing; allocator tracking",
+        "is excluded from retained timing samples"
+      )
+    ),
+    "report has an unknown memory-sampling contract"
+  )
+}
 
 for (case_id in expected) {
   case <- report$cases[[case_id]]
