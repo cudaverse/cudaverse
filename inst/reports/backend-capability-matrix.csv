@@ -6,7 +6,7 @@ cuda_available,diagnostics,probe,probe,probe,host,Reports whether native or torc
 cuda_diagnostics,diagnostics,probe,probe,probe,host,Reports legacy torch fields plus registered and selected backends
 cuda_diffusion_map,embedding,direct,hybrid,hybrid,host,GPU backends cover distance only while kernel and eigendecomposition are CPU
 cuda_distance,algorithm,direct,direct,direct,host,Distance kernels use the selected backend and return an R matrix
-cuda_kmeans,algorithm,direct,hybrid,hybrid,host,GPU backends cover repeated distance while assignment and centre updates are CPU
+cuda_kmeans,algorithm,direct,hybrid,direct,host,Native keeps repeated distance assignment accumulation and centre updates on device; torch retains CPU updates
 cuda_knn,algorithm,direct,hybrid,direct,host,Torch transfers distance blocks for CPU stable top-k while native selects on device
 cuda_knn_graph,graph,direct,cpu_only,cpu_only,host,Graph assembly always uses Matrix on CPU from a completed kNN result
 cuda_leiden,graph,direct,cpu_only,cpu_only,host,Community detection always uses igraph on CPU

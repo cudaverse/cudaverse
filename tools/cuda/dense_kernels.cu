@@ -444,6 +444,66 @@ extern "C" __global__ void cudaverse_distance_from_gram_f64(
   distance[index] = direct_scale * sqrt(direct_sum);
 }
 
+extern "C" __global__ void cudaverse_fill_i32(
+    int* output, int value, unsigned long long elements) {
+  unsigned long long index = blockIdx.x * blockDim.x + threadIdx.x;
+  if (index < elements) output[index] = value;
+}
+
+extern "C" __global__ void cudaverse_kmeans_assign_f64(
+    const double* distance, int* assignment, double* minimum_distance,
+    int rows, int centers) {
+  int row = blockIdx.x * blockDim.x + threadIdx.x;
+  if (row >= rows) return;
+
+  int best_center = 0;
+  double best_distance = distance[row];
+  for (int center = 1; center < centers; ++center) {
+    double candidate = distance[row + center * rows];
+    // A strict comparison preserves the lowest centre index on ties.
+    if (candidate < best_distance) {
+      best_distance = candidate;
+      best_center = center;
+    }
+  }
+  assignment[row] = best_center + 1;
+  minimum_distance[row] = best_distance;
+}
+
+extern "C" __global__ void cudaverse_kmeans_count_i32(
+    const int* assignment, int* counts, int rows) {
+  int row = blockIdx.x * blockDim.x + threadIdx.x;
+  if (row < rows) atomicAdd(counts + assignment[row] - 1, 1);
+}
+
+extern "C" __global__ void cudaverse_kmeans_accumulate_f64(
+    const double* input, const int* assignment, double* sums,
+    int rows, int columns, int centers) {
+  unsigned long long index = blockIdx.x * blockDim.x + threadIdx.x;
+  unsigned long long elements =
+      static_cast<unsigned long long>(rows) * columns;
+  if (index >= elements) return;
+  int row = static_cast<int>(index % rows);
+  int column = static_cast<int>(index / rows);
+  int center = assignment[row] - 1;
+  atomicAdd(sums + center + column * centers, input[index]);
+}
+
+extern "C" __global__ void cudaverse_kmeans_update_f64(
+    const double* previous, const double* sums, const int* counts,
+    double* updated, double* movement, int centers, int columns) {
+  unsigned long long index = blockIdx.x * blockDim.x + threadIdx.x;
+  unsigned long long elements =
+      static_cast<unsigned long long>(centers) * columns;
+  if (index >= elements) return;
+  int center = static_cast<int>(index % centers);
+  double value = counts[center] > 0
+      ? sums[index] / static_cast<double>(counts[center])
+      : previous[index];
+  updated[index] = value;
+  movement[index] = fabs(value - previous[index]);
+}
+
 __device__ bool cudaverse_better(double left_distance, int left_index,
                                  double right_distance, int right_index) {
   return left_distance < right_distance ||

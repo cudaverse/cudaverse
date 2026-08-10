@@ -854,6 +854,16 @@ SEXP numeric_vector(const std::vector<double>& values) {
   return result;
 }
 
+void check_user_interrupt(void*) {
+  R_CheckUserInterrupt();
+}
+
+void interrupt_or_throw() {
+  if (!R_ToplevelExec(check_user_interrupt, nullptr)) {
+    throw std::runtime_error("Native CUDA k-means was interrupted.");
+  }
+}
+
 DeviceMemory row_norms_squared(CUdeviceptr input, int rows, int columns) {
   CUfunction function = get_kernel("cudaverse_row_norms_squared_f64");
   DeviceMemory output(static_cast<std::size_t>(rows) * sizeof(double));
@@ -2012,6 +2022,173 @@ extern "C" SEXP C_cudaverse_cuda_distance(SEXP query_pointer,
   return R_NilValue;
 }
 
+extern "C" SEXP C_cudaverse_cuda_kmeans(
+    SEXP input_pointer, SEXP centers_pointer, SEXP iter_max_sexp,
+    SEXP tolerance_sexp) {
+  require_backend();
+  require_kernels();
+  SharedBuffer* input = get_buffer(input_pointer);
+  SharedBuffer* initial_centers = get_buffer(centers_pointer);
+  if (input->dtype != DType::Float64 ||
+      initial_centers->dtype != DType::Float64 ||
+      input->shape.size() != 2 || initial_centers->shape.size() != 2 ||
+      input->shape[1] != initial_centers->shape[1]) {
+    Rf_error("Native CUDA k-means requires conformable float64 matrices.");
+  }
+  int rows = input->shape[0];
+  int columns = input->shape[1];
+  int centers_count = initial_centers->shape[0];
+  int iter_max = Rf_asInteger(iter_max_sexp);
+  double tolerance = Rf_asReal(tolerance_sexp);
+  if (centers_count < 1 || centers_count >= rows) {
+    Rf_error("Native CUDA k-means centre count is out of range.");
+  }
+  if (iter_max == NA_INTEGER || iter_max < 1 ||
+      !std::isfinite(tolerance) || tolerance <= 0.0) {
+    Rf_error("Native CUDA k-means iteration parameters are invalid.");
+  }
+
+  R_CheckUserInterrupt();
+  try {
+    CUfunction fill_double = get_kernel("cudaverse_fill_f64");
+    CUfunction fill_integer = get_kernel("cudaverse_fill_i32");
+    CUfunction assign = get_kernel("cudaverse_kmeans_assign_f64");
+    CUfunction count = get_kernel("cudaverse_kmeans_count_i32");
+    CUfunction accumulate = get_kernel("cudaverse_kmeans_accumulate_f64");
+    CUfunction update = get_kernel("cudaverse_kmeans_update_f64");
+
+    std::size_t center_elements =
+        static_cast<std::size_t>(centers_count) * columns;
+    DeviceMemory centers = copy_device_to_device(
+        initial_centers->pointer, center_elements * sizeof(double),
+        "cuMemcpyDtoD(k-means initial centers)");
+    DeviceMemory sums(center_elements * sizeof(double));
+    DeviceMemory counts(static_cast<std::size_t>(centers_count) * sizeof(int));
+    DeviceMemory assignments(static_cast<std::size_t>(rows) * sizeof(int));
+    DeviceMemory minimum_distance(
+        static_cast<std::size_t>(rows) * sizeof(double));
+    DeviceMemory movement(center_elements * sizeof(double));
+
+    auto assign_nearest = [&](DeviceMemory& distance) {
+      CUdeviceptr distance_pointer = distance.pointer();
+      CUdeviceptr assignment_pointer = assignments.pointer();
+      CUdeviceptr minimum_pointer = minimum_distance.pointer();
+      void* parameters[] = {
+          &distance_pointer, &assignment_pointer, &minimum_pointer,
+          &rows, &centers_count};
+      launch_or_throw(assign, "cudaverse_kmeans_assign_f64", rows,
+                      parameters);
+    };
+
+    DeviceMemory distances = distance_device(
+        input->pointer, rows, centers.pointer(), centers_count,
+        columns, 0, 0, 0);
+    assign_nearest(distances);
+
+    int iteration = 0;
+    bool converged = false;
+    for (iteration = 1; iteration <= iter_max; ++iteration) {
+      CUdeviceptr sum_pointer = sums.pointer();
+      double zero_double = 0.0;
+      unsigned long long sum_elements =
+          static_cast<unsigned long long>(center_elements);
+      void* fill_sum_parameters[] = {
+          &sum_pointer, &zero_double, &sum_elements};
+      launch_or_throw(fill_double, "cudaverse_fill_f64", center_elements,
+                      fill_sum_parameters);
+
+      CUdeviceptr count_pointer = counts.pointer();
+      int zero_integer = 0;
+      unsigned long long count_elements =
+          static_cast<unsigned long long>(centers_count);
+      void* fill_count_parameters[] = {
+          &count_pointer, &zero_integer, &count_elements};
+      launch_or_throw(fill_integer, "cudaverse_fill_i32", centers_count,
+                      fill_count_parameters);
+
+      CUdeviceptr assignment_pointer = assignments.pointer();
+      void* count_parameters[] = {
+          &assignment_pointer, &count_pointer, &rows};
+      launch_or_throw(count, "cudaverse_kmeans_count_i32", rows,
+                      count_parameters);
+
+      CUdeviceptr input_device = input->pointer;
+      void* accumulate_parameters[] = {
+          &input_device, &assignment_pointer, &sum_pointer, &rows,
+          &columns, &centers_count};
+      launch_or_throw(
+          accumulate, "cudaverse_kmeans_accumulate_f64",
+          static_cast<std::size_t>(rows) * columns,
+          accumulate_parameters);
+
+      DeviceMemory updated(center_elements * sizeof(double));
+      CUdeviceptr previous_pointer = centers.pointer();
+      CUdeviceptr updated_pointer = updated.pointer();
+      CUdeviceptr movement_pointer = movement.pointer();
+      void* update_parameters[] = {
+          &previous_pointer, &sum_pointer, &count_pointer, &updated_pointer,
+          &movement_pointer, &centers_count, &columns};
+      launch_or_throw(update, "cudaverse_kmeans_update_f64",
+                      center_elements, update_parameters);
+
+      std::vector<double> host_movement = copy_double_to_host(
+          movement.pointer(), center_elements,
+          "cuMemcpyDtoH(k-means movement)");
+      double maximum_movement = *std::max_element(
+          host_movement.begin(), host_movement.end());
+      centers = std::move(updated);
+
+      distances = distance_device(
+          input->pointer, rows, centers.pointer(), centers_count,
+          columns, 0, 0, 0);
+      assign_nearest(distances);
+      interrupt_or_throw();
+      if (maximum_movement <= tolerance) {
+        converged = true;
+        break;
+      }
+    }
+
+    std::vector<double> host_centers = copy_double_to_host(
+        centers.pointer(), center_elements,
+        "cuMemcpyDtoH(k-means centers)");
+    std::vector<double> host_minimum = copy_double_to_host(
+        minimum_distance.pointer(), rows,
+        "cuMemcpyDtoH(k-means minimum distance)");
+    std::vector<int> host_assignments(static_cast<std::size_t>(rows));
+    cuda_or_throw(api.cuMemcpyDtoH(
+                      host_assignments.data(), assignments.pointer(),
+                      static_cast<std::size_t>(rows) * sizeof(int)),
+                  "cuMemcpyDtoH(k-means assignments)");
+    std::vector<double> withinss(
+        static_cast<std::size_t>(centers_count), 0.0);
+    for (int row = 0; row < rows; ++row) {
+      double distance = host_minimum[static_cast<std::size_t>(row)];
+      int center = host_assignments[static_cast<std::size_t>(row)] - 1;
+      withinss[static_cast<std::size_t>(center)] += distance * distance;
+    }
+
+    SEXP result = PROTECT(named_list({
+        "cluster", "centers", "withinss", "iter", "converged"}));
+    SEXP cluster = PROTECT(Rf_allocVector(INTSXP, rows));
+    SEXP center_values = PROTECT(numeric_vector(host_centers));
+    SEXP withinss_values = PROTECT(numeric_vector(withinss));
+    std::memcpy(INTEGER(cluster), host_assignments.data(),
+                static_cast<std::size_t>(rows) * sizeof(int));
+    SET_VECTOR_ELT(result, 0, cluster);
+    SET_VECTOR_ELT(result, 1, center_values);
+    SET_VECTOR_ELT(result, 2, withinss_values);
+    SET_VECTOR_ELT(result, 3, Rf_ScalarInteger(
+        iteration > iter_max ? iter_max : iteration));
+    SET_VECTOR_ELT(result, 4, Rf_ScalarLogical(converged));
+    UNPROTECT(4);
+    return result;
+  } catch (const std::exception& exception) {
+    Rf_error("%s", exception.what());
+  }
+  return R_NilValue;
+}
+
 extern "C" SEXP C_cudaverse_cuda_knn_block(
     SEXP reference_pointer, SEXP reference_norms_pointer,
     SEXP first_sexp, SEXP count_sexp, SEXP k_sexp, SEXP metric_sexp) {
@@ -2281,6 +2458,8 @@ static const R_CallMethodDef call_methods[] = {
      reinterpret_cast<DL_FUNC>(&C_cudaverse_cuda_normalize_rows), 1},
     {"C_cudaverse_cuda_distance",
      reinterpret_cast<DL_FUNC>(&C_cudaverse_cuda_distance), 4},
+    {"C_cudaverse_cuda_kmeans",
+     reinterpret_cast<DL_FUNC>(&C_cudaverse_cuda_kmeans), 4},
     {"C_cudaverse_cuda_knn_block",
      reinterpret_cast<DL_FUNC>(&C_cudaverse_cuda_knn_block), 6},
     {"C_cudaverse_cuda_matmul",

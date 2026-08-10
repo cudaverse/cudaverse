@@ -33,7 +33,7 @@
 
 ## CP-01: device-native tensor indexing
 
-Status: implementation in progress on `agent/native-indexing`.
+Status: completed and merged as PR 16 into `develop/native-cuda`.
 
 Scope:
 
@@ -74,3 +74,44 @@ Deferred beyond CP-01:
 - missing-index gather remains a provenance-visible compatibility path;
 - native sparse transpose and the broader export-parameterized conformance
   suite remain later milestones.
+
+## CP-02: resident native CUDA k-means
+
+Status: implementation in progress on `agent/native-kmeans`.
+
+Scope:
+
+- add an optional `algorithm_kmeans` backend-registry operation without
+  matching on the literal native backend name;
+- upload observations and initial centres once, then keep Euclidean distance,
+  lowest-index tie assignment, accumulation, and Lloyd centre updates on the
+  device;
+- retain an empty centre at its previous value and preserve the established
+  final-assignment semantics;
+- transfer only the per-iteration centre-movement summary and the compact
+  final assignments, centres, and within-cluster sums;
+- preserve the existing base and torch compatibility paths and record the
+  native device-resident stages through `cudaverse-stage/1`.
+
+Required evidence before merge:
+
+- [x] local Windows C++17 bridge compiles, installs, and loads without a CUDA
+  Toolkit;
+- [x] the complete local CPU suite passes, including a fake-backend contract
+  test proving operation-driven dispatch;
+- [ ] CUDA 12.8.1 PTX is rebuilt reproducibly and its checksum/SBOM records are
+  synchronized;
+- [ ] exact native parity passes for ordinary, tied/empty-centre, and
+  large-offset inputs on the RTX 2000;
+- [ ] structured failure recovery and 1,000 resident k-means cycles meet the
+  tracked zero-leak and whole-device 1 MiB gates;
+- [ ] cross-platform, pkgdown, supply-chain, ABI/PTX, artifact, and exact RTX
+  evidence are green on one clean checkpoint commit and PR.
+
+Deferred beyond CP-02:
+
+- prediction can still return the complete distance matrix by contract; a
+  compact device assignment operation may be added separately after the
+  fitting path is accepted;
+- PCA and kNN benchmarking remains part of the later unified benchmark
+  milestone rather than this functional checkpoint.

@@ -145,6 +145,23 @@
     }
     checks <- c(checks, "device-indexing")
 
+    kmeans_values <- rbind(c(0, 0), c(0, 1), c(10, 10), c(10, 11))
+    kmeans <- .native_algorithm_kmeans(
+      kmeans_values,
+      kmeans_values[c(1L, 3L), , drop = FALSE],
+      10L,
+      1e-8
+    )
+    if (!identical(kmeans$cluster, c(1L, 1L, 2L, 2L)) ||
+        !isTRUE(all.equal(
+          kmeans$centers,
+          rbind(c(0, 0.5), c(10, 10.5)),
+          tolerance = 1e-10
+        ))) {
+      stop("resident k-means parity failed", call. = FALSE)
+    }
+    checks <- c(checks, "resident-kmeans")
+
     sparse <- keep_sparse(.native_sparse_from_coo(
       c(1L, 2L), c(1L, 2L), c(2, 4), c(2L, 2L), "csr"
     ))
@@ -234,6 +251,7 @@
     "pca",
     "pca-predict",
     "distance",
+    "kmeans",
     "knn",
     "stable-topk",
     "sparse",
@@ -529,6 +547,27 @@
   )
 }
 
+.native_algorithm_kmeans <- function(x, centers, iter_max, tolerance) {
+  .native_ensure_kernels()
+  input_storage <- .native_from_host(x, "float64", dim(x))
+  on.exit(.native_release(input_storage), add = TRUE)
+  center_storage <- .native_from_host(centers, "float64", dim(centers))
+  on.exit(.native_release(center_storage), add = TRUE)
+  result <- .Call(
+    C_cudaverse_cuda_kmeans,
+    input_storage,
+    center_storage,
+    as.integer(iter_max),
+    as.numeric(tolerance)
+  )
+  result$centers <- matrix(
+    result$centers,
+    nrow = nrow(centers),
+    ncol = ncol(centers)
+  )
+  result
+}
+
 .native_knn_prepare <- function(values, metric = "euclidean",
                                 source_values = values) {
   .native_ensure_kernels()
@@ -664,6 +703,7 @@
     algorithm_pca_predict = .native_algorithm_pca_predict,
     algorithm_sparse_pca = .native_algorithm_sparse_pca,
     algorithm_distance = .native_algorithm_distance,
+    algorithm_kmeans = .native_algorithm_kmeans,
     algorithm_knn_prepare = .native_knn_prepare,
     algorithm_sparse_knn_prepare = .native_sparse_knn_prepare,
     algorithm_knn_block = .native_knn_block_compat,
