@@ -100,6 +100,9 @@ jobs:
         shell: Rscript {0}
         run: |
           install.packages(c("Matrix", "digest", "jsonlite"))
+      - name: Validate recoverable benchmark checkpoints
+        shell: Rscript {0}
+        run: source(file.path("tools", "test-benchmark-checkpoint-io.R"))
       - name: Verify source payload before packaging
         shell: Rscript {0}
         run: |
