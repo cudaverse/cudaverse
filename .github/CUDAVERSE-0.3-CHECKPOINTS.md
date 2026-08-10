@@ -124,7 +124,8 @@ Deferred beyond CP-02:
 
 ## CP-03: same-device sparse transpose
 
-Status: implementation in progress on `agent/native-sparse-transpose`.
+Status: implementation and validation complete on
+`agent/native-sparse-transpose`; PR 18 is ready to merge.
 
 Scope:
 
@@ -145,12 +146,17 @@ Required evidence before merge:
   Toolkit;
 - [x] the complete local CPU suite passes for CSR, COO, rectangular, empty,
   named, double-transpose, provenance, and operation-driven dispatch cases;
-- [ ] pinned CUDA 12.8.1 PTX, SHA-256, and SBOM are synchronized and
-  reproducible;
-- [ ] exact RTX parity, released-pointer recovery, source reuse, and 1,000
-  transpose/double-transpose lifecycle cycles pass within the 1 MiB gate;
-- [ ] all cross-platform, pkgdown, supply-chain, CPU contract, ABI/PTX, and
-  artifact checks are green on one PR checkpoint.
+- [x] pinned CUDA 12.8.1 PTX is rebuilt reproducibly; committed SHA-256
+  `d15dddeb84e8c54ccffc051c299940958b310e1adf4a4f8bc8e6527b75cd4800`
+  agrees with `SHA256SUMS`, the CycloneDX SBOM, and pinned CI output;
+- [x] exact implementation/PTX commit
+  `52ab43b0cda5900082d42fd0f421b4c7df6c4d8a` passes the complete RTX
+  native test file with no skipped case, including parity, released-pointer
+  recovery, source reuse, and 1,000 transpose/double-transpose lifecycle
+  cycles with zero tracked leak and at most 1 MiB whole-device difference;
+- [x] Windows, macOS, Ubuntu, R-devel, pkgdown, supply-chain, CPU contract,
+  CUDA ABI/PTX, and Windows/Linux artifact checks are green on PR 18 source;
+  the exact implementation/PTX source passes the local RTX gate above.
 
 Deferred beyond CP-03:
 
