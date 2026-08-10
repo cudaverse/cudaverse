@@ -252,3 +252,36 @@ Deferred beyond CP-05:
   not a prerequisite for accepting the runner/contract itself;
 - workload interpretation, regression investigation, and the final
   release/defer/reduce-scope decision require the clean full report.
+
+## CP-07: 0.3 public documentation alignment
+
+Status: in progress on `agent/align-03-docs`.
+
+Scope:
+
+- advance development metadata to `0.3.0.9000` while keeping the frozen 0.1
+  release lines untouched;
+- present the current single-package API, lightweight native CUDA behavior,
+  strict selection/fallback rules, and compatibility boundaries directly,
+  without leading users through old repository or package-merger history;
+- make the development installation command target `develop/native-cuda`
+  rather than the frozen `main` branch;
+- align README, NEWS, backend vignettes, diagnostics reference text, and SBOM
+  metadata with the same 0.3 semantics;
+- replace the package's dependency on outdated organization-level setup text
+  with a package-owned native-first GPU setup and troubleshooting article.
+
+Required evidence before merge:
+
+- [x] `DESCRIPTION`, NEWS, and the CycloneDX package component agree on
+  version `0.3.0.9000`;
+- [x] README and public backend articles describe current behavior and contain
+  no prominent obsolete package/repository consolidation narrative;
+- [x] the package-owned GPU setup article documents runtime discovery, strict
+  CUDA, visible fallback, native diagnostics, optional torch compatibility,
+  transfer/memory boundaries, and reproducible problem reports;
+- [x] SBOM, redistribution, exported-capability, and Markdown structure checks
+  pass locally;
+- [ ] roxygen/reference generation, vignettes, and a complete local source
+  package check pass;
+- [ ] pkgdown and all required GitHub checks pass on the exact PR source.

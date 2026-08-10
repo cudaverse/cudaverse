@@ -1,4 +1,4 @@
-# cudaverse 0.2.0.9000
+# cudaverse 0.3.0.9000
 
 - Added a machine-readable 0.3 benchmark contract and report runner for
   synchronized base, torch, and native measurements. The full profile fixes
@@ -22,9 +22,6 @@
   and deterministic last-write handling for duplicate indices.
 - Added a backend registry and integrated the lightweight native CUDA
   implementation into `cudaverse` without changing the public device API.
-- Removed the cross-repository `cudaverseCUDA` dependency. Native runtime
-  libraries are still discovered lazily, so CPU-only installation and checks
-  do not require CUDA or a CUDA toolkit.
 - Added native dense casts, reductions, SVD/PCA, exact distance blocks, and
   deterministic top-k/kNN integration.
 - Added shared-ownership native COO/CSR storage, sparse Matrix conversion,
