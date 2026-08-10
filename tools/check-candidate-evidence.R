@@ -3,6 +3,10 @@ if (!requireNamespace("jsonlite", quietly = TRUE) ||
   stop("Checking candidate evidence requires jsonlite and digest.",
        call. = FALSE)
 }
+sys.source(
+  file.path("tools", "native-candidate-report-io.R"),
+  envir = environment()
+)
 
 input <- Sys.getenv("CUDAVERSE_CANDIDATE_MANIFEST", unset = "")
 if (!nzchar(input) || !file.exists(input)) {
@@ -234,10 +238,32 @@ rtx_path <- check_evidence_file(
   manifest$rtx$report_sha256,
   "RTX report"
 )
+consolidation_path <- check_evidence_file(
+  manifest$rtx$consolidation_report_file,
+  manifest$rtx$consolidation_report_sha256,
+  "RTX consolidation report"
+)
+package_tests_path <- check_evidence_file(
+  manifest$rtx$package_test_report_file,
+  manifest$rtx$package_test_report_sha256,
+  "RTX package-test report"
+)
 rtx_report <- if (file.exists(rtx_path)) {
   read_evidence_json(rtx_path, "RTX report")
 }
+consolidation_report <- if (file.exists(consolidation_path)) {
+  read_evidence_json(consolidation_path, "RTX consolidation report")
+}
+package_test_report <- if (file.exists(package_tests_path)) {
+  read_evidence_json(package_tests_path, "RTX package-test report")
+}
 if (!is.null(rtx_report)) {
+  rtx_failures <- validate_native_candidate_report(
+    rtx_report, expected_commit = commit, expected_version = version
+  )
+  for (failure in rtx_failures) {
+    require_gate(FALSE, paste("RTX report:", failure))
+  }
   require_gate(
     identical(text_value(rtx_report$schema), text_value(manifest$rtx$schema)),
     "RTX report schema does not match the manifest"
@@ -253,11 +279,67 @@ if (!is.null(rtx_report)) {
   )
   require_gate(logical_value(rtx_report$overall_pass),
                "RTX report does not record overall_pass")
+  require_gate(
+    identical(
+      text_value(rtx_report$inputs$consolidation$sha256),
+      text_value(manifest$rtx$consolidation_report_sha256)
+    ) && identical(
+      text_value(rtx_report$inputs$package_tests$sha256),
+      text_value(manifest$rtx$package_test_report_sha256)
+    ),
+    "RTX report input SHA-256 values do not match the retained inputs"
+  )
+}
+if (!is.null(consolidation_report)) {
+  require_gate(
+    identical(text_value(consolidation_report$schema),
+              "cudaverse-native-consolidation/1") &&
+      identical(text_value(
+        consolidation_report$source$cudaverse$commit
+      ), commit) &&
+      !logical_value(
+        consolidation_report$source$cudaverse$tracked_dirty
+      ) &&
+      identical(text_value(
+        consolidation_report$software$cudaverse
+      ), version) &&
+      logical_value(consolidation_report$overall_pass),
+    "RTX consolidation report does not match the passing candidate"
+  )
+}
+if (!is.null(package_test_report)) {
+  test_counts <- package_test_report$testthat
+  require_gate(
+    identical(text_value(package_test_report$schema),
+              "cudaverse-native-package-tests/1") &&
+      identical(text_value(
+        package_test_report$source$cudaverse$commit
+      ), commit) &&
+      !logical_value(package_test_report$source$cudaverse$tracked_dirty) &&
+      identical(text_value(
+        package_test_report$software$cudaverse
+      ), version) &&
+      number(test_counts$tests) > 0 && number(test_counts$expectations) > 0 &&
+      identical(number(test_counts$failures), 0) &&
+      identical(number(test_counts$errors), 0) &&
+      identical(number(test_counts$skips), 0) &&
+      logical_value(test_counts$native_ready) &&
+      logical_value(test_counts$passed) &&
+      logical_value(package_test_report$overall_pass),
+    "RTX package-test report does not match the passing no-skip candidate"
+  )
 }
 for (gate in c("parity", "structured_recovery", "interruption",
                "backend_reuse", "no_skips")) {
   require_gate(logical_value(manifest$rtx[[gate]]),
                paste("RTX", gate, "gate did not pass"))
+  if (!is.null(rtx_report)) {
+    require_gate(
+      identical(logical_value(manifest$rtx[[gate]]),
+                logical_value(rtx_report$gates[[gate]])),
+      paste("RTX", gate, "gate does not match the retained report")
+    )
+  }
 }
 for (kind in c("dense", "sparse")) {
   lifecycle <- manifest$rtx$lifecycle[[kind]]
@@ -267,6 +349,33 @@ for (kind in c("dense", "sparse")) {
                paste(kind, "lifecycle exceeds the 1 MiB cleanup ceiling"))
   require_gate(logical_value(lifecycle$no_double_free),
                paste(kind, "lifecycle does not prove no double-free"))
+  require_gate(identical(number(
+    lifecycle$tracked_current_difference_bytes
+  ), 0), paste(kind, "lifecycle retains tracked bytes"))
+  require_gate(logical_value(lifecycle$passed),
+               paste(kind, "lifecycle did not pass"))
+  if (!is.null(rtx_report)) {
+    retained <- rtx_report$lifecycle[[kind]]
+    require_gate(
+      identical(number(lifecycle$cycles), number(retained$cycles)) &&
+        identical(
+          number(lifecycle$post_cleanup_difference_bytes),
+          number(retained$post_cleanup_difference_bytes)
+        ) &&
+        identical(
+          number(lifecycle$tracked_current_difference_bytes),
+          number(retained$tracked_current_difference_bytes)
+        ) &&
+        identical(
+          logical_value(lifecycle$no_double_free),
+          logical_value(retained$no_double_free)
+        ) &&
+        identical(
+          logical_value(lifecycle$passed), logical_value(retained$passed)
+        ),
+      paste(kind, "lifecycle does not match the retained RTX report")
+    )
+  }
 }
 
 require_gate(

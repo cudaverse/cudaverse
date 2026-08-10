@@ -82,6 +82,37 @@ render logs must also contain their stable success markers, and the retained
 license inventory must name CUDA Driver, cuBLAS, cuSOLVER, and PTX. A matching
 SHA therefore cannot bless a retained failure or an incomplete inventory.
 
+### Final RTX report chain
+
+The final hardware report is produced inside this package repository and has
+three retained layers. `tools/run-phase4-report.R` records the RTX 2000
+consolidation workload, including parity, residency, structured recovery,
+interruption, and dense/sparse lifecycle evidence.
+`tools/run-native-package-tests.R` independently runs the complete package
+test suite with `CUDAVERSE_NATIVE_TESTS=true`; any failure, error, skip,
+unavailable native runtime, non-native automatic selection, or dirty source
+fails the gate while still retaining JSON diagnostics. Finally,
+`tools/build-native-candidate-report.R` accepts those two reports only when
+their clean commit and package version match, records both SHA-256 values, and
+emits `cudaverse-native-candidate/1` only when every candidate gate passes.
+
+The hardware sequence for an exact candidate is therefore:
+
+1. install that exact clean candidate on the RTX 2000 machine;
+2. run `run-phase4-report.R` and retain its JSON;
+3. run `run-native-package-tests.R` with its report path outside the source
+   tree, so the evidence file itself cannot dirty the candidate;
+4. build and check the final report with
+   `build-native-candidate-report.R` and
+   `check-native-candidate-report.R`; and
+5. copy all three reports into the final evidence bundle before creating and
+   validating the candidate manifest.
+
+This package-owned chain is the final authority. The current organization
+reusable hardware workflow is not yet aligned with this exact no-skip report
+contract, so it remains a final-candidate audit item and is not treated as
+proof until that alignment is reviewed and rerun on the candidate commit.
+
 ## Final decision rule
 
 `release` is available only when every release-critical row above is proven on

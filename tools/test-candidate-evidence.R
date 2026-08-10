@@ -33,6 +33,8 @@ evidence_files <- c(
   sbom = "sbom.json",
   licenses = "licenses.csv",
   rtx = "rtx.json",
+  consolidation = "rtx-consolidation.json",
+  package_tests = "rtx-package-tests.json",
   benchmark = "benchmark.json",
   summary = "benchmark-summary.md",
   benchmark_check = "benchmark-check.log",
@@ -44,7 +46,8 @@ write_fixture <- function(name, value = "synthetic retained evidence") {
   writeBin(charToRaw(value), file.path(work, evidence_files[[name]]))
 }
 plain_files <- setdiff(
-  names(evidence_files), c("sbom", "rtx", "benchmark", "decision")
+  names(evidence_files),
+  c("sbom", "rtx", "consolidation", "package_tests", "benchmark", "decision")
 )
 for (name in plain_files) write_fixture(name)
 write_fixture("check_log", "* checking candidate\nStatus: OK")
@@ -76,6 +79,45 @@ write_sbom <- function(component_version = version) {
     auto_unbox = TRUE, pretty = TRUE
   )
 }
+lifecycle <- function() list(
+  cycles = 1000L,
+  post_cleanup_difference_bytes = 0L,
+  tracked_current_difference_bytes = 0L,
+  no_double_free = TRUE,
+  passed = TRUE
+)
+write_consolidation <- function(source_commit = commit) {
+  jsonlite::write_json(
+    list(
+      schema = "cudaverse-native-consolidation/1",
+      source = list(cudaverse = list(
+        commit = source_commit, tracked_dirty = FALSE
+      )),
+      software = list(cudaverse = version),
+      overall_pass = TRUE
+    ),
+    file.path(work, evidence_files[["consolidation"]]),
+    auto_unbox = TRUE, pretty = TRUE
+  )
+}
+write_package_tests <- function(source_commit = commit, skips = 0L) {
+  jsonlite::write_json(
+    list(
+      schema = "cudaverse-native-package-tests/1",
+      source = list(cudaverse = list(
+        commit = source_commit, tracked_dirty = FALSE
+      )),
+      software = list(cudaverse = version),
+      testthat = list(
+        tests = 10L, expectations = 100L, failures = 0L, errors = 0L,
+        skips = skips, native_ready = TRUE, passed = skips == 0L
+      ),
+      overall_pass = skips == 0L
+    ),
+    file.path(work, evidence_files[["package_tests"]]),
+    auto_unbox = TRUE, pretty = TRUE
+  )
+}
 write_rtx <- function(source_commit = commit) {
   jsonlite::write_json(
     list(
@@ -83,7 +125,40 @@ write_rtx <- function(source_commit = commit) {
       source = list(cudaverse = list(
         commit = source_commit, tracked_dirty = FALSE
       )),
-      software = list(cudaverse = version),
+      hardware = list(
+        nvidia_smi = "NVIDIA RTX 2000 Ada Generation Laptop GPU"
+      ),
+      software = list(
+        R = R.version.string, cudaverse = version,
+        native_diagnostics = list(
+          available = TRUE, runtime_complete = TRUE,
+          self_test = list(passed = TRUE)
+        )
+      ),
+      contracts = list(
+        backend = "cudaverse-backend/1", stage = "cudaverse-stage/1"
+      ),
+      inputs = list(
+        consolidation = list(
+          schema = "cudaverse-native-consolidation/1",
+          sha256 = digest::digest(
+            file.path(work, evidence_files[["consolidation"]]),
+            algo = "sha256", file = TRUE, serialize = FALSE
+          )
+        ),
+        package_tests = list(
+          schema = "cudaverse-native-package-tests/1",
+          sha256 = digest::digest(
+            file.path(work, evidence_files[["package_tests"]]),
+            algo = "sha256", file = TRUE, serialize = FALSE
+          )
+        )
+      ),
+      gates = list(
+        parity = TRUE, structured_recovery = TRUE,
+        interruption = TRUE, backend_reuse = TRUE, no_skips = TRUE
+      ),
+      lifecycle = list(dense = lifecycle(), sparse = lifecycle()),
       overall_pass = TRUE
     ),
     file.path(work, evidence_files[["rtx"]]),
@@ -121,6 +196,8 @@ write_decision <- function(source_commit = commit, outcome = "defer",
   )
 }
 write_sbom()
+write_consolidation()
+write_package_tests()
 write_rtx()
 write_benchmark()
 write_decision()
@@ -141,12 +218,6 @@ artifact <- function(name) list(
   sha256 = sha_for(name),
   bytes = as.numeric(file.info(file.path(work, evidence_files[[name]]))$size)
 )
-lifecycle <- function() list(
-  cycles = 1000L,
-  post_cleanup_difference_bytes = 0L,
-  no_double_free = TRUE
-)
-
 manifest <- list(
   schema = "cudaverse-candidate-evidence/1",
   candidate = list(
@@ -187,6 +258,10 @@ manifest <- list(
   rtx = list(
     source_commit = commit, report_file = evidence_files[["rtx"]],
     report_sha256 = sha_for("rtx"),
+    consolidation_report_file = evidence_files[["consolidation"]],
+    consolidation_report_sha256 = sha_for("consolidation"),
+    package_test_report_file = evidence_files[["package_tests"]],
+    package_test_report_sha256 = sha_for("package_tests"),
     schema = "cudaverse-native-candidate/1", parity = TRUE,
     structured_recovery = TRUE, interruption = TRUE, backend_reuse = TRUE,
     no_skips = TRUE,
@@ -300,6 +375,15 @@ write_manifest()
 expect_error_message(run_checker(), "RTX report source does not match")
 write_rtx()
 manifest$rtx$report_sha256 <- sha_for("rtx")
+
+write_package_tests(skips = 1L)
+manifest$rtx$package_test_report_sha256 <- sha_for("package_tests")
+write_manifest()
+expect_error_message(
+  run_checker(), "RTX report input SHA-256 values do not match"
+)
+write_package_tests()
+manifest$rtx$package_test_report_sha256 <- sha_for("package_tests")
 
 write_sbom("0.2.0.9000")
 manifest$supply_chain$sbom_sha256 <- sha_for("sbom")

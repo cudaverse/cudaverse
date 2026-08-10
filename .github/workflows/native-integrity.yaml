@@ -38,6 +38,8 @@ jobs:
         run: Rscript tools/test-benchmark-checkpoint-io.R
       - name: Validate benchmark timing collection
         run: Rscript tools/test-benchmark-timing.R
+      - name: Validate final RTX candidate report composition
+        run: Rscript tools/test-native-candidate-report.R
       - name: Validate exact-candidate evidence rejection gates
         run: Rscript tools/test-candidate-evidence.R
 
@@ -108,6 +110,9 @@ jobs:
       - name: Validate benchmark timing collection
         shell: Rscript {0}
         run: source(file.path("tools", "test-benchmark-timing.R"))
+      - name: Validate final RTX candidate report composition
+        shell: Rscript {0}
+        run: source(file.path("tools", "test-native-candidate-report.R"))
       - name: Verify source payload before packaging
         shell: Rscript {0}
         run: |
