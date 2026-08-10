@@ -15,9 +15,11 @@ jobs:
   hardware-contract:
     # Fork, bot, draft, and non-collaborator PRs stay skipped here and are
     # rejected again by the reusable workflow before its runner group is used.
+    # Same-repository pull requests can only be created from branches written
+    # by collaborators, so they do not need a separate repository-variable
+    # opt-in. Keeping the hardware contract automatic prevents a skipped job
+    # from being mistaken for RTX validation.
     if: >-
-      (github.event_name == 'workflow_dispatch' ||
-       vars.CUDAVERSE_NVIDIA_CI == 'enabled') &&
       (github.event_name != 'workflow_dispatch' ||
        contains(
          fromJSON('["refs/heads/main","refs/heads/develop/native-cuda"]'),
