@@ -152,6 +152,17 @@ test_that("native subsetting and replacement keep tensor values on device", {
     expect_equal(cudaverse::to_cpu(x), source, tolerance = tolerance)
     expect_identical(cudaverse::cuda_provenance(x)$stage, "replacement")
     expect_identical(cudaverse::cuda_provenance(x)$backend, "native")
+
+    replacement <- cudaverse::cuda_tensor(
+      c(404, 505), device = "cuda", dtype = dtype
+    )
+    x[c(2L, 3L), 4L] <- replacement
+    source[c(2L, 3L), 4L] <- c(404, 505)
+    expect_equal(cudaverse::to_cpu(x), source, tolerance = tolerance)
+    expect_identical(
+      cudaverse::cuda_provenance(x)$output_device,
+      "cuda"
+    )
   }
 })
 
