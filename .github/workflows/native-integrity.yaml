@@ -118,6 +118,9 @@ jobs:
       - name: Validate final RTX candidate report composition
         shell: Rscript {0}
         run: source(file.path("tools", "test-native-candidate-report.R"))
+      - name: Validate exact candidate evidence assembly
+        shell: Rscript {0}
+        run: source(file.path("tools", "test-candidate-evidence.R"))
       - name: Verify source payload before packaging
         shell: Rscript {0}
         run: |
