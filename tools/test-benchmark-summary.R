@@ -124,6 +124,30 @@ Sys.unsetenv("CUDAVERSE_BENCHMARK_ALLOW_INCOMPLETE")
 run_script(file.path("tools", "summarize-benchmark-report.R"))
 run_script(file.path("tools", "check-benchmark-summary.R"))
 
+summary_lines <- readLines(summary_path, warn = FALSE)
+writeLines(
+  summary_lines[!grepl(
+    "Ratios compare ten-run sample medians descriptively.",
+    summary_lines, fixed = TRUE
+  )],
+  summary_path, useBytes = TRUE
+)
+expect_error_message(
+  run_script(file.path("tools", "check-benchmark-summary.R")),
+  "summary overstates descriptive timing ratios"
+)
+run_script(file.path("tools", "summarize-benchmark-report.R"))
+summary_lines <- readLines(summary_path, warn = FALSE)
+writeLines(
+  summary_lines[!grepl("Stage sampling:", summary_lines, fixed = TRUE)],
+  summary_path, useBytes = TRUE
+)
+expect_error_message(
+  run_script(file.path("tools", "check-benchmark-summary.R")),
+  "summary omits the stage-sampling boundary"
+)
+run_script(file.path("tools", "summarize-benchmark-report.R"))
+
 report$complete <- FALSE
 jsonlite::write_json(
   report, report_path, auto_unbox = TRUE, pretty = TRUE, null = "null"

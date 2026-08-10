@@ -228,11 +228,17 @@ comparison <- function(candidate_name, candidate, reference_name, reference) {
     return("comparison unavailable")
   }
   if (candidate <= reference) {
-    sprintf("%s was %.2fx faster than %s", candidate_name,
-            reference / candidate, reference_name)
+    sprintf(
+      "%s median was %.1f%% lower than %s (ratio %.2fx)",
+      candidate_name, 100 * (1 - candidate / reference), reference_name,
+      reference / candidate
+    )
   } else {
-    sprintf("%s took %.2fx as long as %s", candidate_name,
-            candidate / reference, reference_name)
+    sprintf(
+      "%s median was %.1f%% higher than %s (ratio %.2fx)",
+      candidate_name, 100 * (candidate / reference - 1), reference_name,
+      candidate / reference
+    )
   }
 }
 append_line("## Workload-specific observations")
@@ -246,7 +252,7 @@ for (case_id in names(report$cases)) {
   fastest <- names(host)[which.min(host)]
   append_line(
     "- `", case_id, "`: ", fastest,
-    " had the lowest host-boundary median; ",
+    " had the numerically lowest host-boundary median; ",
     comparison("native", host[["native"]], "base", host[["base"]]),
     ", and ",
     comparison("native", host[["native"]], "torch", host[["torch"]]),
@@ -273,6 +279,11 @@ append_line("")
 append_line(paste(
   "- These measurements describe one exact source commit on one RTX 2000",
   "Ada system. They do not support a universal GPU speed claim."
+))
+append_line(paste(
+  "- Ratios compare ten-run sample medians descriptively. They are not",
+  "confidence intervals or statistical significance tests; small differences",
+  "may be measurement noise."
 ))
 append_line(paste(
   "- Host-boundary and resident timings answer different questions.",

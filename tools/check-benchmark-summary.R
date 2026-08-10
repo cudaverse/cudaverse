@@ -63,6 +63,18 @@ require_text(
   "CUDA runtime bundled by cudaverse",
   "summary omits the bundled-runtime footprint"
 )
+require_text(
+  "Stage sampling:",
+  "summary omits the stage-sampling boundary"
+)
+require_text(
+  "Memory sampling:",
+  "summary omits the memory-sampling boundary"
+)
+require_text(
+  "Ratios compare ten-run sample medians descriptively.",
+  "summary overstates descriptive timing ratios"
+)
 
 backends <- unlist(
   report$contract$backends, recursive = TRUE, use.names = FALSE

@@ -57,7 +57,9 @@ Rscript tools/check-benchmark-summary.R
 The summary records the report SHA-256 and source commit, and contains every
 case/backend timing, validation, footprint, and peak-memory row. The checker
 rejects an incomplete report, a draft summary, a mismatched digest, or a
-missing case/backend row. During a long protected-machine run, setting
+missing case/backend row. Automatically generated ratios are descriptive
+comparisons of ten-run sample medians, not confidence intervals or statistical
+significance tests. During a long protected-machine run, setting
 `CUDAVERSE_BENCHMARK_ALLOW_INCOMPLETE=true` can produce a visibly marked draft
 from recoverably checkpointed results. Such a draft is for monitoring only and
 cannot pass the retained-summary checker.
