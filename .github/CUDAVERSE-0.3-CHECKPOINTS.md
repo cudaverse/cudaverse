@@ -280,6 +280,10 @@ Scope:
 - permit explicit resume only when the clean source, software, GPU, profile,
   backend order, and ordered case contract match exactly; reuse only complete,
   passing whole cases and rerun every incomplete case from its base reference;
+- collect synchronized pipeline stages from the same ten retained timed runs,
+  avoiding an unreported duplicate ten-run pass while preserving all five
+  warmups, ten observations, distinct sparse resident timing, and separately
+  instrumented peak-memory execution;
 - define and self-test a `cudaverse-candidate-evidence/1` manifest checker that
   rejects mixed source commits, failed or skipped required checks, lifecycle
   leaks, bundled runtimes, unchecked benchmarks, unauthorized deployment,

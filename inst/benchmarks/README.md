@@ -14,6 +14,11 @@ the first workload time, warm median/p95 and raw observations, synchronized
 stage times, host-boundary and resident timings where the public API makes that
 separation possible, backend allocator and whole-device memory observations,
 installed size, numerical error, and `cudaverse-stage/1` provenance.
+Pipeline stage observations are captured from the same ten timed host-boundary
+runs rather than executing a second ten-run stage pass. Sparse resident timing
+still has its own five warmups and ten timed runs because it measures a distinct
+preloaded-input boundary. Memory measurement remains a separate instrumented
+execution so allocator tracking cannot perturb the retained timing samples.
 
 Dense PCA currently accepts host data at its public boundary. Its internal
 backend upload is therefore included in the PCA stage and is explicitly marked

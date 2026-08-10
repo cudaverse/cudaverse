@@ -12,6 +12,10 @@ sys.source(
   file.path("tools", "benchmark-checkpoint-io.R"),
   envir = environment()
 )
+sys.source(
+  file.path("tools", "benchmark-timing.R"),
+  envir = environment()
+)
 
 truthy <- function(name, default = "false") {
   tolower(Sys.getenv(name, unset = default)) %in% c("1", "true", "yes")
@@ -288,30 +292,6 @@ make_sparse <- function(case) {
   )), "dgCMatrix")
 }
 
-time_runs <- function(cold_run, timed_run, warmups, timed_runs) {
-  cold_start <- elapsed()
-  cold_value <- cold_run()
-  cold_seconds <- elapsed() - cold_start
-  cold_value <- NULL
-  invisible(gc(FALSE))
-  for (index in seq_len(warmups)) {
-    warm_value <- timed_run()
-    warm_value <- NULL
-    invisible(gc(FALSE))
-  }
-  values <- numeric(timed_runs)
-  last <- NULL
-  for (index in seq_len(timed_runs)) {
-    start <- elapsed()
-    value <- timed_run()
-    values[[index]] <- elapsed() - start
-    if (index == timed_runs) last <- value
-    value <- NULL
-    if (index != timed_runs) invisible(gc(FALSE))
-  }
-  list(cold_seconds = cold_seconds, warm = summary_times(values), last = last)
-}
-
 matmul_case <- function(case, backend, source) {
   left <- source$left
   right <- source$right
@@ -337,11 +317,13 @@ matmul_case <- function(case, backend, source) {
       result
     }
 
-    host_timing <- time_runs(
-      host_run, host_run, case$warmups, case$timed_runs
+    host_timing <- benchmark_time_runs(
+      host_run, host_run, case$warmups, case$timed_runs,
+      summarize = summary_times
     )
-    resident_timing <- time_runs(
-      resident_run, resident_run, case$warmups, case$timed_runs
+    resident_timing <- benchmark_time_runs(
+      resident_run, resident_run, case$warmups, case$timed_runs,
+      summarize = summary_times
     )
     actual <- host_timing$last$host
     scale <- max(1, max(abs(reference)))
@@ -509,11 +491,14 @@ pipeline_case <- function(case, backend, source, reference) {
     excluded_run <- function() pipeline_once(
       case, backend, source, preloaded = preloaded
     )
-    included <- time_runs(
-      included_run, included_run, case$warmups, case$timed_runs
+    included <- benchmark_time_runs(
+      included_run, included_run, case$warmups, case$timed_runs,
+      summarize = summary_times,
+      collect = function(result) result$seconds
     )
-    excluded <- if (is.null(preloaded)) NULL else time_runs(
-      excluded_run, excluded_run, case$warmups, case$timed_runs
+    excluded <- if (is.null(preloaded)) NULL else benchmark_time_runs(
+      excluded_run, excluded_run, case$warmups, case$timed_runs,
+      summarize = summary_times
     )
     value <- included$last$value
     validation <- if (is.null(reference)) {
@@ -527,19 +512,16 @@ pipeline_case <- function(case, backend, source, reference) {
       normalized = if (is.null(value$normalized)) NULL else
         provenance_payload(value$normalized)
     )
-    measurements <- do.call(rbind, lapply(seq_len(case$timed_runs), function(i) {
-      # Stage distributions come from a dedicated synchronized pass so every
-      # reported stage and the full boundary share one observation.
-      timed <- included_run()
-      seconds <- timed$seconds
-      timed$value <- NULL
-      seconds
-    }))
+    # Stage distributions are collected from the same synchronized timed runs
+    # as the host-boundary distribution. This keeps every stage and its full
+    # pipeline in one observation without executing the workload a second time.
+    measurements <- do.call(rbind, included$observations)
     stage_times <- lapply(seq_len(ncol(measurements)), function(index) {
       summary_times(measurements[, index])
     })
     names(stage_times) <- colnames(measurements)
     memory <- measure_memory(backend, included_run)
+    included$observations <- NULL
     included$last <- NULL
     if (!is.null(excluded)) excluded$last <- NULL
     preloaded <- NULL

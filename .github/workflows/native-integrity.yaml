@@ -36,6 +36,8 @@ jobs:
         run: Rscript tools/test-benchmark-summary.R
       - name: Validate benchmark checkpoint recovery
         run: Rscript tools/test-benchmark-checkpoint-io.R
+      - name: Validate benchmark timing collection
+        run: Rscript tools/test-benchmark-timing.R
       - name: Validate exact-candidate evidence rejection gates
         run: Rscript tools/test-candidate-evidence.R
 
@@ -103,6 +105,9 @@ jobs:
       - name: Validate recoverable benchmark checkpoints
         shell: Rscript {0}
         run: source(file.path("tools", "test-benchmark-checkpoint-io.R"))
+      - name: Validate benchmark timing collection
+        shell: Rscript {0}
+        run: source(file.path("tools", "test-benchmark-timing.R"))
       - name: Verify source payload before packaging
         shell: Rscript {0}
         run: |
