@@ -1,0 +1,17 @@
+profile,family,case_id,rows,columns,density,dtype,k,components,warmups,timed_runs,transfer_contract
+smoke,matmul,matmul-float32-64,64,64,,float32,,,1,2,resident_and_host_boundary
+smoke,matmul,matmul-float64-64,64,64,,float64,,,1,2,resident_and_host_boundary
+smoke,dense_pca_knn,dense-128x16,128,16,,float64,5,5,1,2,host_boundary_and_stage_times
+smoke,sparse_pca_knn,sparse-128x16@0.10,128,16,0.10,float64,5,5,1,2,explicit_upload_and_resident_continuation
+full,matmul,matmul-float32-256,256,256,,float32,,,5,10,resident_and_host_boundary
+full,matmul,matmul-float64-256,256,256,,float64,,,5,10,resident_and_host_boundary
+full,matmul,matmul-float32-1024,1024,1024,,float32,,,5,10,resident_and_host_boundary
+full,matmul,matmul-float64-1024,1024,1024,,float64,,,5,10,resident_and_host_boundary
+full,matmul,matmul-float32-4096,4096,4096,,float32,,,5,10,resident_and_host_boundary
+full,matmul,matmul-float64-4096,4096,4096,,float64,,,5,10,resident_and_host_boundary
+full,dense_pca_knn,dense-1000x50,1000,50,,float64,15,20,5,10,host_boundary_and_stage_times
+full,dense_pca_knn,dense-10000x100,10000,100,,float64,15,20,5,10,host_boundary_and_stage_times
+full,dense_pca_knn,dense-50000x128,50000,128,,float64,15,20,5,10,host_boundary_and_stage_times
+full,sparse_pca_knn,sparse-1000x50@0.10,1000,50,0.10,float64,15,20,5,10,explicit_upload_and_resident_continuation
+full,sparse_pca_knn,sparse-10000x100@0.03,10000,100,0.03,float64,15,20,5,10,explicit_upload_and_resident_continuation
+full,sparse_pca_knn,sparse-50000x128@0.01,50000,128,0.01,float64,15,20,5,10,explicit_upload_and_resident_continuation

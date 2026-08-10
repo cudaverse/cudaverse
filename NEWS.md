@@ -1,5 +1,10 @@
 # cudaverse 0.2.0.9000
 
+- Added a machine-readable 0.3 benchmark contract and report runner for
+  synchronized base, torch, and native measurements. The full profile fixes
+  workload sizes, warmup/run counts, transfer boundaries, numerical gates,
+  peak-memory sources, installed size, and provenance without treating an
+  inseparable dense-PCA upload as a measured transfer duration.
 - Added an executable public-backend conformance matrix. Every exported
   function is assigned to a diagnostics, tensor, sparse, algorithm, graph, or
   embedding contract case, and the shared suite runs the same small workflows

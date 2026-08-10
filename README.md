@@ -96,6 +96,14 @@ export to an executable conformance case. Hardware gates run those same public
 workflows on both CUDA backends rather than maintaining separate hand-written
 feature lists.
 
+The versioned [benchmark contract](inst/benchmarks/README.md) defines separate
+smoke and full profiles. Full evidence uses five warmups and ten timed runs for
+base, torch, and native, reports raw times plus median/p95, distinguishes
+host-boundary and resident work where it can be measured directly, and records
+peak-memory source, installed footprint, numerical error, and provenance.
+Results are interpreted per workload; cudaverse does not claim that GPU
+execution is universally faster.
+
 On the 0.3 development line, native CUDA subsetting and replacement keep tensor
 values on the GPU. Only index metadata is evaluated in R. Missing subscripts
 and compatibility backends without indexing operations use an explicit,
