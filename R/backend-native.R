@@ -163,8 +163,21 @@
     checks <- c(checks, "resident-kmeans")
 
     sparse <- keep_sparse(.native_sparse_from_coo(
-      c(1L, 2L), c(1L, 2L), c(2, 4), c(2L, 2L), "csr"
+      c(1L, 2L), c(2L, 3L), c(2, 4), c(2L, 3L), "csr"
     ))
+    sparse_transpose <- keep_sparse(.native_sparse_transpose(sparse))
+    transpose_host <- .native_sparse_to_host(sparse_transpose)
+    transpose_order <- order(transpose_host$i, transpose_host$j)
+    if (!identical(transpose_host$shape, c(3L, 2L)) ||
+        !identical(transpose_host$i[transpose_order], c(2L, 3L)) ||
+        !identical(transpose_host$j[transpose_order], c(1L, 2L)) ||
+        !isTRUE(all.equal(
+          transpose_host$values[transpose_order], c(2, 4), tolerance = 0
+        ))) {
+      stop("sparse transpose parity failed", call. = FALSE)
+    }
+    checks <- c(checks, "sparse-transpose")
+
     normalized <- .native_sparse_normalize(sparse, 0L, 1, FALSE)
     keep_sparse(normalized$storage)
     normalized_host <- .native_sparse_to_host(normalized$storage)
@@ -257,6 +270,7 @@
     "sparse",
     "sparse-coo",
     "sparse-csr",
+    "sparse-transpose",
     "sparse-normalize",
     "sparse-matmul",
     "sparse-reduce",
@@ -305,6 +319,11 @@
 
 .native_sparse_to_host <- function(storage) {
   .Call(C_cudaverse_cuda_sparse_to_host, storage)
+}
+
+.native_sparse_transpose <- function(storage) {
+  .native_ensure_kernels()
+  .Call(C_cudaverse_cuda_sparse_transpose, storage)
 }
 
 .native_sparse_reduce <- function(storage, margin) {
@@ -683,6 +702,7 @@
     to_host = .native_to_host,
     sparse_from_coo = .native_sparse_from_coo,
     sparse_to_host = .native_sparse_to_host,
+    sparse_transpose = .native_sparse_transpose,
     sparse_reduce = .native_sparse_reduce,
     sparse_normalize = .native_sparse_normalize,
     sparse_matmul_dense = .native_sparse_matmul_dense,

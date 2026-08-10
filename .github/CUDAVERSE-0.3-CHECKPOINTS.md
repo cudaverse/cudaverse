@@ -77,8 +77,8 @@ Deferred beyond CP-01:
 
 ## CP-02: resident native CUDA k-means
 
-Status: implementation and local evidence complete on `agent/native-kmeans`;
-PR 17 validation is in progress.
+Status: completed and merged as PR 17 into `develop/native-cuda` at
+`15d2554fc3955944765f946af37a9cd35d80a501`.
 
 Scope:
 
@@ -121,3 +121,46 @@ Deferred beyond CP-02:
   fitting path is accepted;
 - PCA and kNN benchmarking remains part of the later unified benchmark
   milestone rather than this functional checkpoint.
+
+## CP-03: same-device sparse transpose
+
+Status: implementation and validation complete on
+`agent/native-sparse-transpose`; PR 18 is ready to merge.
+
+Scope:
+
+- add `t.cudasparse()` without adding another public package or backend name
+  branch;
+- preserve values, COO/CSR logical format, zero structure, rectangular shape,
+  dimnames including axis names, device, backend, and provenance;
+- add a native `sparse_transpose` registry operation that builds transposed CSR
+  row counts, row pointers, and stable COO-aligned values on the device;
+- let compatibility backends rebuild same-device storage from the public COO
+  metadata when they do not implement the optional operation;
+- keep the source allocation independent and safe across transpose,
+  double-transpose, explicit release, errors, and repeated lifecycle cycles.
+
+Required evidence before merge:
+
+- [x] local Windows C++17 bridge compiles, installs, and loads without a CUDA
+  Toolkit;
+- [x] the complete local CPU suite passes for CSR, COO, rectangular, empty,
+  named, double-transpose, provenance, and operation-driven dispatch cases;
+- [x] pinned CUDA 12.8.1 PTX is rebuilt reproducibly; committed SHA-256
+  `d15dddeb84e8c54ccffc051c299940958b310e1adf4a4f8bc8e6527b75cd4800`
+  agrees with `SHA256SUMS`, the CycloneDX SBOM, and pinned CI output;
+- [x] exact implementation/PTX commit
+  `52ab43b0cda5900082d42fd0f421b4c7df6c4d8a` passes the complete RTX
+  native test file with no skipped case, including parity, released-pointer
+  recovery, source reuse, and 1,000 transpose/double-transpose lifecycle
+  cycles with zero tracked leak and at most 1 MiB whole-device difference;
+- [x] Windows, macOS, Ubuntu, R-devel, pkgdown, supply-chain, CPU contract,
+  CUDA ABI/PTX, and Windows/Linux artifact checks are green on PR 18 source;
+  the exact implementation/PTX source passes the local RTX gate above.
+
+Deferred beyond CP-03:
+
+- the first stable scatter kernel is correctness-first and single-threaded to
+  guarantee that device storage and public COO order stay aligned; a parallel
+  stable scatter is benchmark-driven follow-up work, not a release claim;
+- float32 sparse storage remains evidence-gated and is not introduced here.

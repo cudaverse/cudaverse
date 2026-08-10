@@ -340,6 +340,71 @@ as_csr <- function(x) {
   .sparse_reformat(x, "csr")
 }
 
+#' Transpose a GPU-aware sparse matrix
+#'
+#' Swaps sparse rows and columns while preserving stored values, logical
+#' format, dimension labels, and the actual device. The native CUDA backend
+#' transposes its CSR backing storage on the device. Compatibility backends
+#' rebuild same-device storage from the stable public COO metadata.
+#'
+#' @param x A `cudasparse` matrix.
+#' @return A transposed `cudasparse` matrix on the same device as `x`.
+#' @method t cudasparse
+#' @export
+#' @examples
+#' x <- cuda_sparse(matrix(c(1, 0, 2, 0, 3, 0), 2), device = "cpu")
+#' t(x)
+t.cudasparse <- function(x) {
+  .check_sparse(x)
+  order_index <- order(x$j, x$i)
+  transposed_i <- as.integer(x$j[order_index])
+  transposed_j <- as.integer(x$i[order_index])
+  transposed_values <- as.numeric(x$values[order_index])
+  transposed_shape <- as.integer(rev(x$shape))
+  transposed_row_ptr <- as.integer(c(
+    0L,
+    cumsum(tabulate(transposed_i, nbins = transposed_shape[[1L]]))
+  ))
+  backend_id <- if (is.null(x$backend_id)) "base" else x$backend_id
+  storage <- if (.backend_has_operation(backend_id, "sparse_transpose")) {
+    .backend_call(backend_id, "sparse_transpose", x$storage)
+  } else {
+    .backend_call(
+      backend_id,
+      "sparse_from_coo",
+      transposed_i,
+      transposed_j,
+      transposed_values,
+      transposed_shape,
+      x$format
+    )
+  }
+  source_dimnames <- .sparse_dimnames(x)
+  output <- x
+  output$i <- transposed_i
+  output$j <- transposed_j
+  output$values <- transposed_values
+  output$row_ptr <- transposed_row_ptr
+  output$col_index <- transposed_j - 1L
+  output$shape <- transposed_shape
+  output$dimnames <- if (is.null(source_dimnames)) {
+    NULL
+  } else {
+    rev(source_dimnames)
+  }
+  output$storage <- storage
+  .with_sparse_provenance(
+    output,
+    list(
+      sparse_transpose = .sparse_inherited_stage(
+        device = x$device,
+        backend = x$backend,
+        output_device = x$device
+      )
+    )
+  )
+}
+
 #' Convert to an R sparse matrix
 #'
 #' @param x A `cudasparse` matrix.

@@ -34,6 +34,7 @@ reference:
   - as_coo
   - as_csr
   - dimnames.cudasparse
+  - t.cudasparse
   - to_dgCMatrix
   - starts_with("sparse_")
 - title: Numerical algorithms

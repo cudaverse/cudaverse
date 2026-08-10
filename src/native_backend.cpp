@@ -1630,6 +1630,66 @@ extern "C" SEXP C_cudaverse_cuda_sparse_to_host(SEXP pointer) {
   return result;
 }
 
+extern "C" SEXP C_cudaverse_cuda_sparse_transpose(SEXP pointer) {
+  require_backend();
+  require_kernels();
+  SharedSparseBuffer* sparse = get_sparse_buffer(pointer);
+  try {
+    int output_rows = sparse->columns;
+    DeviceMemory counts(
+        static_cast<std::size_t>(output_rows) * sizeof(int));
+    CUdeviceptr count_pointer = counts.pointer();
+    int zero = 0;
+    unsigned long long count_elements =
+        static_cast<unsigned long long>(output_rows);
+    void* fill_parameters[] = {&count_pointer, &zero, &count_elements};
+    launch_or_throw(get_kernel("cudaverse_fill_i32"),
+                    "cudaverse_fill_i32", output_rows, fill_parameters);
+
+    void* count_parameters[] = {
+        &sparse->col_index, &count_pointer, &sparse->nnz};
+    launch_or_throw(
+        get_kernel("cudaverse_sparse_transpose_count_i32"),
+        "cudaverse_sparse_transpose_count_i32", sparse->nnz,
+        count_parameters);
+
+    DeviceMemory row_ptr(
+        (static_cast<std::size_t>(output_rows) + 1) * sizeof(int));
+    CUdeviceptr row_ptr_pointer = row_ptr.pointer();
+    void* prefix_parameters[] = {
+        &count_pointer, &row_ptr_pointer, &output_rows};
+    launch_or_throw(get_kernel("cudaverse_sparse_prefix_i32"),
+                    "cudaverse_sparse_prefix_i32", 1, prefix_parameters);
+    DeviceMemory offsets = copy_device_to_device(
+        row_ptr.pointer(), static_cast<std::size_t>(output_rows) * sizeof(int),
+        "cuMemcpyDtoD(sparse transpose offsets)");
+
+    DeviceMemory row_index(sparse->row_index_bytes);
+    DeviceMemory col_index(sparse->col_index_bytes);
+    DeviceMemory values(sparse->value_bytes);
+    CUdeviceptr offset_pointer = offsets.pointer();
+    CUdeviceptr output_row = row_index.pointer();
+    CUdeviceptr output_column = col_index.pointer();
+    CUdeviceptr output_values = values.pointer();
+    void* scatter_parameters[] = {
+        &sparse->row_index, &sparse->col_index, &sparse->values,
+        &offset_pointer, &output_row, &output_column, &output_values,
+        &sparse->nnz};
+    launch_or_throw(
+        get_kernel("cudaverse_sparse_transpose_scatter_f64"),
+        "cudaverse_sparse_transpose_scatter_f64", 1,
+        scatter_parameters);
+
+    SharedSparseBuffer* output = shared_sparse_from_devices(
+        std::move(row_index), std::move(row_ptr), std::move(col_index),
+        std::move(values), sparse->columns, sparse->rows, sparse->nnz);
+    return make_sparse_pointer(output, false);
+  } catch (const std::exception& exception) {
+    Rf_error("%s", exception.what());
+  }
+  return R_NilValue;
+}
+
 extern "C" SEXP C_cudaverse_cuda_sparse_reduce(SEXP pointer,
                                                   SEXP margin_sexp) {
   require_backend();
@@ -2424,6 +2484,8 @@ static const R_CallMethodDef call_methods[] = {
      reinterpret_cast<DL_FUNC>(&C_cudaverse_cuda_sparse_from_coo), 5},
     {"C_cudaverse_cuda_sparse_to_host",
      reinterpret_cast<DL_FUNC>(&C_cudaverse_cuda_sparse_to_host), 1},
+    {"C_cudaverse_cuda_sparse_transpose",
+     reinterpret_cast<DL_FUNC>(&C_cudaverse_cuda_sparse_transpose), 1},
     {"C_cudaverse_cuda_sparse_reduce",
      reinterpret_cast<DL_FUNC>(&C_cudaverse_cuda_sparse_reduce), 2},
     {"C_cudaverse_cuda_sparse_normalize",

@@ -47,6 +47,18 @@ test_that("sparse construction exposes the shared provenance contract", {
   expect_identical(info$compute_device, "cpu")
 })
 
+test_that("sparse transpose records same-device backend execution", {
+  x <- cuda_sparse(matrix(c(1, 0, 2, 0, 3, 0), 2), device = "cpu")
+  result <- t(x)
+  provenance <- cuda_provenance(result)
+
+  expect_identical(provenance$stage, "sparse_transpose")
+  expect_identical(provenance$device, "cpu")
+  expect_identical(provenance$backend, "Matrix")
+  expect_identical(provenance$output_device, "cpu")
+  expect_identical(result$compute_device, "cpu")
+})
+
 test_that("sparse products and reductions report actual CPU stages", {
   x <- cuda_sparse(diag(3), device = "cpu")
   product <- sparse_matmul_dense(x, matrix(1:6, 3, 2))
