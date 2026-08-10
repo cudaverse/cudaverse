@@ -288,6 +288,14 @@ Scope:
   rejects mixed source commits, failed or skipped required checks, lifecycle
   leaks, bundled runtimes, unchecked benchmarks, unauthorized deployment,
   evidence outside the retained bundle, and missing or SHA-mismatched files.
+- require the benchmark checker to recompute median/p95 from every retained
+  run, match every embedded case definition to `contract.csv`, require the
+  ordered base/native/torch matrix for full reports, and reject non-finite
+  timings, invalid memory values, or retained native allocations;
+- compose the final `cudaverse-native-candidate/1` RTX report only from a
+  passing consolidation report and a complete no-skip package test report
+  that identify the same clean commit, package version, RTX 2000, and R
+  runtime, retaining and checking both input SHA-256 values.
 
 Required evidence before merge:
 
@@ -299,10 +307,16 @@ Required evidence before merge:
   backends with normalization, projector/reconstruction, and exact-index
   parity;
 - [ ] `tools/check-benchmark-report.R` accepts the final complete report;
+- [x] benchmark-report integrity and rejection self-tests cover backend,
+  contract-definition, raw-run/summary, finite timing, peak-memory, and native
+  post-cleanup allocation tampering on Windows/Linux CI;
 - [ ] the retained summary is generated from that exact report and records
   the report SHA-256;
 - [ ] observed regressions and workload-specific conclusions are reviewed and
   documented;
+- [x] final RTX report composition and candidate-manifest self-tests reject
+  mismatched commits, versions, GPUs, R runtimes, input hashes, skipped package
+  tests, failed lifecycle gates, and altered retained evidence;
 - [x] float32 sparse storage is explicitly evidence-deferred, with the current
   float64 implementation evidence and quantitative re-entry gates retained in
   `.github/internal/CUDAVERSE-0.3-SPARSE-FLOAT32-DECISION.md`;
