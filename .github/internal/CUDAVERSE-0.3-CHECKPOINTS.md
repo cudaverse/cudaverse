@@ -1,4 +1,4 @@
-# cudaverse 0.3 checkpoint log
+# Internal cudaverse 0.3 checkpoint log
 
 ## Baseline audit
 

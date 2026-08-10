@@ -1,4 +1,4 @@
-# CRAN release checklist for cudaverse 0.1.0
+# Internal CRAN release checklist for cudaverse 0.1.0
 
 This is the first CRAN submission of `cudaverse`.
 

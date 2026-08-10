@@ -45,9 +45,11 @@ back.
 Reproducible PTX, RTX 2000 parity and lifecycle evidence, the CycloneDX SBOM,
 and the third-party redistribution inventory are kept in this repository. See
 the [0.3 roadmap](.github/CUDAVERSE-0.3-ROADMAP.md) for ordered milestones, the
-[benchmark contract](inst/benchmarks/README.md) for performance evidence, and
-the [GPU setup and troubleshooting article](vignettes/gpu-setup.Rmd) for
-runtime setup. The [backend support article](vignettes/backend-support.Rmd)
+[benchmark contract](https://github.com/cudaverse/cudaverse/blob/develop/native-cuda/inst/benchmarks/README.md)
+for performance evidence, and the
+[GPU setup and troubleshooting article](https://cudaverse.github.io/cudaverse/articles/gpu-setup.html)
+for runtime setup. The
+[backend support article](https://cudaverse.github.io/cudaverse/articles/backend-support.html)
 lists intentional native, compatibility, hybrid, and CPU boundaries.
 
 ## Installation
@@ -80,14 +82,17 @@ redistribute them.
 
 The option `cudaverse.cuda_backends` can still constrain backend order for
 testing, but it cannot bypass native contract, runtime, or self-test gates.
-The [backend support article](vignettes/backend-support.Rmd) distinguishes
+The [backend support article](https://cudaverse.github.io/cudaverse/articles/backend-support.html)
+distinguishes
 direct, hybrid, CPU-only, metadata, probe, and host-materializing APIs across
 the base, torch, and native backends. Its installed matrix also assigns every
 export to an executable conformance case. Hardware gates run those same public
 workflows on both CUDA backends rather than maintaining separate hand-written
 feature lists.
 
-The versioned [benchmark contract](inst/benchmarks/README.md) defines separate
+The versioned
+[benchmark contract](https://github.com/cudaverse/cudaverse/blob/develop/native-cuda/inst/benchmarks/README.md)
+defines separate
 smoke and full profiles. Full evidence uses five warmups and ten timed runs for
 base, torch, and native, reports raw times plus median/p95, distinguishes
 host-boundary and resident work where it can be measured directly, and records

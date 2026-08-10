@@ -1,4 +1,4 @@
-# Native CUDA consolidation record
+# Internal Native CUDA consolidation record
 
 ## Objective
 

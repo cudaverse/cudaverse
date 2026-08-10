@@ -1,4 +1,4 @@
-# cudaverse 0.2 native CUDA release-candidate assessment
+# Internal cudaverse 0.2 native CUDA release-candidate assessment
 
 > Historical Phase 4 assessment: the implementation described here was later
 > consolidated into the main `cudaverse` package. The pinned results remain

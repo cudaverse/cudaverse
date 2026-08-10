@@ -1,4 +1,4 @@
-# Lightweight native CUDA roadmap
+# Internal lightweight native CUDA roadmap
 
 ## Positioning
 
