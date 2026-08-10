@@ -77,7 +77,8 @@ Deferred beyond CP-01:
 
 ## CP-02: resident native CUDA k-means
 
-Status: implementation in progress on `agent/native-kmeans`.
+Status: implementation and local evidence complete on `agent/native-kmeans`;
+PR 17 validation is in progress.
 
 Scope:
 
@@ -99,14 +100,19 @@ Required evidence before merge:
   Toolkit;
 - [x] the complete local CPU suite passes, including a fake-backend contract
   test proving operation-driven dispatch;
-- [ ] CUDA 12.8.1 PTX is rebuilt reproducibly and its checksum/SBOM records are
-  synchronized;
-- [ ] exact native parity passes for ordinary, tied/empty-centre, and
-  large-offset inputs on the RTX 2000;
-- [ ] structured failure recovery and 1,000 resident k-means cycles meet the
-  tracked zero-leak and whole-device 1 MiB gates;
-- [ ] cross-platform, pkgdown, supply-chain, ABI/PTX, artifact, and exact RTX
-  evidence are green on one clean checkpoint commit and PR.
+- [x] CUDA 12.8.1 PTX is rebuilt reproducibly; committed SHA-256
+  `8daaaf372a164bc91fc1e6ee5b634ba266a4dcb9cc631bb122a117f4d76da7cf`
+  agrees with `SHA256SUMS`, the CycloneDX SBOM, and pinned CI output;
+- [x] exact implementation/PTX/test commit
+  `4b51af28f2064713c9002d6c73832749d18ad75f` passes native parity for
+  ordinary, tied/empty-centre, named-dimension, and large-offset inputs on the
+  RTX 2000 as part of the complete hardware test file, with no skipped case;
+- [x] the same RTX gate passes structured failure recovery and 1,000 resident
+  k-means cycles with zero tracked leak and at most 1 MiB whole-device
+  post-cleanup difference;
+- [x] Windows, macOS, Ubuntu, R-devel, pkgdown, supply-chain, CPU contract,
+  CUDA ABI/PTX, and Windows/Linux artifact CI are green on PR 17 source, and
+  the exact implementation/PTX/test source passes the local RTX gate above.
 
 Deferred beyond CP-02:
 
