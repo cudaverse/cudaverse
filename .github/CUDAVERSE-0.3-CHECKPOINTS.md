@@ -269,7 +269,9 @@ Scope:
   stage timing, peak-memory provenance, installed footprint, and numerical
   validation without making a universal GPU speed claim;
 - investigate workload-specific regressions and record whether the evidence
-  supports release, deferral, or a reduced benchmark/release scope.
+  supports release, deferral, or a reduced benchmark/release scope;
+- maintain a candidate completion audit that maps every long-term requirement
+  to exact evidence and does not infer final completion from checkpoint tests.
 
 Required evidence before merge:
 
