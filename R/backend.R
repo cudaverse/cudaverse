@@ -65,6 +65,28 @@
     .backend_stop("Backend contract operations must be functions.",
                   "cudaverse_backend_contract_error", factory$name)
   }
+  capabilities <- tryCatch(
+    factory$capabilities(),
+    error = function(error) {
+      .backend_stop(
+        sprintf("Backend `%s` capabilities failed: %s",
+                factory$name, conditionMessage(error)),
+        "cudaverse_backend_contract_error",
+        factory$name,
+        "capabilities",
+        error
+      )
+    }
+  )
+  if (!is.character(capabilities) || anyNA(capabilities) ||
+      any(!nzchar(capabilities)) || anyDuplicated(capabilities)) {
+    .backend_stop(
+      "Backend capabilities must be unique, non-empty character values.",
+      "cudaverse_backend_contract_error",
+      factory$name,
+      "capabilities"
+    )
+  }
   factory
 }
 
@@ -128,6 +150,14 @@
     !is.na(operation) && is.function(backend[[operation]])
 }
 
+.backend_operations <- function(factory) {
+  non_operations <- c(
+    "diagnostics", "capabilities", "contract", "error_translate"
+  )
+  operations <- names(factory)[vapply(factory, is.function, logical(1))]
+  sort(setdiff(unique(operations), non_operations))
+}
+
 .backend_default_error_translate <- function(backend) {
   force(backend)
   function(error, operation) {
@@ -155,7 +185,8 @@
     ),
     capabilities = function() c(
       "transfer", "cast", "arithmetic", "matmul", "reduce",
-      "reshape", "broadcast", "transpose", "sparse"
+      "reshape", "broadcast", "transpose", "svd", "pca",
+      "pca-predict", "distance", "knn", "sparse"
     ),
     from_host = function(x, dtype, shape, dimnames = NULL) {
       values <- switch(
@@ -314,7 +345,7 @@
     capabilities = function() c(
       "transfer", "cast", "arithmetic", "matmul", "reduce",
       "reshape", "broadcast", "transpose", "svd", "pca", "distance",
-      "knn", "sparse"
+      "pca-predict", "knn", "sparse"
     ),
     from_host = function(x, dtype, shape, dimnames = NULL) {
       torch::torch_tensor(x, dtype = .torch_dtype(dtype), device = "cuda")
@@ -543,6 +574,11 @@
   }
 
   details$capabilities <- capabilities
+  details$operations <- if (is.null(factory)) {
+    character()
+  } else {
+    .backend_operations(factory)
+  }
   details$contract_schema <- contract_schema
   details$contract_error <- contract_error
   if (!identical(name, "native")) {

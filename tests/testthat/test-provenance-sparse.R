@@ -83,3 +83,35 @@ test_that("Matrix materialization carries explicit CPU provenance", {
   expect_identical(provenance$selection_reason, "explicit_materialization")
   expect_identical(provenance$output_device, "cpu")
 })
+
+test_that("CUDA sparse normalization records CPU compute and upload", {
+  factory <- cudaverse:::.base_backend_factory()
+  factory$name <- "sparse-upload-test"
+  factory$device <- "cuda"
+  factory$sparse_from_coo <- function(i, j, values, shape, format = "csr") {
+    list(i = i, j = j, values = values, shape = shape, format = format)
+  }
+  cudaverse:::.backend_register(factory, replace = TRUE)
+  on.exit(
+    rm(list = "sparse-upload-test", envir = cudaverse:::.cudaverse_backends),
+    add = TRUE
+  )
+
+  x <- cuda_sparse(diag(3), device = "cpu")
+  x$device <- "cuda"
+  x$backend_id <- "sparse-upload-test"
+  normalized <- sparse_normalize(x)
+  provenance <- cuda_provenance(normalized)
+  stages <- attr(provenance, "compute_stages", exact = TRUE)
+
+  expect_named(stages, c("normalization", "normalization_upload"))
+  expect_identical(stages$normalization$device, "cpu")
+  expect_identical(stages$normalization$backend, "Matrix")
+  expect_identical(stages$normalization$output_device, "cpu")
+  expect_identical(stages$normalization_upload$device, "cuda")
+  expect_identical(
+    stages$normalization_upload$backend,
+    "sparse-upload-test"
+  )
+  expect_identical(stages$normalization_upload$output_device, "cuda")
+})

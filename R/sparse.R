@@ -662,19 +662,31 @@ sparse_normalize <- function(x, margin = c("rows", "columns"),
       output$format
     )
   }
-  .with_sparse_provenance(
-    output,
-    list(
-      normalization = cuda_stage(
-        requested_device = "inherited",
-        device = x$device,
-        backend = if (native) backend_id else "Matrix",
-        selection_reason = "inherited_device",
-        fallback = FALSE,
-        output_device = x$device
-      )
+  stages <- list(
+    normalization = cuda_stage(
+      requested_device = "inherited",
+      device = if (native) "cuda" else "cpu",
+      backend = if (native) backend_id else "Matrix",
+      selection_reason = if (native) {
+        "inherited_device"
+      } else {
+        "algorithm_cpu_only"
+      },
+      fallback = FALSE,
+      output_device = if (native) "cuda" else "cpu"
     )
   )
+  if (identical(x$device, "cuda") && !native) {
+    stages$normalization_upload <- cuda_stage(
+      requested_device = "inherited",
+      device = "cuda",
+      backend = backend_id,
+      selection_reason = "sparse_result_upload",
+      fallback = FALSE,
+      output_device = "cuda"
+    )
+  }
+  .with_sparse_provenance(output, stages)
 }
 
 #' @export

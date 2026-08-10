@@ -29,6 +29,37 @@ test_that("diagnostics extend rather than replace legacy fields", {
   expect_type(diagnostics$selected_backend, "character")
   expect_length(diagnostics$selected_backend, 1L)
   expect_named(diagnostics$backend_diagnostics, c("torch", "native"))
+  expect_true(all(c(
+    "capabilities", "operations"
+  ) %in% names(diagnostics$backend_diagnostics$torch)))
+  expect_true("algorithm_pca_predict" %in%
+                diagnostics$backend_diagnostics$torch$operations)
+})
+
+test_that("capabilities and callable operations have distinct contracts", {
+  base <- cudaverse:::.backend_get("base")
+
+  expect_true(all(c(
+    "svd", "pca", "pca-predict", "distance", "knn"
+  ) %in% base$capabilities()))
+  expect_true(all(c(
+    "algorithm_svd", "algorithm_pca", "algorithm_pca_predict",
+    "algorithm_distance", "algorithm_knn_prepare", "algorithm_knn_block"
+  ) %in% cudaverse:::.backend_operations(base)))
+})
+
+test_that("invalid capability declarations fail registration", {
+  factory <- cudaverse:::.base_backend_factory()
+  factory$name <- "invalid-capabilities"
+  factory$capabilities <- function() c("matmul", "matmul")
+
+  condition <- tryCatch(
+    cudaverse:::.backend_register(factory, replace = TRUE),
+    error = identity
+  )
+  expect_s3_class(condition, "cudaverse_backend_contract_error")
+  expect_identical(condition$backend, "invalid-capabilities")
+  expect_identical(condition$operation, "capabilities")
 })
 
 test_that("native probe failures do not change the legacy detection field", {
