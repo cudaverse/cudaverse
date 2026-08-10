@@ -28,7 +28,7 @@ consolidation <- list(
     commit = commit, tracked_dirty = FALSE
   )),
   hardware = list(nvidia_smi = "NVIDIA RTX 2000 Ada Generation Laptop GPU"),
-  software = list(cudaverse = version),
+  software = list(R = R.version.string, cudaverse = version),
   benchmarks = list(case = list(
     base = list(status = "complete", validation = passed()),
     native = list(status = "complete", validation = passed()),
@@ -95,6 +95,12 @@ expect_failure(build(y = changed), "different commits")
 changed <- package_tests
 changed$software$cudaverse <- "0.3.0"
 expect_failure(build(y = changed), "different versions")
+changed <- package_tests
+changed$hardware$nvidia_smi <- "NVIDIA RTX 4000"
+expect_failure(build(y = changed), "same RTX 2000")
+changed <- package_tests
+changed$software$R <- "R version 0.0.0"
+expect_failure(build(y = changed), "different R runtimes")
 
 reject_report <- function(mutator, pattern) {
   changed <- report

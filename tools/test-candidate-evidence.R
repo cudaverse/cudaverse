@@ -93,7 +93,10 @@ write_consolidation <- function(source_commit = commit) {
       source = list(cudaverse = list(
         commit = source_commit, tracked_dirty = FALSE
       )),
-      software = list(cudaverse = version),
+      hardware = list(
+        nvidia_smi = "NVIDIA RTX 2000 Ada Generation Laptop GPU"
+      ),
+      software = list(R = R.version.string, cudaverse = version),
       overall_pass = TRUE
     ),
     file.path(work, evidence_files[["consolidation"]]),
@@ -107,7 +110,10 @@ write_package_tests <- function(source_commit = commit, skips = 0L) {
       source = list(cudaverse = list(
         commit = source_commit, tracked_dirty = FALSE
       )),
-      software = list(cudaverse = version),
+      hardware = list(
+        nvidia_smi = "NVIDIA RTX 2000 Ada Generation Laptop GPU"
+      ),
+      software = list(R = R.version.string, cudaverse = version),
       testthat = list(
         tests = 10L, expectations = 100L, failures = 0L, errors = 0L,
         skips = skips, native_ready = TRUE, passed = skips == 0L

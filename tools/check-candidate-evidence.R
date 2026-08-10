@@ -329,6 +329,24 @@ if (!is.null(package_test_report)) {
     "RTX package-test report does not match the passing no-skip candidate"
   )
 }
+if (!is.null(consolidation_report) && !is.null(package_test_report)) {
+  require_gate(
+    identical(
+      unlist(
+        consolidation_report$hardware$nvidia_smi,
+        recursive = TRUE, use.names = FALSE
+      ),
+      unlist(
+        package_test_report$hardware$nvidia_smi,
+        recursive = TRUE, use.names = FALSE
+      )
+    ) && identical(
+      text_value(consolidation_report$software$R),
+      text_value(package_test_report$software$R)
+    ),
+    "RTX input reports do not identify the same hardware and R runtime"
+  )
+}
 for (gate in c("parity", "structured_recovery", "interruption",
                "backend_reuse", "no_skips")) {
   require_gate(logical_value(manifest$rtx[[gate]]),

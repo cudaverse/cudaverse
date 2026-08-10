@@ -13,6 +13,10 @@ native_candidate_number <- function(x) {
 
 native_candidate_source <- function(report) report$source$cudaverse
 
+native_candidate_text_vector <- function(x) {
+  as.character(unlist(x, recursive = TRUE, use.names = FALSE))
+}
+
 native_candidate_all_benchmarks_pass <- function(report) {
   length(report$benchmarks) > 0L && all(vapply(
     report$benchmarks,
@@ -56,6 +60,26 @@ build_native_candidate_report <- function(consolidation, package_tests,
   }
   if (!identical(version, test_version)) {
     stop("RTX consolidation and package tests use different versions.",
+         call. = FALSE)
+  }
+  hardware <- native_candidate_text_vector(
+    consolidation$hardware$nvidia_smi
+  )
+  test_hardware <- native_candidate_text_vector(
+    package_tests$hardware$nvidia_smi
+  )
+  if (!length(hardware) || !identical(hardware, test_hardware) ||
+      !grepl("RTX 2000", paste(hardware, collapse = " "), fixed = TRUE)) {
+    stop(
+      "RTX consolidation and package tests must identify the same RTX 2000.",
+      call. = FALSE
+    )
+  }
+  if (!identical(
+    as.character(native_candidate_scalar(consolidation$software$R, "")),
+    as.character(native_candidate_scalar(package_tests$software$R, ""))
+  )) {
+    stop("RTX consolidation and package tests use different R runtimes.",
          call. = FALSE)
   }
   if (native_candidate_logical(source$tracked_dirty) ||
@@ -131,7 +155,7 @@ build_native_candidate_report <- function(consolidation, package_tests,
     source = list(cudaverse = list(
       commit = commit, tracked_dirty = FALSE
     )),
-    hardware = package_tests$hardware,
+    hardware = list(nvidia_smi = test_hardware),
     software = list(
       R = package_tests$software$R,
       cudaverse = version,
