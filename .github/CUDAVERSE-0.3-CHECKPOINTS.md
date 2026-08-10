@@ -52,10 +52,22 @@ Required evidence before merge:
 - [x] CUDA 12.8.1 PTX rebuilt by the pinned CI container; committed SHA-256
   `42f0bf069d4c4b5ec507658f43e01088391508f10e63358a2a4b68d0bd331bd4`
   is recorded in `SHA256SUMS` and the CycloneDX SBOM;
-- [ ] Windows, macOS, Ubuntu, R-devel, pkgdown, supply-chain, and artifact CI;
-- [ ] RTX 2000 integer/float32/float64 subset and replacement parity;
-- [ ] RTX 2000 error recovery and lifecycle ceiling;
-- [ ] clean feature branch and green PR into `develop/native-cuda`.
+- [x] Windows, macOS, Ubuntu, R-devel, pkgdown, supply-chain, CPU contract,
+  CUDA ABI/PTX, and Windows/Linux artifact CI passed on the checkpoint source;
+- [x] exact clean commit `888aa9bdb0d9e6961c4f0808b24c83142fe86b87`
+  passed the complete native test file on the RTX 2000 with no skipped cases,
+  including integer/float32/float64 indexing and device-resident tensor-value
+  replacement parity;
+- [x] the same RTX run passed structured indexing error recovery and 1,000
+  gather/scatter cycles with no tracked leak and at most 1 MiB whole-device
+  post-cleanup difference;
+- [x] the checkpoint source is committed and synchronized on PR 16 into
+  `develop/native-cuda`; all non-hardware PR checks are green, and the exact
+  source also passed the local RTX gate above.
+
+Additional local packaging evidence: a full source build generated all three
+vignettes and `R CMD check --no-manual` completed with `Status: OK` on R 4.6.0
+for Windows.
 
 Deferred beyond CP-01:
 
