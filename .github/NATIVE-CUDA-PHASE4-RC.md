@@ -43,6 +43,7 @@ assessment.
 | CUDA build | CUDA 12.8.1 PTX reproducibility and Linux native ABI compile | pass |
 | Artifacts | Windows and Linux build, redistribution scan, clean no-CUDA install/load | pass |
 | Supply chain | CycloneDX SBOM and third-party license inventory | pass |
+| Local source package | `R CMD check --as-cran --no-manual` | 0 errors / 0 warnings / 1 development-metadata note |
 
 The canonical evidence is the
 [`cudaverseCUDA` Phase 4 report](https://github.com/cudaverse/cudaverseCUDA/blob/main/inst/reports/STAGE4.md)
@@ -71,3 +72,9 @@ Do not create a 0.2 tag, publish CI artifacts as releases, change the frozen
 maintainer authorization. Before any later public binary release, rerun the
 SBOM/license gate on the exact artifact and retain its checksum with the source
 commit and hardware evidence.
+
+Before a future CRAN submission, replace the development version, remove the
+development-only `Remotes` field from the exact submission tarball, and rerun
+CRAN incoming checks after the optional repository is publicly reachable. The
+current local NOTE is expected for a development RC and is not being presented
+as a zero-NOTE CRAN candidate.
