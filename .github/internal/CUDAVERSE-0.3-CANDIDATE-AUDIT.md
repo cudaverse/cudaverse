@@ -77,6 +77,10 @@ fixed metadata, clean source commit, package version, outcome, limitations, and
 pass/release-boundary state to match the candidate rather than trusting
 manifest metadata alone. The required decision structure is retained in
 `.github/internal/CUDAVERSE-0.3-CANDIDATE-DECISION-TEMPLATE.md`.
+The retained local check, benchmark checker, summary checker, and pkgdown
+render logs must also contain their stable success markers, and the retained
+license inventory must name CUDA Driver, cuBLAS, cuSOLVER, and PTX. A matching
+SHA therefore cannot bless a retained failure or an incomplete inventory.
 
 ## Final decision rule
 

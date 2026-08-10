@@ -47,6 +47,23 @@ plain_files <- setdiff(
   names(evidence_files), c("sbom", "rtx", "benchmark", "decision")
 )
 for (name in plain_files) write_fixture(name)
+write_fixture("check_log", "* checking candidate\nStatus: OK")
+write_fixture(
+  "licenses",
+  paste("CUDA Driver", "cuBLAS", "cuSOLVER", "PTX", sep = "\n")
+)
+write_fixture(
+  "benchmark_check",
+  "Benchmark report passed all machine-readable gates: benchmark.json"
+)
+write_fixture(
+  "summary_check",
+  "Benchmark summary matches the exact complete report: benchmark-summary.md"
+)
+write_fixture(
+  "pkgdown",
+  "Public pkgdown pages and documentation boundary passed: docs"
+)
 write_sbom <- function(component_version = version) {
   jsonlite::write_json(
     list(
@@ -211,6 +228,59 @@ Sys.setenv(CUDAVERSE_CANDIDATE_MANIFEST = path)
 
 write_manifest()
 run_checker()
+
+write_fixture("check_log", "Status: 1 WARNING")
+manifest$source_tarball$check_log_sha256 <- sha_for("check_log")
+write_manifest()
+expect_error_message(run_checker(), "local check log does not contain: Status: OK")
+write_fixture("check_log", "Status: OK")
+manifest$source_tarball$check_log_sha256 <- sha_for("check_log")
+
+write_fixture("benchmark_check", "benchmark checker did not run")
+manifest$benchmark$report_checker_log_sha256 <- sha_for("benchmark_check")
+write_manifest()
+expect_error_message(
+  run_checker(), "benchmark report-checker log does not contain"
+)
+write_fixture(
+  "benchmark_check",
+  "Benchmark report passed all machine-readable gates: benchmark.json"
+)
+manifest$benchmark$report_checker_log_sha256 <- sha_for("benchmark_check")
+
+write_fixture("summary_check", "summary checker did not run")
+manifest$benchmark$summary_checker_log_sha256 <- sha_for("summary_check")
+write_manifest()
+expect_error_message(
+  run_checker(), "benchmark summary-checker log does not contain"
+)
+write_fixture(
+  "summary_check",
+  "Benchmark summary matches the exact complete report: benchmark-summary.md"
+)
+manifest$benchmark$summary_checker_log_sha256 <- sha_for("summary_check")
+
+write_fixture("pkgdown", "pkgdown build output without boundary check")
+manifest$documentation$render_log_sha256 <- sha_for("pkgdown")
+write_manifest()
+expect_error_message(run_checker(), "pkgdown render log does not contain")
+write_fixture(
+  "pkgdown",
+  "Public pkgdown pages and documentation boundary passed: docs"
+)
+manifest$documentation$render_log_sha256 <- sha_for("pkgdown")
+
+write_fixture("licenses", "CUDA Driver\ncuBLAS\nPTX")
+manifest$supply_chain$license_inventory_sha256 <- sha_for("licenses")
+write_manifest()
+expect_error_message(
+  run_checker(), "license inventory component cuSOLVER does not contain"
+)
+write_fixture(
+  "licenses",
+  paste("CUDA Driver", "cuBLAS", "cuSOLVER", "PTX", sep = "\n")
+)
+manifest$supply_chain$license_inventory_sha256 <- sha_for("licenses")
 
 write_fixture("benchmark", "tampered evidence")
 write_manifest()

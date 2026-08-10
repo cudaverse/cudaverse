@@ -79,6 +79,17 @@ read_evidence_json <- function(path, label) {
   }
   value
 }
+read_evidence_text <- function(path) {
+  paste(readLines(path, warn = FALSE), collapse = "\n")
+}
+require_evidence_text <- function(path, pattern, label) {
+  if (!file.exists(path)) return(invisible(FALSE))
+  require_gate(
+    grepl(pattern, read_evidence_text(path), fixed = TRUE),
+    paste(label, "does not contain:", pattern)
+  )
+  invisible(TRUE)
+}
 
 require_gate(
   identical(text_value(manifest$schema), "cudaverse-candidate-evidence/1"),
@@ -118,11 +129,12 @@ require_gate(
   identical(basename(tarball_path), paste0("cudaverse_", version, ".tar.gz")),
   "source tarball name does not match the candidate version"
 )
-check_evidence_file(
+check_log_path <- check_evidence_file(
   manifest$source_tarball$check_log_file,
   manifest$source_tarball$check_log_sha256,
   "local check log"
 )
+require_evidence_text(check_log_path, "Status: OK", "local check log")
 require_gate(
   identical(number(manifest$source_tarball$check$errors), 0) &&
     identical(number(manifest$source_tarball$check$warnings), 0),
@@ -186,7 +198,7 @@ sbom_path <- check_evidence_file(
   manifest$supply_chain$sbom_sha256,
   "SBOM"
 )
-check_evidence_file(
+license_path <- check_evidence_file(
   manifest$supply_chain$license_inventory_file,
   manifest$supply_chain$license_inventory_sha256,
   "license inventory"
@@ -199,6 +211,12 @@ if (!is.null(sbom)) {
     identical(text_value(sbom$metadata$component$name), "cudaverse") &&
       identical(text_value(sbom$metadata$component$version), version),
     "SBOM component does not match the candidate package/version"
+  )
+}
+for (component in c("CUDA Driver", "cuBLAS", "cuSOLVER", "PTX")) {
+  require_evidence_text(
+    license_path, component,
+    paste("license inventory component", component)
   )
 }
 require_gate(
@@ -265,14 +283,24 @@ check_evidence_file(
   manifest$benchmark$summary_sha256,
   "benchmark summary"
 )
-check_evidence_file(
+benchmark_check_path <- check_evidence_file(
   manifest$benchmark$report_checker_log_file,
   manifest$benchmark$report_checker_log_sha256,
   "benchmark report-checker log"
 )
-check_evidence_file(
+summary_check_path <- check_evidence_file(
   manifest$benchmark$summary_checker_log_file,
   manifest$benchmark$summary_checker_log_sha256,
+  "benchmark summary-checker log"
+)
+require_evidence_text(
+  benchmark_check_path,
+  "Benchmark report passed all machine-readable gates:",
+  "benchmark report-checker log"
+)
+require_evidence_text(
+  summary_check_path,
+  "Benchmark summary matches the exact complete report:",
   "benchmark summary-checker log"
 )
 benchmark_report <- if (file.exists(benchmark_path)) {
@@ -307,9 +335,14 @@ require_gate(
 require_gate(logical_value(manifest$documentation$pkgdown_passed) &&
                logical_value(manifest$documentation$render_reviewed),
              "pkgdown output was not both built and reviewed")
-check_evidence_file(
+pkgdown_log_path <- check_evidence_file(
   manifest$documentation$render_log_file,
   manifest$documentation$render_log_sha256,
+  "pkgdown render log"
+)
+require_evidence_text(
+  pkgdown_log_path,
+  "Public pkgdown pages and documentation boundary passed:",
   "pkgdown render log"
 )
 require_gate(!logical_value(manifest$documentation$pages_deployed),
