@@ -77,8 +77,8 @@ Deferred beyond CP-01:
 
 ## CP-02: resident native CUDA k-means
 
-Status: implementation and local evidence complete on `agent/native-kmeans`;
-PR 17 validation is in progress.
+Status: completed and merged as PR 17 into `develop/native-cuda` at
+`15d2554fc3955944765f946af37a9cd35d80a501`.
 
 Scope:
 
@@ -121,3 +121,40 @@ Deferred beyond CP-02:
   fitting path is accepted;
 - PCA and kNN benchmarking remains part of the later unified benchmark
   milestone rather than this functional checkpoint.
+
+## CP-03: same-device sparse transpose
+
+Status: implementation in progress on `agent/native-sparse-transpose`.
+
+Scope:
+
+- add `t.cudasparse()` without adding another public package or backend name
+  branch;
+- preserve values, COO/CSR logical format, zero structure, rectangular shape,
+  dimnames including axis names, device, backend, and provenance;
+- add a native `sparse_transpose` registry operation that builds transposed CSR
+  row counts, row pointers, and stable COO-aligned values on the device;
+- let compatibility backends rebuild same-device storage from the public COO
+  metadata when they do not implement the optional operation;
+- keep the source allocation independent and safe across transpose,
+  double-transpose, explicit release, errors, and repeated lifecycle cycles.
+
+Required evidence before merge:
+
+- [x] local Windows C++17 bridge compiles, installs, and loads without a CUDA
+  Toolkit;
+- [x] the complete local CPU suite passes for CSR, COO, rectangular, empty,
+  named, double-transpose, provenance, and operation-driven dispatch cases;
+- [ ] pinned CUDA 12.8.1 PTX, SHA-256, and SBOM are synchronized and
+  reproducible;
+- [ ] exact RTX parity, released-pointer recovery, source reuse, and 1,000
+  transpose/double-transpose lifecycle cycles pass within the 1 MiB gate;
+- [ ] all cross-platform, pkgdown, supply-chain, CPU contract, ABI/PTX, and
+  artifact checks are green on one PR checkpoint.
+
+Deferred beyond CP-03:
+
+- the first stable scatter kernel is correctness-first and single-threaded to
+  guarantee that device storage and public COO order stay aligned; a parallel
+  stable scatter is benchmark-driven follow-up work, not a release claim;
+- float32 sparse storage remains evidence-gated and is not introduced here.

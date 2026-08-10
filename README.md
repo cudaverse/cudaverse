@@ -21,7 +21,8 @@ backend and record what actually ran.
 Version 0.1.0 uses `torch` only as an optional CUDA backend; it is not a hard
 package dependency. Development version 0.2 now has a backend registry and a
 built-in native implementation behind the same public R API. Phase 3 added
-shared-ownership COO/CSR storage, sparse multiplication and reductions,
+shared-ownership COO/CSR storage, same-device sparse transpose, sparse
+multiplication and reductions,
 sparse-preserving normalization, and sparse-input PCA/kNN to the validated
 dense Phase 2 pipeline. Phase 4 adds the remaining arithmetic, broadcasting,
 reshape, transpose, and float32 matmul surface needed for safe automatic

@@ -354,3 +354,38 @@ test_that("k-means dispatches resident updates by backend operation", {
   expect_identical(fit$compute_stages$center_update$output_device, "cuda")
   expect_identical(fit$compute_stages$finalization$output_device, "cpu")
 })
+
+test_that("sparse transpose dispatches by backend operation", {
+  calls <- new.env(parent = emptyenv())
+  calls$transpose <- 0L
+  factory <- cudaverse:::.base_backend_factory()
+  factory$name <- "sparse-transpose-contract"
+  factory$device <- "cuda"
+  factory$sparse_transpose <- function(storage) {
+    calls$transpose <- calls$transpose + 1L
+    expect_identical(storage, list(marker = "source"))
+    list(marker = "transposed")
+  }
+  cudaverse:::.backend_register(factory, replace = TRUE)
+  on.exit(
+    rm(
+      list = "sparse-transpose-contract",
+      envir = cudaverse:::.cudaverse_backends
+    ),
+    add = TRUE
+  )
+
+  source <- matrix(c(1, 0, 2, 0, 3, 0), nrow = 2L)
+  sparse <- cuda_sparse(source, device = "cpu")
+  sparse$device <- "cuda"
+  sparse$backend <- "sparse-transpose-contract"
+  sparse$backend_id <- "sparse-transpose-contract"
+  sparse$storage <- list(marker = "source")
+  result <- t(sparse)
+
+  expect_identical(calls$transpose, 1L)
+  expect_identical(result$storage, list(marker = "transposed"))
+  expect_identical(result$shape, c(3L, 2L))
+  expect_equal(as.matrix(to_dgCMatrix(result)), t(source))
+  expect_identical(result$compute_stages$sparse_transpose$device, "cuda")
+})

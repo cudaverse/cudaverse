@@ -640,6 +640,38 @@ extern "C" __global__ void cudaverse_sparse_col_sums_f64(
   if (position < nnz) atomicAdd(output + col_index[position], values[position]);
 }
 
+extern "C" __global__ void cudaverse_sparse_transpose_count_i32(
+    const int* col_index, int* counts, int nnz) {
+  int position = blockIdx.x * blockDim.x + threadIdx.x;
+  if (position < nnz) atomicAdd(counts + col_index[position], 1);
+}
+
+extern "C" __global__ void cudaverse_sparse_prefix_i32(
+    const int* counts, int* row_ptr, int rows) {
+  if (blockIdx.x != 0 || threadIdx.x != 0) return;
+  row_ptr[0] = 0;
+  for (int row = 0; row < rows; ++row) {
+    row_ptr[row + 1] = row_ptr[row] + counts[row];
+  }
+}
+
+extern "C" __global__ void cudaverse_sparse_transpose_scatter_f64(
+    const int* input_row, const int* input_column, const double* input_values,
+    int* offsets, int* output_row, int* output_column, double* output_values,
+    int nnz) {
+  if (blockIdx.x != 0 || threadIdx.x != 0) return;
+  // Input COO entries are sorted by row and column. Visiting them in that
+  // order makes columns within each transposed row stable and sorted, so the
+  // device storage remains aligned with the public COO metadata.
+  for (int position = 0; position < nnz; ++position) {
+    int row = input_column[position];
+    int output_position = offsets[row]++;
+    output_row[output_position] = row;
+    output_column[output_position] = input_row[position];
+    output_values[output_position] = input_values[position];
+  }
+}
+
 extern "C" __global__ void cudaverse_sparse_normalize_f64(
     const int* row_index, const int* col_index, const double* values,
     const double* sums, double* output, int nnz, int margin,

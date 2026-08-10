@@ -61,6 +61,9 @@ packages:
 - native CUDA tensor subsetting and replacement keep tensor values on the
   device; missing indices and compatibility backends without indexing
   operations use a recorded CPU round trip;
+- `t()` preserves `cudasparse` device, format, and labels; native backing
+  storage is transposed on CUDA while compatibility backends rebuild from the
+  stable public COO metadata;
 - native CUDA k-means keeps distance, stable assignment, accumulation, and
   centre updates on the device; the torch compatibility path uses GPU distance
   and CPU assignment/centre updates;

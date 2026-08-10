@@ -52,6 +52,44 @@ test_that("COO and CSR metadata are consistent", {
   expect_identical(x$row_ptr, 0:4)
 })
 
+test_that("sparse transpose preserves values formats and dimension labels", {
+  source <- Matrix::sparseMatrix(
+    i = c(1L, 2L, 2L, 4L),
+    j = c(3L, 1L, 5L, 2L),
+    x = c(2, -1, 4, 7),
+    dims = c(4L, 5L),
+    dimnames = list(
+      observation = paste0("sample_", seq_len(4L)),
+      feature = paste0("gene_", seq_len(5L))
+    )
+  )
+
+  for (format in c("csr", "coo")) {
+    original <- cuda_sparse(source, format = format, device = "cpu")
+    transposed <- t(original)
+    roundtrip <- t(transposed)
+
+    expect_s3_class(transposed, "cudasparse")
+    expect_identical(transposed$shape, c(5L, 4L))
+    expect_identical(transposed$format, format)
+    expect_identical(transposed$device, original$device)
+    expect_identical(transposed$backend, original$backend)
+    expect_identical(dimnames(transposed), rev(dimnames(source)))
+    expect_equal(
+      as.matrix(to_dgCMatrix(transposed)),
+      t(as.matrix(source))
+    )
+    expect_equal(as.matrix(to_dgCMatrix(roundtrip)), as.matrix(source))
+    expect_equal(as.matrix(to_dgCMatrix(original)), as.matrix(source))
+  }
+
+  empty <- cuda_sparse(matrix(0, 2, 3), device = "cpu")
+  empty_transpose <- t(empty)
+  expect_identical(empty_transpose$shape, c(3L, 2L))
+  expect_identical(empty_transpose$row_ptr, rep.int(0L, 4L))
+  expect_length(empty_transpose$values, 0L)
+})
+
 test_that("sparse dense multiplication matches Matrix", {
   source <- Matrix::rsparsematrix(6, 4, density = 0.3)
   dense <- matrix(seq_len(12), 4, 3)

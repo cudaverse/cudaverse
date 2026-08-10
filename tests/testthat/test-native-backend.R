@@ -24,13 +24,15 @@ test_that("native diagnostics and factory follow the integrated contract", {
     "reshape", "subset", "replace", "broadcast", "binary", "transpose",
     "matmul", "reduce",
     "sparse_from_coo", "sparse_to_host",
-    "sparse_reduce", "sparse_normalize", "sparse_matmul_dense",
+    "sparse_transpose", "sparse_reduce", "sparse_normalize",
+    "sparse_matmul_dense",
     "algorithm_pca_predict", "algorithm_sparse_pca", "algorithm_kmeans",
     "algorithm_sparse_knn_prepare",
     "synchronize", "release", "error_translate"
   ) %in% names(factory)))
   expect_true(all(c(
-    "sparse-coo", "sparse-csr", "sparse-normalize", "sparse-matmul",
+    "sparse-coo", "sparse-csr", "sparse-transpose", "sparse-normalize",
+    "sparse-matmul",
     "sparse-reduce", "sparse-pca", "sparse-knn", "pca-predict", "kmeans",
     "dtype-float32",
     "dtype-float64", "runtime-self-test", "arithmetic", "reshape",
@@ -60,6 +62,7 @@ test_that("native runtime self-test is cached and releases its allocations", {
     "arithmetic-reshape-broadcast-transpose",
     "device-indexing",
     "resident-kmeans",
+    "sparse-transpose",
     "sparse-transfer-normalize"
   ) %in% first$checks))
   expect_identical(final$current, baseline)
@@ -809,6 +812,27 @@ test_that("native COO and CSR storage round-trip with shared ownership", {
     tolerance = 0
   )
 
+  transposed <- t(csr)
+  expect_type(transposed$storage, "externalptr")
+  expect_identical(transposed$device, "cuda")
+  expect_identical(transposed$backend_id, "native")
+  expect_identical(transposed$shape, c(3L, 4L))
+  expect_identical(dimnames(transposed), rev(dimnames(source)))
+  expect_equal(
+    as.matrix(cudaverse::to_dgCMatrix(transposed)),
+    t(as.matrix(source)),
+    tolerance = 0
+  )
+  expect_equal(
+    as.matrix(cudaverse::to_dgCMatrix(t(transposed))),
+    as.matrix(source),
+    tolerance = 0
+  )
+  expect_identical(
+    cudaverse::cuda_provenance(transposed)$stage,
+    "sparse_transpose"
+  )
+
   coo <- cudaverse::as_coo(csr)
   expect_type(coo$storage, "externalptr")
   factory$sparse_release(csr$storage)
@@ -819,6 +843,11 @@ test_that("native COO and CSR storage round-trip with shared ownership", {
   )
   expect_true(factory$sparse_release(coo$storage))
   expect_error(factory$sparse_to_host(coo$storage), "released")
+
+  empty <- cudaverse::cuda_sparse(matrix(0, 2, 3), device = "cuda")
+  empty_transpose <- t(empty)
+  expect_identical(empty_transpose$shape, c(3L, 2L))
+  expect_length(empty_transpose$values, 0L)
 })
 
 test_that("native sparse matmul, matvec, and reductions match Matrix", {
@@ -943,6 +972,7 @@ test_that("native sparse failures are structured and backend remains reusable", 
   skip_if_not(isTRUE(cudaverse:::.native_diagnostics()$available))
   old <- options(cudaverse.cuda_backends = "native")
   on.exit(options(old), add = TRUE)
+  factory <- cudaverse:::.native_backend_factory()
   source <- Matrix::Diagonal(4, x = 1:4)
   sparse <- cudaverse::cuda_sparse(source, device = "cuda")
   broken <- sparse
@@ -955,6 +985,19 @@ test_that("native sparse failures are structured and backend remains reusable", 
   expect_identical(condition$backend, "native")
   expect_identical(condition$operation, "sparse_matmul_dense")
 
+  released <- factory$sparse_from_coo(
+    1L, 1L, 1, c(2L, 3L), "csr"
+  )
+  factory$sparse_release(released)
+  transpose_condition <- tryCatch(
+    cudaverse:::.backend_call(
+      "native", "sparse_transpose", released
+    ),
+    error = identity
+  )
+  expect_s3_class(transpose_condition, "cudaverse_native_error")
+  expect_identical(transpose_condition$operation, "sparse_transpose")
+
   expect_equal(
     as.numeric(cudaverse::sparse_row_sums(sparse)),
     1:4,
@@ -962,7 +1005,7 @@ test_that("native sparse failures are structured and backend remains reusable", 
   )
 })
 
-test_that("one thousand sparse allocate-normalize-free cycles do not leak", {
+test_that("one thousand sparse transpose cycles do not leak", {
   skip_if_not(identical(Sys.getenv("CUDAVERSE_NATIVE_TESTS"), "true"))
   skip_if_not(isTRUE(cudaverse:::.native_diagnostics()$available))
   factory <- cudaverse:::.native_backend_factory()
@@ -978,10 +1021,10 @@ test_that("one thousand sparse allocate-normalize-free cycles do not leak", {
     storage <- factory$sparse_from_coo(
       i, j, values, c(16L, 8L), "csr"
     )
-    normalized <- factory$sparse_normalize(
-      storage, 0L, 100, TRUE
-    )
-    factory$sparse_release(normalized$storage)
+    transposed <- factory$sparse_transpose(storage)
+    roundtrip <- factory$sparse_transpose(transposed)
+    factory$sparse_release(roundtrip)
+    factory$sparse_release(transposed)
     factory$sparse_release(storage)
   }
   factory$synchronize()

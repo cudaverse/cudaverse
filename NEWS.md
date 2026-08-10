@@ -1,5 +1,9 @@
 # cudaverse 0.2.0.9000
 
+- Added `t()` for `cudasparse` matrices. Native CUDA transposes CSR backing
+  storage on device while preserving stable COO metadata, logical format,
+  dimnames, shared ownership, and same-device provenance; compatibility
+  backends rebuild storage from the already-public COO metadata.
 - Added registry-driven resident native CUDA k-means. Observations and centres
   are uploaded once; distance, stable assignment, accumulation, and Lloyd
   centre updates remain on device, with compact convergence and final-result
