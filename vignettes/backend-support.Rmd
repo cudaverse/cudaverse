@@ -1,0 +1,109 @@
+---
+title: "Backend support and release boundaries"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Backend support and release boundaries}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+```
+
+`cudaverse` has one public API and three possible computation backends. The
+portable base backend is always present. The optional torch backend uses a
+CUDA-enabled torch installation. The lightweight native backend dynamically
+loads an NVIDIA driver, cuBLAS, cuSOLVER, and package PTX only when CUDA is
+diagnosed or requested.
+
+Installing the package does not download a CUDA runtime or LibTorch. Explicit
+`device = "cuda"` requests are strict and never silently fall back to CPU.
+`device = "auto"` may fall back, and the reason is preserved in provenance.
+
+## Read the matrix
+
+The table below covers every exported function. Its status vocabulary is:
+
+- `direct`: the main numerical operation is implemented by that backend;
+- `hybrid`: meaningful stages are split between that backend and CPU code;
+- `cpu_only`: the operation deliberately runs on CPU for the 0.2 surface;
+- `metadata`: validation or metadata without a new numerical kernel;
+- `probe`: backend diagnosis or selection; and
+- `host`: an explicit host materialization.
+
+`direct` does not imply that the public return value remains on the device.
+The `result_location` column states whether the result is host-resident,
+device-resident, cached for a native continuation, or backend-dependent.
+
+```{r capability-matrix, echo = FALSE}
+matrix_path <- system.file(
+  "reports", "backend-capability-matrix.csv", package = "cudaverse"
+)
+if (!nzchar(matrix_path)) {
+  matrix_path <- file.path(
+    dirname(knitr::current_input(dir = TRUE)),
+    "..", "inst", "reports", "backend-capability-matrix.csv"
+  )
+}
+support <- utils::read.csv(matrix_path, stringsAsFactors = FALSE)
+knitr::kable(support, row.names = FALSE)
+```
+
+The installed matrix and `NAMESPACE` are checked together: a new or removed
+export fails the package tests until this table is updated.
+
+## Intentional 0.2 CPU boundaries
+
+The following boundaries are deliberate and are not reasons to install more
+packages:
+
+- CUDA tensor subsetting and replacement use a CPU round trip;
+- k-means uses GPU distance when available but updates assignments and centres
+  on CPU;
+- kNN graph construction uses `Matrix`, while Louvain and Leiden use `igraph`;
+- UMAP and t-SNE use `uwot` and `Rtsne` on CPU; and
+- diffusion maps may calculate distance on CUDA, but construct the kernel and
+  eigendecomposition on CPU.
+
+Use `cuda_provenance()` on a result to inspect each actual compute and transfer
+stage. A hybrid result is not presented as fully GPU-resident.
+
+## Native acceptance gate
+
+On 2026-08-10, source commit
+`fdceea66d13c84c4adf731b8cd4fd0826c738ca6` passed the complete explicitly
+gated native test file on an NVIDIA RTX 2000 Ada Generation GPU with 16 GB VRAM
+and driver 595.97. No hardware case was skipped. The gate covered:
+
+- float32/float64 transfer, matmul, arithmetic, reductions, reshape,
+  broadcasting, and transpose;
+- SVD, PCA, PCA prediction, distance, deterministic top-k, and kNN;
+- COO/CSR ownership, sparse multiplication, reductions, normalization, sparse
+  PCA, and sparse kNN;
+- structured CUDA and R error recovery, time-limit interruption, and backend
+  reuse; and
+- shared ownership, allocation telemetry, and 1,000-cycle dense and sparse
+  lifecycle tests.
+
+The test process referenced user-provided `cublas64_12.dll` and
+`cusolver64_11.dll` files already present on that machine. These libraries are
+not copied into or redistributed with `cudaverse`. Exact release-candidate
+evidence is regenerated at the final candidate commit rather than inferred
+from this checkpoint.
+
+## Inspect a local installation
+
+```{r diagnostics}
+library(cudaverse)
+
+diagnostics <- cuda_diagnostics()
+diagnostics$selected_backend
+diagnostics$backend_diagnostics$native$capabilities
+diagnostics$backend_diagnostics$native$operations
+```
+
+`capabilities` are user-facing feature declarations. `operations` are the
+callable internal registry entries. Native automatic selection additionally
+requires the compatible contract schema, complete runtime components, and a
+passing cached self-test.
