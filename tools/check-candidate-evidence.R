@@ -31,6 +31,14 @@ bundle_root <- normalizePath(
 check_evidence_file <- function(path_value, sha_value, label) {
   relative <- text_value(path_value)
   require_gate(nzchar(relative), paste(label, "path is missing"))
+  path_components <- strsplit(
+    gsub("\\\\", "/", relative), "/", fixed = TRUE
+  )[[1L]]
+  traversal <- any(path_components == "..")
+  require_gate(
+    !traversal,
+    paste(label, "is outside the evidence bundle")
+  )
   candidate <- if (grepl("^([A-Za-z]:|/)", relative)) {
     relative
   } else {

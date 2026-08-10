@@ -219,6 +219,11 @@ manifest$supply_chain$sbom_sha256 <- sha_for("sbom")
 manifest$benchmark$report_file <- "../outside-bundle.json"
 write_manifest()
 expect_error_message(run_checker(), "benchmark report is outside")
+manifest$benchmark$report_file <- file.path(
+  "nested", "..", "..", "outside-bundle.json"
+)
+write_manifest()
+expect_error_message(run_checker(), "benchmark report is outside")
 manifest$benchmark$report_file <- evidence_files[["benchmark"]]
 
 manifest$benchmark$source_commit <- paste(rep("c", 40L), collapse = "")
