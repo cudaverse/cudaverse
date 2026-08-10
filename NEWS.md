@@ -1,5 +1,8 @@
 # cudaverse 0.2.0.9000
 
+- Added registry-driven, device-native tensor subsetting and replacement for
+  the native CUDA backend, including dtype preservation, dimnames, R recycling,
+  and deterministic last-write handling for duplicate indices.
 - Added a backend registry and integrated the lightweight native CUDA
   implementation into `cudaverse` without changing the public device API.
 - Removed the cross-repository `cudaverseCUDA` dependency. Native runtime

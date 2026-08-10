@@ -288,6 +288,32 @@ test_that("tensor subsetting follows R array semantics", {
   expect_error(x[, 1, drop = NA], "TRUE or FALSE")
 })
 
+test_that("tensor indexing preserves labels and R index semantics", {
+  source <- matrix(
+    1:12,
+    3,
+    4,
+    dimnames = list(
+      sample = c("a", "b", "c"),
+      feature = c("w", "x", "y", "z")
+    )
+  )
+  x <- cuda_tensor(source, device = "cpu", dtype = "integer")
+
+  selected <- x[c("c", "a"), c(TRUE, FALSE), drop = FALSE]
+  expect_identical(
+    to_cpu(selected),
+    source[c("c", "a"), c(TRUE, FALSE), drop = FALSE]
+  )
+  expect_identical(cuda_provenance(selected)$backend, "base")
+
+  missing <- x[c(NA_integer_, 2L), 1L]
+  expect_identical(
+    as.vector(to_cpu(missing)),
+    as.vector(source[c(NA_integer_, 2L), 1L])
+  )
+})
+
 test_that("tensor replacement preserves dtype and returns a tensor", {
   x <- cuda_tensor(matrix(1:6, 2, 3), device = "cpu", dtype = "integer")
   x[, 2] <- c(20, 30)
@@ -301,6 +327,22 @@ test_that("tensor replacement preserves dtype and returns a tensor", {
   )
   expect_error(x[1, 1] <- 0.5, "represented exactly")
   expect_error(x[1, 1] <- NA_real_, "represented exactly")
+})
+
+test_that("tensor replacement recycles and resolves duplicate indices", {
+  source <- matrix(as.numeric(1:9), 3, 3)
+  expected <- source
+  expected[c(1L, 1L, 3L), 2L] <- c(10, 20, 30)
+  x <- cuda_tensor(source, device = "cpu")
+  x[c(1L, 1L, 3L), 2L] <- c(10, 20, 30)
+
+  expect_identical(to_cpu(x), expected)
+  expect_identical(cuda_provenance(x)$backend, "base")
+
+  expect_error(
+    x[, 1:2] <- 1:4,
+    "number of items to replace is not a multiple"
+  )
 })
 
 test_that("matrix conversion and large printing are predictable", {

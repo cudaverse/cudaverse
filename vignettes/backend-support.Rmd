@@ -58,7 +58,9 @@ export fails the package tests until this table is updated.
 The following boundaries are deliberate and are not reasons to install more
 packages:
 
-- CUDA tensor subsetting and replacement use a CPU round trip;
+- native CUDA tensor subsetting and replacement keep tensor values on the
+  device; missing indices and compatibility backends without indexing
+  operations use a recorded CPU round trip;
 - k-means uses GPU distance when available but updates assignments and centres
   on CPU;
 - kNN graph construction uses `Matrix`, while Louvain and Leiden use `igraph`;
@@ -77,7 +79,7 @@ gated native test file on an NVIDIA RTX 2000 Ada Generation GPU with 16 GB VRAM
 and driver 595.97. No hardware case was skipped. The gate covered:
 
 - float32/float64 transfer, matmul, arithmetic, reductions, reshape,
-  broadcasting, and transpose;
+  broadcasting, transpose, subsetting, and replacement;
 - SVD, PCA, PCA prediction, distance, deterministic top-k, and kNN;
 - COO/CSR ownership, sparse multiplication, reductions, normalization, sparse
   PCA, and sparse kNN;

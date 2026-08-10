@@ -275,6 +275,65 @@ extern "C" __global__ void cudaverse_transpose_i32(
   transpose_kernel(input, output, rows, columns);
 }
 
+template <typename T>
+__device__ void cudaverse_gather_impl(
+    const T* input, const int* indices, T* output,
+    unsigned long long elements) {
+  unsigned long long index =
+      static_cast<unsigned long long>(blockIdx.x) * blockDim.x + threadIdx.x;
+  if (index < elements) output[index] = input[indices[index]];
+}
+
+extern "C" __global__ void cudaverse_gather_f64(
+    const double* input, const int* indices, double* output,
+    unsigned long long elements) {
+  cudaverse_gather_impl(input, indices, output, elements);
+}
+
+extern "C" __global__ void cudaverse_gather_f32(
+    const float* input, const int* indices, float* output,
+    unsigned long long elements) {
+  cudaverse_gather_impl(input, indices, output, elements);
+}
+
+extern "C" __global__ void cudaverse_gather_i32(
+    const int* input, const int* indices, int* output,
+    unsigned long long elements) {
+  cudaverse_gather_impl(input, indices, output, elements);
+}
+
+template <typename T>
+__device__ void cudaverse_scatter_impl(
+    T* output, const int* indices, const T* replacement,
+    const int* replacement_indices, unsigned long long elements) {
+  unsigned long long index =
+      static_cast<unsigned long long>(blockIdx.x) * blockDim.x + threadIdx.x;
+  if (index < elements) {
+    output[indices[index]] = replacement[replacement_indices[index]];
+  }
+}
+
+extern "C" __global__ void cudaverse_scatter_f64(
+    double* output, const int* indices, const double* replacement,
+    const int* replacement_indices, unsigned long long elements) {
+  cudaverse_scatter_impl(
+      output, indices, replacement, replacement_indices, elements);
+}
+
+extern "C" __global__ void cudaverse_scatter_f32(
+    float* output, const int* indices, const float* replacement,
+    const int* replacement_indices, unsigned long long elements) {
+  cudaverse_scatter_impl(
+      output, indices, replacement, replacement_indices, elements);
+}
+
+extern "C" __global__ void cudaverse_scatter_i32(
+    int* output, const int* indices, const int* replacement,
+    const int* replacement_indices, unsigned long long elements) {
+  cudaverse_scatter_impl(
+      output, indices, replacement, replacement_indices, elements);
+}
+
 extern "C" __global__ void cudaverse_gather_rows_f64(
     const double* input, double* output, int rows, int columns,
     int first_row, int selected_rows) {

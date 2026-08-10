@@ -71,7 +71,11 @@ where they are a good fit:
    arithmetic, trailing-dimension broadcasting, reshape, transpose, and
    float32/float64 matmul, and additionally requires a versioned contract,
    complete runtime components, and a cached self-test before selection.
-6. Retain torch for one compatibility cycle, then reassess whether it still
+6. **In progress (0.3 dense objects):** implement native tensor gather and
+   replacement behind the registry so ordinary indexing does not transfer the
+   tensor payload through R. The full ordered work and measurable gates are in
+   [the 0.3 roadmap](CUDAVERSE-0.3-ROADMAP.md).
+7. Retain torch for one compatibility cycle, then reassess whether it still
    belongs in `Suggests`.
 
 ## Claims require evidence

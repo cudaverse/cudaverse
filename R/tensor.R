@@ -852,10 +852,11 @@ Ops.cudatensor <- function(e1, e2) {
 #' Replacement preserves the tensor dtype; fractional values therefore cannot
 #' be assigned to an integer tensor.
 #'
-#' The current implementation performs subsetting and replacement through a
-#' base R array, so a CUDA tensor is transferred to the CPU and the result is
-#' returned to its original device. Use these methods for data preparation,
-#' not inside performance-critical GPU loops.
+#' Backends may implement value gathering and replacement directly. The native
+#' CUDA backend evaluates only R index metadata on the host and keeps tensor
+#' values on the device. Compatibility backends without indexing operations
+#' use a recorded CPU round trip. Subscripts containing `NA` currently use the
+#' compatibility path.
 #'
 #' @param x A `cudatensor`.
 #' @param ... One-based R array indices.
@@ -880,6 +881,93 @@ NULL
   list(shape = as.integer(shape), dimnames = labels)
 }
 
+.tensor_index_plan <- function(x, subscripts, caller, drop = FALSE) {
+  elements <- prod(as.double(x$shape))
+  if (elements > .Machine$integer.max) {
+    return(NULL)
+  }
+  proxy <- array(
+    seq_len(as.integer(elements)),
+    dim = x$shape,
+    dimnames = .tensor_dimnames(x)
+  )
+  selected <- .tensor_eval_index(
+    "[", proxy, subscripts, caller, drop = drop
+  )
+  metadata <- .host_tensor_metadata(selected)
+  list(
+    indices = as.integer(selected),
+    shape = metadata$shape,
+    dimnames = metadata$dimnames
+  )
+}
+
+.tensor_subset_host <- function(x, subscripts, caller, drop) {
+  result <- .tensor_eval_index(
+    "[", to_cpu(x), subscripts, caller, drop = drop
+  )
+  if (!length(result)) {
+    stop("Subsetting produced an empty tensor, which is not supported.",
+         call. = FALSE)
+  }
+  metadata <- .host_tensor_metadata(result)
+  output_storage <- .backend_call(
+    x$backend, "from_host", result, x$dtype,
+    metadata$shape, metadata$dimnames
+  )
+  output <- .new_cudatensor(
+    output_storage, x$device, x$backend, x$dtype, metadata$shape,
+    dimnames = metadata$dimnames
+  )
+  if (!identical(x$device, "cuda")) {
+    return(.tensor_result_stage(output, "subset"))
+  }
+  .with_tensor_stages(
+    output,
+    list(
+      materialization = .tensor_stage(
+        "cpu", "base", output_device = "cpu", reason = "input_transfer"
+      ),
+      subset = .tensor_stage("cpu", "base"),
+      upload = .tensor_stage(
+        "cuda", x$backend, output_device = "cuda",
+        requested_device = "cuda", reason = "output_transfer"
+      )
+    )
+  )
+}
+
+.tensor_replacement_host <- function(x, subscripts, caller, value) {
+  result <- .tensor_eval_index(
+    "[<-", to_cpu(x), subscripts, caller, replacement = value
+  )
+  metadata <- .host_tensor_metadata(result)
+  output_storage <- .backend_call(
+    x$backend, "from_host", result, x$dtype,
+    metadata$shape, metadata$dimnames
+  )
+  output <- .new_cudatensor(
+    output_storage, x$device, x$backend, x$dtype, metadata$shape,
+    dimnames = metadata$dimnames
+  )
+  if (!identical(x$device, "cuda")) {
+    return(.tensor_result_stage(output, "replacement"))
+  }
+  .with_tensor_stages(
+    output,
+    list(
+      materialization = .tensor_stage(
+        "cpu", "base", output_device = "cpu", reason = "input_transfer"
+      ),
+      replacement = .tensor_stage("cpu", "base"),
+      upload = .tensor_stage(
+        "cuda", x$backend, output_device = "cuda",
+        requested_device = "cuda", reason = "output_transfer"
+      )
+    )
+  )
+}
+
 .tensor_eval_index <- function(operator, values, subscripts, caller,
                                drop = NULL, replacement = NULL) {
   arguments <- c(list(as.name(operator), quote(.tensor_values)), subscripts)
@@ -902,47 +990,21 @@ NULL
   if (!is.logical(drop) || length(drop) != 1L || is.na(drop)) {
     stop("`drop` must be TRUE or FALSE.", call. = FALSE)
   }
-  result <- .tensor_eval_index(
-    "[",
-    to_cpu(x),
-    .tensor_subscripts(...),
-    parent.frame(),
-    drop = drop
-  )
-  if (!length(result)) {
-    stop("Subsetting produced an empty tensor, which is not supported.",
-         call. = FALSE)
+  subscripts <- .tensor_subscripts(...)
+  caller <- parent.frame()
+  plan <- .tensor_index_plan(x, subscripts, caller, drop = drop)
+  direct <- !is.null(plan) && length(plan$indices) &&
+    !anyNA(plan$indices) && .backend_has_operation(x$backend, "subset")
+  if (!direct) {
+    return(.tensor_subset_host(x, subscripts, caller, drop))
   }
-  metadata <- .host_tensor_metadata(result)
   output_storage <- .backend_call(
-    x$backend, "from_host", result, x$dtype,
-    metadata$shape, metadata$dimnames
+    x$backend, "subset", x$storage, plan$indices, plan$shape
   )
   output <- .new_cudatensor(
-    output_storage, x$device, x$backend, x$dtype, metadata$shape,
-    dimnames = metadata$dimnames
+    output_storage, x$device, x$backend, x$dtype, plan$shape,
+    dimnames = plan$dimnames
   )
-  if (identical(x$device, "cuda")) {
-    return(.with_tensor_stages(
-      output,
-      list(
-        materialization = .tensor_stage(
-          "cpu",
-          "base",
-          output_device = "cpu",
-          reason = "input_transfer"
-        ),
-        subset = .tensor_stage("cpu", "base"),
-        upload = .tensor_stage(
-          "cuda",
-          x$backend,
-          output_device = "cuda",
-          requested_device = "cuda",
-          reason = "output_transfer"
-        )
-      )
-    ))
-  }
   .tensor_result_stage(output, "subset")
 }
 
@@ -950,52 +1012,69 @@ NULL
 #' @export
 `[<-.cudatensor` <- function(x, ..., value) {
   .check_tensor(x)
-  if (inherits(value, "cudatensor")) {
-    value <- to_cpu(value)
-  }
-  if (!is.numeric(value) || !length(value)) {
+  tensor_value <- inherits(value, "cudatensor")
+  if (!tensor_value && (!is.numeric(value) || !length(value))) {
     stop("`value` must be a non-empty numeric object.", call. = FALSE)
   }
-  if (identical(x$dtype, "integer")) {
+  if (tensor_value) {
+    .check_tensor(value)
+  }
+  if (identical(x$dtype, "integer") &&
+      (!tensor_value || !identical(value$dtype, "integer"))) {
+    if (tensor_value) value <- to_cpu(value)
+    tensor_value <- FALSE
     .validate_integer_values(value, "value")
   }
-  result <- .tensor_eval_index(
-    "[<-",
-    to_cpu(x),
-    .tensor_subscripts(...),
-    parent.frame(),
-    replacement = value
-  )
-  metadata <- .host_tensor_metadata(result)
+  subscripts <- .tensor_subscripts(...)
+  caller <- parent.frame()
+  plan <- .tensor_index_plan(x, subscripts, caller, drop = FALSE)
+  compatible_tensor <- tensor_value && identical(value$backend, x$backend) &&
+    identical(value$device, x$device) && identical(value$dtype, x$dtype)
+  direct <- !is.null(plan) && !anyNA(plan$indices) &&
+    .backend_has_operation(x$backend, "replace") &&
+    (!tensor_value || compatible_tensor)
+  if (!direct) {
+    if (tensor_value) value <- to_cpu(value)
+    return(.tensor_replacement_host(x, subscripts, caller, value))
+  }
+
+  value_length <- if (tensor_value) prod(value$shape) else length(value)
+  if (length(plan$indices) %% value_length != 0L) {
+    stop(
+      "number of items to replace is not a multiple of replacement length",
+      call. = FALSE
+    )
+  }
+  if (!length(plan$indices)) {
+    return(.tensor_result_stage(x, "replacement"))
+  }
+  replacement_positions <-
+    (seq_along(plan$indices) - 1L) %% value_length + 1L
+  keep <- !duplicated(plan$indices, fromLast = TRUE)
+  indices <- plan$indices[keep]
+  replacement_positions <- replacement_positions[keep]
+
+  owned_replacement <- !tensor_value
+  replacement_storage <- if (tensor_value) {
+    value$storage
+  } else {
+    .backend_call(
+      x$backend, "from_host", value, x$dtype,
+      as.integer(length(value)), NULL
+    )
+  }
+  if (owned_replacement) {
+    on.exit(.backend_call(x$backend, "release", replacement_storage),
+            add = TRUE)
+  }
   output_storage <- .backend_call(
-    x$backend, "from_host", result, x$dtype,
-    metadata$shape, metadata$dimnames
+    x$backend, "replace", x$storage, indices, replacement_storage,
+    replacement_positions
   )
   output <- .new_cudatensor(
-    output_storage, x$device, x$backend, x$dtype, metadata$shape,
-    dimnames = metadata$dimnames
+    output_storage, x$device, x$backend, x$dtype, x$shape,
+    dimnames = .tensor_dimnames(x)
   )
-  if (identical(x$device, "cuda")) {
-    return(.with_tensor_stages(
-      output,
-      list(
-        materialization = .tensor_stage(
-          "cpu",
-          "base",
-          output_device = "cpu",
-          reason = "input_transfer"
-        ),
-        replacement = .tensor_stage("cpu", "base"),
-        upload = .tensor_stage(
-          "cuda",
-          x$backend,
-          output_device = "cuda",
-          requested_device = "cuda",
-          reason = "output_transfer"
-        )
-      )
-    ))
-  }
   .tensor_result_stage(output, "replacement")
 }
 
