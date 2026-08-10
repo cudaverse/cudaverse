@@ -176,6 +176,19 @@ test_that("native auto-selection requires its contract, capabilities, and self-t
     "torch"
   )
 
+  capabilities <- setdiff(
+    cudaverse:::.native_auto_required_capabilities,
+    "pca-predict"
+  )
+  incomplete_prediction <- cudaverse:::.backend_selection_status(
+    "native", healthy
+  )
+  expect_false(incomplete_prediction$auto_eligible)
+  expect_identical(
+    incomplete_prediction$missing_auto_capabilities,
+    "pca-predict"
+  )
+
   capabilities <- cudaverse:::.native_auto_required_capabilities
   failed <- healthy
   failed$self_test <- list(passed = FALSE, error = "injected")

@@ -5,8 +5,8 @@
 
 .native_auto_required_capabilities <- c(
   "driver-detection", "allocation", "transfer", "cast", "matmul",
-  "reduce", "arithmetic", "reshape", "broadcast", "transpose", "pca",
-  "distance", "knn", "stable-topk", "sparse",
+  "reduce", "arithmetic", "reshape", "broadcast", "transpose", "svd",
+  "pca", "pca-predict", "distance", "knn", "stable-topk", "sparse",
   "sparse-coo", "sparse-csr", "sparse-normalize", "sparse-matmul",
   "sparse-reduce", "sparse-pca", "sparse-knn", "synchronize",
   "shared-ownership", "dtype-float32", "dtype-float64",
