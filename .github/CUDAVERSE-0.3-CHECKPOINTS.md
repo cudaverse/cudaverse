@@ -276,7 +276,8 @@ Scope:
   to exact evidence and does not infer final completion from checkpoint tests;
 - define and self-test a `cudaverse-candidate-evidence/1` manifest checker that
   rejects mixed source commits, failed or skipped required checks, lifecycle
-  leaks, bundled runtimes, unchecked benchmarks, and unauthorized deployment.
+  leaks, bundled runtimes, unchecked benchmarks, unauthorized deployment,
+  evidence outside the retained bundle, and missing or SHA-mismatched files.
 
 Required evidence before merge:
 

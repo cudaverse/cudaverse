@@ -1,5 +1,7 @@
-if (!requireNamespace("jsonlite", quietly = TRUE)) {
-  stop("Checking candidate evidence requires jsonlite.", call. = FALSE)
+if (!requireNamespace("jsonlite", quietly = TRUE) ||
+    !requireNamespace("digest", quietly = TRUE)) {
+  stop("Checking candidate evidence requires jsonlite and digest.",
+       call. = FALSE)
 }
 
 input <- Sys.getenv("CUDAVERSE_CANDIDATE_MANIFEST", unset = "")
@@ -22,6 +24,37 @@ is_commit <- function(x) grepl("^[0-9a-f]{40}$", text_value(x))
 failures <- character()
 require_gate <- function(value, message) {
   if (!isTRUE(value)) failures <<- c(failures, message)
+}
+bundle_root <- normalizePath(
+  dirname(input), winslash = "/", mustWork = TRUE
+)
+check_evidence_file <- function(path_value, sha_value, label) {
+  relative <- text_value(path_value)
+  require_gate(nzchar(relative), paste(label, "path is missing"))
+  candidate <- if (grepl("^([A-Za-z]:|/)", relative)) {
+    relative
+  } else {
+    file.path(bundle_root, relative)
+  }
+  path <- normalizePath(candidate, winslash = "/", mustWork = FALSE)
+  inside <- startsWith(
+    tolower(path), paste0(tolower(bundle_root), "/")
+  )
+  require_gate(inside, paste(label, "is outside the evidence bundle"))
+  exists <- file.exists(path)
+  require_gate(exists, paste(label, "file is missing"))
+  valid_sha <- is_sha256(sha_value)
+  require_gate(valid_sha, paste(label, "SHA-256 is invalid"))
+  if (exists && valid_sha) {
+    actual <- digest::digest(
+      path, algo = "sha256", file = TRUE, serialize = FALSE
+    )
+    require_gate(
+      identical(actual, text_value(sha_value)),
+      paste(label, "SHA-256 does not match the retained file")
+    )
+  }
+  path
 }
 
 require_gate(
@@ -53,15 +86,20 @@ require_gate(
   identical(text_value(manifest$source_tarball$source_commit), commit),
   "source tarball does not identify the candidate commit"
 )
+tarball_path <- check_evidence_file(
+  manifest$source_tarball$file,
+  manifest$source_tarball$sha256,
+  "source tarball"
+)
 require_gate(
-  identical(text_value(manifest$source_tarball$file),
-            paste0("cudaverse_", version, ".tar.gz")),
+  identical(basename(tarball_path), paste0("cudaverse_", version, ".tar.gz")),
   "source tarball name does not match the candidate version"
 )
-require_gate(is_sha256(manifest$source_tarball$sha256),
-             "source tarball SHA-256 is invalid")
-require_gate(is_sha256(manifest$source_tarball$check_log_sha256),
-             "local check-log SHA-256 is invalid")
+check_evidence_file(
+  manifest$source_tarball$check_log_file,
+  manifest$source_tarball$check_log_sha256,
+  "local check log"
+)
 require_gate(
   identical(number(manifest$source_tarball$check$errors), 0) &&
     identical(number(manifest$source_tarball$check$warnings), 0),
@@ -102,20 +140,34 @@ for (name in c("windows", "linux")) {
     identical(text_value(artifact$source_commit), commit),
     paste(name, "artifact is from another source commit")
   )
-  require_gate(is_sha256(artifact$sha256),
-               paste(name, "artifact SHA-256 is invalid"))
+  artifact_path <- check_evidence_file(
+    artifact$file, artifact$sha256, paste(name, "artifact")
+  )
   require_gate(number(artifact$bytes) > 0,
                paste(name, "artifact size is invalid"))
+  if (file.exists(artifact_path)) {
+    require_gate(
+      identical(as.numeric(file.info(artifact_path)$size),
+                number(artifact$bytes)),
+      paste(name, "artifact size does not match the retained file")
+    )
+  }
 }
 
 require_gate(
   identical(text_value(manifest$supply_chain$source_commit), commit),
   "supply-chain evidence is from another source commit"
 )
-require_gate(is_sha256(manifest$supply_chain$sbom_sha256),
-             "SBOM SHA-256 is invalid")
-require_gate(is_sha256(manifest$supply_chain$license_inventory_sha256),
-             "license-inventory SHA-256 is invalid")
+check_evidence_file(
+  manifest$supply_chain$sbom_file,
+  manifest$supply_chain$sbom_sha256,
+  "SBOM"
+)
+check_evidence_file(
+  manifest$supply_chain$license_inventory_file,
+  manifest$supply_chain$license_inventory_sha256,
+  "license inventory"
+)
 require_gate(
   identical(number(manifest$supply_chain$bundled_nvidia_runtime_bytes), 0) &&
     identical(number(manifest$supply_chain$bundled_libtorch_bytes), 0),
@@ -126,8 +178,11 @@ require_gate(
   identical(text_value(manifest$rtx$source_commit), commit),
   "RTX evidence is from another source commit"
 )
-require_gate(is_sha256(manifest$rtx$report_sha256),
-             "RTX report SHA-256 is invalid")
+check_evidence_file(
+  manifest$rtx$report_file,
+  manifest$rtx$report_sha256,
+  "RTX report"
+)
 for (gate in c("parity", "structured_recovery", "interruption",
                "backend_reuse", "no_skips")) {
   require_gate(logical_value(manifest$rtx[[gate]]),
@@ -147,10 +202,16 @@ require_gate(
   identical(text_value(manifest$benchmark$source_commit), commit),
   "benchmark evidence is from another source commit"
 )
-require_gate(is_sha256(manifest$benchmark$report_sha256),
-             "benchmark report SHA-256 is invalid")
-require_gate(is_sha256(manifest$benchmark$summary_sha256),
-             "benchmark summary SHA-256 is invalid")
+check_evidence_file(
+  manifest$benchmark$report_file,
+  manifest$benchmark$report_sha256,
+  "benchmark report"
+)
+check_evidence_file(
+  manifest$benchmark$summary_file,
+  manifest$benchmark$summary_sha256,
+  "benchmark summary"
+)
 require_gate(logical_value(manifest$benchmark$complete) &&
                logical_value(manifest$benchmark$report_checker_passed) &&
                logical_value(manifest$benchmark$summary_checker_passed),
@@ -163,6 +224,11 @@ require_gate(
 require_gate(logical_value(manifest$documentation$pkgdown_passed) &&
                logical_value(manifest$documentation$render_reviewed),
              "pkgdown output was not both built and reviewed")
+check_evidence_file(
+  manifest$documentation$render_log_file,
+  manifest$documentation$render_log_sha256,
+  "pkgdown render log"
+)
 require_gate(!logical_value(manifest$documentation$pages_deployed),
              "candidate evidence records an unauthorized Pages deployment")
 

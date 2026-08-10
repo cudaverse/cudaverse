@@ -1,5 +1,7 @@
-if (!requireNamespace("jsonlite", quietly = TRUE)) {
-  stop("Candidate-evidence self-tests require jsonlite.", call. = FALSE)
+if (!requireNamespace("jsonlite", quietly = TRUE) ||
+    !requireNamespace("digest", quietly = TRUE)) {
+  stop("Candidate-evidence self-tests require jsonlite and digest.",
+       call. = FALSE)
 }
 
 run_checker <- function() {
@@ -20,13 +22,39 @@ expect_error_message <- function(code, pattern) {
 }
 
 commit <- paste(rep("a", 40L), collapse = "")
-sha <- paste(rep("b", 64L), collapse = "")
+work <- tempfile("cudaverse-candidate-evidence-")
+dir.create(work)
+evidence_files <- c(
+  tarball = "cudaverse_0.3.0.9000.tar.gz",
+  check_log = "local-check.log",
+  windows_artifact = "cudaverse-windows.zip",
+  linux_artifact = "cudaverse-linux.tar.gz",
+  sbom = "sbom.json",
+  licenses = "licenses.csv",
+  rtx = "rtx.json",
+  benchmark = "benchmark.json",
+  summary = "benchmark-summary.md",
+  pkgdown = "pkgdown.log"
+)
+write_fixture <- function(name, value = "synthetic retained evidence") {
+  writeBin(charToRaw(value), file.path(work, evidence_files[[name]]))
+}
+for (name in names(evidence_files)) write_fixture(name)
+sha <- digest::digest(
+  file.path(work, evidence_files[[1L]]),
+  algo = "sha256", file = TRUE, serialize = FALSE
+)
 check <- function() list(
   source_commit = commit,
   conclusion = "success",
   url = "https://example.invalid/check"
 )
-artifact <- function() list(source_commit = commit, sha256 = sha, bytes = 1L)
+artifact <- function(name) list(
+  source_commit = commit,
+  file = evidence_files[[name]],
+  sha256 = sha,
+  bytes = as.numeric(file.info(file.path(work, evidence_files[[name]]))$size)
+)
 lifecycle <- function() list(
   cycles = 1000L,
   post_cleanup_difference_bytes = 0L,
@@ -44,8 +72,9 @@ manifest <- list(
     release_cran_0_1_0 = "59e15c8c5a56d26e09a594886c875b1b8249f6f9"
   ),
   source_tarball = list(
-    source_commit = commit, file = "cudaverse_0.3.0.9000.tar.gz",
-    sha256 = sha, check_log_sha256 = sha,
+    source_commit = commit, file = evidence_files[["tarball"]],
+    sha256 = sha, check_log_file = evidence_files[["check_log"]],
+    check_log_sha256 = sha,
     check = list(errors = 0L, warnings = 0L)
   ),
   github_checks = setNames(
@@ -57,26 +86,35 @@ manifest <- list(
       "linux_artifact"
     )
   ),
-  artifacts = list(windows = artifact(), linux = artifact()),
+  artifacts = list(
+    windows = artifact("windows_artifact"),
+    linux = artifact("linux_artifact")
+  ),
   supply_chain = list(
-    source_commit = commit, sbom_sha256 = sha,
+    source_commit = commit,
+    sbom_file = evidence_files[["sbom"]], sbom_sha256 = sha,
+    license_inventory_file = evidence_files[["licenses"]],
     license_inventory_sha256 = sha,
     bundled_nvidia_runtime_bytes = 0L, bundled_libtorch_bytes = 0L
   ),
   rtx = list(
-    source_commit = commit, report_sha256 = sha, parity = TRUE,
+    source_commit = commit, report_file = evidence_files[["rtx"]],
+    report_sha256 = sha, parity = TRUE,
     structured_recovery = TRUE, interruption = TRUE, backend_reuse = TRUE,
     no_skips = TRUE,
     lifecycle = list(dense = lifecycle(), sparse = lifecycle())
   ),
   benchmark = list(
-    source_commit = commit, report_sha256 = sha, summary_sha256 = sha,
+    source_commit = commit, report_file = evidence_files[["benchmark"]],
+    report_sha256 = sha, summary_file = evidence_files[["summary"]],
+    summary_sha256 = sha,
     complete = TRUE, report_checker_passed = TRUE,
     summary_checker_passed = TRUE
   ),
   documentation = list(
     source_commit = commit, pkgdown_passed = TRUE, render_reviewed = TRUE,
-    pages_deployed = FALSE
+    render_log_file = evidence_files[["pkgdown"]],
+    render_log_sha256 = sha, pages_deployed = FALSE
   ),
   decision = list(
     source_commit = commit, outcome = "defer",
@@ -85,8 +123,6 @@ manifest <- list(
   )
 )
 
-work <- tempfile("cudaverse-candidate-evidence-")
-dir.create(work)
 path <- file.path(work, "manifest.json")
 write_manifest <- function() {
   jsonlite::write_json(
@@ -97,6 +133,16 @@ Sys.setenv(CUDAVERSE_CANDIDATE_MANIFEST = path)
 
 write_manifest()
 run_checker()
+
+write_fixture("benchmark", "tampered evidence")
+write_manifest()
+expect_error_message(run_checker(), "benchmark report SHA-256 does not match")
+write_fixture("benchmark")
+
+manifest$benchmark$report_file <- "../outside-bundle.json"
+write_manifest()
+expect_error_message(run_checker(), "benchmark report is outside")
+manifest$benchmark$report_file <- evidence_files[["benchmark"]]
 
 manifest$benchmark$source_commit <- paste(rep("c", 40L), collapse = "")
 write_manifest()

@@ -66,8 +66,10 @@ The final JSON manifest uses schema `cudaverse-candidate-evidence/1` and must
 pass `tools/check-candidate-evidence.R`. The checker requires every source,
 check, artifact, RTX report, benchmark, documentation render, and decision to
 identify the same 40-character candidate commit. Its positive and rejection
-cases run in CI through `tools/test-candidate-evidence.R`; a plausible-looking
-manifest assembled from different checkpoints is therefore not final evidence.
+cases run in CI through `tools/test-candidate-evidence.R`. Every retained file
+must also exist below the manifest directory and match a freshly computed
+SHA-256, so an outside path, tampered artifact, or plausible-looking manifest
+assembled from different checkpoints is not final evidence.
 
 ## Final decision rule
 
