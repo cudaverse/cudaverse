@@ -61,8 +61,9 @@ packages:
 - native CUDA tensor subsetting and replacement keep tensor values on the
   device; missing indices and compatibility backends without indexing
   operations use a recorded CPU round trip;
-- k-means uses GPU distance when available but updates assignments and centres
-  on CPU;
+- native CUDA k-means keeps distance, stable assignment, accumulation, and
+  centre updates on the device; the torch compatibility path uses GPU distance
+  and CPU assignment/centre updates;
 - kNN graph construction uses `Matrix`, while Louvain and Leiden use `igraph`;
 - UMAP and t-SNE use `uwot` and `Rtsne` on CPU; and
 - diffusion maps may calculate distance on CUDA, but construct the kernel and

@@ -1322,12 +1322,19 @@ cuda_knn <- function(x, k = 15L, metric = c("euclidean", "cosine"),
 #' @param iter.max Maximum Lloyd iterations.
 #' @param tolerance Convergence tolerance for centre movement.
 #' @param seed Optional random seed used for initial centres.
-#' @param device Device used for the distance step.
+#' @param device Device used for the numerical clustering stages.
 #' @return A `cuda_kmeans` list containing integer `cluster` assignments,
 #'   final `centers`, per-cluster `withinss`, `tot.withinss`, the number of
 #'   iteration count in `iter`, a logical `converged` flag, and the actual
 #'   distance `device`.
 #'   Observation and feature names are retained when supplied.
+#' @details The native CUDA backend uploads the observations and initial
+#'   centres once, then keeps distance calculation, deterministic assignment,
+#'   accumulation, and centre updates on the device. Only the small convergence
+#'   movement summary is inspected between iterations; final assignments,
+#'   centres, and within-cluster sums are transferred to R. Compatibility
+#'   backends without a resident k-means operation retain the established
+#'   distance-on-backend and update-on-CPU implementation.
 #' @export
 #' @examples
 #' set.seed(1)
@@ -1372,35 +1379,55 @@ cuda_kmeans <- function(x, centers, iter.max = 100L, tolerance = 1e-6,
     k <- nrow(centre_matrix)
   }
 
-  converged <- FALSE
-  final_distance <- cuda_distance(x, centre_matrix, device = device)
-  cluster <- max.col(-final_distance, ties.method = "first")
-  for (iteration in seq_len(as.integer(iter.max))) {
-    new_centres <- centre_matrix
-    for (group in seq_len(k)) {
-      members <- x[cluster == group, , drop = FALSE]
-      if (nrow(members) > 0L) {
-        new_centres[group, ] <- colMeans(members)
-      }
-    }
-    movement <- max(abs(new_centres - centre_matrix))
-    centre_matrix <- new_centres
+  compute_backend <- .learn_selection_backend(selection)
+  resident_kmeans <- .backend_has_operation(
+    compute_backend, "algorithm_kmeans"
+  )
+  if (resident_kmeans) {
+    result <- .backend_call(
+      compute_backend,
+      "algorithm_kmeans",
+      x,
+      centre_matrix,
+      as.integer(iter.max),
+      tolerance
+    )
+    cluster <- result$cluster
+    centre_matrix <- result$centers
+    withinss <- result$withinss
+    iteration <- result$iter
+    converged <- result$converged
+  } else {
+    converged <- FALSE
     final_distance <- cuda_distance(x, centre_matrix, device = device)
     cluster <- max.col(-final_distance, ties.method = "first")
-    if (movement <= tolerance) {
-      converged <- TRUE
-      break
+    for (iteration in seq_len(as.integer(iter.max))) {
+      new_centres <- centre_matrix
+      for (group in seq_len(k)) {
+        members <- x[cluster == group, , drop = FALSE]
+        if (nrow(members) > 0L) {
+          new_centres[group, ] <- colMeans(members)
+        }
+      }
+      movement <- max(abs(new_centres - centre_matrix))
+      centre_matrix <- new_centres
+      final_distance <- cuda_distance(x, centre_matrix, device = device)
+      cluster <- max.col(-final_distance, ties.method = "first")
+      if (movement <= tolerance) {
+        converged <- TRUE
+        break
+      }
     }
+    withinss <- vapply(
+      seq_len(k),
+      function(group) {
+        members <- which(cluster == group)
+        indices <- cbind(members, rep.int(group, length(members)))
+        sum(final_distance[indices]^2)
+      },
+      numeric(1)
+    )
   }
-  withinss <- vapply(
-    seq_len(k),
-    function(group) {
-      members <- which(cluster == group)
-      indices <- cbind(members, rep.int(group, length(members)))
-      sum(final_distance[indices]^2)
-    },
-    numeric(1)
-  )
 
   if (!is.null(observation_names) || !is.null(feature_names)) {
     cluster_names <- paste0("cluster_", seq_len(k))
@@ -1425,17 +1452,34 @@ cuda_kmeans <- function(x, centers, iter.max = 100L, tolerance = 1e-6,
   stages$initialization <- .learn_cpu_stage()
   stages$distance <- .learn_stage(
     selection,
-    backend = .learn_selection_backend(selection),
-    output_device = "cpu"
+    backend = compute_backend,
+    output_device = if (resident_kmeans) "cuda" else "cpu"
   )
-  stages$assignment <- .learn_cpu_stage()
-  stages$center_update <- .learn_cpu_stage()
+  stages$assignment <- if (resident_kmeans) {
+    .learn_stage(selection, backend = compute_backend, output_device = "cuda")
+  } else {
+    .learn_cpu_stage()
+  }
+  stages$center_update <- if (resident_kmeans) {
+    .learn_stage(selection, backend = compute_backend, output_device = "cuda")
+  } else {
+    .learn_cpu_stage()
+  }
+  if (resident_kmeans) {
+    stages$finalization <- .learn_stage(
+      selection,
+      backend = compute_backend,
+      output_device = "cpu"
+    )
+  }
   .with_learning_provenance(
     output,
     stages,
     requested_device = selection$requested_device,
-    backend = if (identical(device, "cuda")) {
-      paste0(.learn_selection_backend(selection), "+base")
+    backend = if (resident_kmeans) {
+      compute_backend
+    } else if (identical(device, "cuda")) {
+      paste0(compute_backend, "+base")
     } else {
       "base"
     },

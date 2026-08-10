@@ -25,13 +25,13 @@ test_that("native diagnostics and factory follow the integrated contract", {
     "matmul", "reduce",
     "sparse_from_coo", "sparse_to_host",
     "sparse_reduce", "sparse_normalize", "sparse_matmul_dense",
-    "algorithm_pca_predict", "algorithm_sparse_pca",
+    "algorithm_pca_predict", "algorithm_sparse_pca", "algorithm_kmeans",
     "algorithm_sparse_knn_prepare",
     "synchronize", "release", "error_translate"
   ) %in% names(factory)))
   expect_true(all(c(
     "sparse-coo", "sparse-csr", "sparse-normalize", "sparse-matmul",
-    "sparse-reduce", "sparse-pca", "sparse-knn", "pca-predict",
+    "sparse-reduce", "sparse-pca", "sparse-knn", "pca-predict", "kmeans",
     "dtype-float32",
     "dtype-float64", "runtime-self-test", "arithmetic", "reshape",
     "broadcast", "transpose", "subset", "replacement"
@@ -59,6 +59,7 @@ test_that("native runtime self-test is cached and releases its allocations", {
     "float32-transfer-matmul-reduce",
     "arithmetic-reshape-broadcast-transpose",
     "device-indexing",
+    "resident-kmeans",
     "sparse-transfer-normalize"
   ) %in% first$checks))
   expect_identical(final$current, baseline)
@@ -420,6 +421,109 @@ test_that("native distances and stable device top-k match CPU ordering", {
   )
   expect_identical(native_general$index, cpu_general$index)
   expect_equal(native_general$distance, cpu_general$distance, tolerance = 1e-10)
+})
+
+test_that("native k-means keeps Lloyd updates resident and matches CPU", {
+  skip_if_not(identical(Sys.getenv("CUDAVERSE_NATIVE_TESTS"), "true"))
+  skip_if_not(isTRUE(cudaverse:::.native_diagnostics()$available))
+  old <- options(cudaverse.cuda_backends = "native")
+  on.exit(options(old), add = TRUE)
+
+  cases <- list(
+    separated = list(
+      values = rbind(
+        c(0, 0), c(0, 1), c(1, 0),
+        c(10, 10), c(10, 11), c(11, 10)
+      ),
+      centers = rbind(c(0, 0), c(10, 10))
+    ),
+    tied_empty = list(
+      values = rbind(c(0, 0), c(0, 0), c(5, 5), c(10, 10), c(10, 10)),
+      centers = rbind(c(0, 0), c(0, 0), c(10, 10))
+    ),
+    large_offset = list(
+      values = rbind(
+        c(1e12, 1e12), c(1e12 + 1, 1e12),
+        c(1e12 + 100, 1e12 + 100), c(1e12 + 101, 1e12 + 100)
+      ),
+      centers = rbind(c(1e12, 1e12), c(1e12 + 100, 1e12 + 100))
+    )
+  )
+
+  rownames(cases$separated$values) <- paste0("sample_", seq_len(6L))
+  colnames(cases$separated$values) <- c("feature_a", "feature_b")
+  colnames(cases$separated$centers) <- colnames(cases$separated$values)
+
+  for (case_name in names(cases)) {
+    case <- cases[[case_name]]
+    cpu <- cudaverse::cuda_kmeans(
+      case$values, centers = case$centers, iter.max = 20L,
+      tolerance = 1e-10, device = "cpu"
+    )
+    native <- cudaverse::cuda_kmeans(
+      case$values, centers = case$centers, iter.max = 20L,
+      tolerance = 1e-10, device = "cuda"
+    )
+    expect_identical(native$cluster, cpu$cluster)
+    expect_equal(native$centers, cpu$centers, tolerance = 1e-8)
+    expect_equal(native$withinss, cpu$withinss, tolerance = 1e-8)
+    expect_equal(native$tot.withinss, cpu$tot.withinss, tolerance = 1e-8)
+    expect_identical(native$iter, cpu$iter)
+    expect_identical(native$converged, cpu$converged)
+    expect_identical(native$backend, "native")
+    expect_identical(native$compute_stages$distance$output_device, "cuda")
+    expect_identical(native$compute_stages$assignment$output_device, "cuda")
+    expect_identical(native$compute_stages$center_update$output_device, "cuda")
+    expect_identical(native$compute_stages$finalization$output_device, "cpu")
+    if (identical(case_name, "separated")) {
+      expect_identical(names(native$cluster), rownames(case$values))
+      expect_identical(colnames(native$centers), colnames(case$values))
+      expect_identical(
+        rownames(native$centers), paste0("cluster_", seq_len(2L))
+      )
+      expect_identical(names(native$withinss), rownames(native$centers))
+    }
+  }
+})
+
+test_that("native k-means errors recover and repeated updates do not leak", {
+  skip_if_not(identical(Sys.getenv("CUDAVERSE_NATIVE_TESTS"), "true"))
+  skip_if_not(isTRUE(cudaverse:::.native_diagnostics()$available))
+  old <- options(cudaverse.cuda_backends = "native")
+  on.exit(options(old), add = TRUE)
+  factory <- cudaverse:::.native_backend_factory()
+  values <- matrix(seq_len(40) / 7, 20, 2)
+  centers <- values[c(1L, 20L), , drop = FALSE]
+
+  factory$synchronize()
+  gc()
+  baseline <- cudaverse:::.native_memory_info()$used
+  tracked_baseline <- cudaverse:::.native_memory_tracker(reset = TRUE)$current
+
+  condition <- tryCatch(
+    cudaverse:::.backend_call(
+      "native", "algorithm_kmeans", values, values, 2L, 1e-8
+    ),
+    error = identity
+  )
+  expect_s3_class(condition, "cudaverse_native_error")
+  expect_identical(condition$operation, "algorithm_kmeans")
+
+  for (iteration in seq_len(1000L)) {
+    fit <- factory$algorithm_kmeans(values, centers, 3L, 1e-8)
+    expect_identical(length(fit$cluster), nrow(values))
+  }
+  rm(fit)
+  factory$synchronize()
+  gc()
+  final <- cudaverse:::.native_memory_info()$used
+  tracked_final <- cudaverse:::.native_memory_tracker()
+
+  expect_lte(abs(final - baseline), 1024^2)
+  expect_identical(tracked_final$current, tracked_baseline)
+
+  probe <- factory$algorithm_kmeans(values, centers, 3L, 1e-8)
+  expect_identical(length(probe$cluster), nrow(values))
 })
 
 test_that("native algorithm failures are structured and release temporaries", {

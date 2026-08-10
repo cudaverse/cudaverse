@@ -24,7 +24,7 @@ cuda_kmeans(
 
 \item{seed}{Optional random seed used for initial centres.}
 
-\item{device}{Device used for the distance step.}
+\item{device}{Device used for the numerical clustering stages.}
 }
 \value{
 A \code{cuda_kmeans} list containing integer \code{cluster} assignments,
@@ -35,6 +35,15 @@ Observation and feature names are retained when supplied.
 }
 \description{
 GPU-aware k-means clustering
+}
+\details{
+The native CUDA backend uploads the observations and initial
+centres once, then keeps distance calculation, deterministic assignment,
+accumulation, and centre updates on the device. Only the small convergence
+movement summary is inspected between iterations; final assignments,
+centres, and within-cluster sums are transferred to R. Compatibility
+backends without a resident k-means operation retain the established
+distance-on-backend and update-on-CPU implementation.
 }
 \examples{
 set.seed(1)
