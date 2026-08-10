@@ -7,7 +7,8 @@
 
 .native_auto_required_capabilities <- c(
   "driver-detection", "allocation", "transfer", "cast", "matmul",
-  "reduce", "arithmetic", "reshape", "broadcast", "transpose", "svd",
+  "reduce", "arithmetic", "reshape", "broadcast", "transpose",
+  "subset", "replacement", "svd",
   "pca", "pca-predict", "distance", "knn", "stable-topk", "sparse",
   "sparse-coo", "sparse-csr", "sparse-normalize", "sparse-matmul",
   "sparse-reduce", "sparse-pca", "sparse-knn", "synchronize",
@@ -185,7 +186,8 @@
     ),
     capabilities = function() c(
       "transfer", "cast", "arithmetic", "matmul", "reduce",
-      "reshape", "broadcast", "transpose", "svd", "pca",
+      "reshape", "broadcast", "transpose", "subset", "replacement",
+      "svd", "pca",
       "pca-predict", "distance", "knn", "sparse"
     ),
     from_host = function(x, dtype, shape, dimnames = NULL) {
@@ -208,6 +210,15 @@
     },
     reshape = function(storage, source_shape, target_shape) {
       array(storage, dim = target_shape)
+    },
+    subset = function(storage, indices, shape) {
+      array(as.vector(storage)[indices], dim = shape)
+    },
+    replace = function(storage, indices, replacement,
+                       replacement_indices) {
+      result <- as.vector(storage)
+      result[indices] <- as.vector(replacement)[replacement_indices]
+      array(result, dim = dim(storage))
     },
     matmul = function(x, y) x %*% y,
     reduce = function(storage, dim, keepdim, method) {

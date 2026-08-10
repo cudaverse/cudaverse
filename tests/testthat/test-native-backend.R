@@ -21,7 +21,8 @@ test_that("native diagnostics and factory follow the integrated contract", {
   expect_identical(factory$contract()$schema, "cudaverse-backend/1")
   expect_true(all(c(
     "contract", "diagnostics", "capabilities", "from_host", "to_host", "cast",
-    "reshape", "broadcast", "binary", "transpose", "matmul", "reduce",
+    "reshape", "subset", "replace", "broadcast", "binary", "transpose",
+    "matmul", "reduce",
     "sparse_from_coo", "sparse_to_host",
     "sparse_reduce", "sparse_normalize", "sparse_matmul_dense",
     "algorithm_pca_predict", "algorithm_sparse_pca",
@@ -33,7 +34,7 @@ test_that("native diagnostics and factory follow the integrated contract", {
     "sparse-reduce", "sparse-pca", "sparse-knn", "pca-predict",
     "dtype-float32",
     "dtype-float64", "runtime-self-test", "arithmetic", "reshape",
-    "broadcast", "transpose"
+    "broadcast", "transpose", "subset", "replacement"
   ) %in% factory$capabilities()))
 })
 
@@ -57,6 +58,7 @@ test_that("native runtime self-test is cached and releases its allocations", {
     "float64-transfer-matmul-reduce",
     "float32-transfer-matmul-reduce",
     "arithmetic-reshape-broadcast-transpose",
+    "device-indexing",
     "sparse-transfer-normalize"
   ) %in% first$checks))
   expect_identical(final$current, baseline)
@@ -109,6 +111,97 @@ test_that("native tensor surface matches R for both floating dtypes", {
     )
     expect_equal(cudaverse::to_cpu(t(x)), t(values), tolerance = tolerance)
   }
+})
+
+test_that("native subsetting and replacement keep tensor values on device", {
+  skip_if_not(identical(Sys.getenv("CUDAVERSE_NATIVE_TESTS"), "true"))
+  skip_if_not(isTRUE(cudaverse:::.native_diagnostics()$available))
+  old <- options(cudaverse.cuda_backends = "native")
+  on.exit(options(old), add = TRUE)
+
+  for (dtype in c("integer", "float32", "float64")) {
+    source <- matrix(
+      1:20,
+      4,
+      5,
+      dimnames = list(
+        sample = paste0("s", 1:4),
+        feature = paste0("f", 1:5)
+      )
+    )
+    x <- cudaverse::cuda_tensor(source, device = "cuda", dtype = dtype)
+    selected <- x[c("s4", "s1"), c(5L, 2L), drop = FALSE]
+    tolerance <- if (identical(dtype, "float32")) 1e-6 else 0
+    expect_equal(
+      cudaverse::to_cpu(selected),
+      source[c("s4", "s1"), c(5L, 2L), drop = FALSE],
+      tolerance = tolerance
+    )
+    expect_identical(
+      cudaverse::tensor_device(selected),
+      c(device = "cuda", backend = "native")
+    )
+    expect_identical(
+      cudaverse::cuda_provenance(selected)$stage,
+      "subset"
+    )
+    expect_identical(cudaverse::cuda_provenance(selected)$device, "cuda")
+
+    x[c(1L, 1L, 4L), 3L] <- c(101, 202, 303)
+    source[c(1L, 1L, 4L), 3L] <- c(101, 202, 303)
+    expect_equal(cudaverse::to_cpu(x), source, tolerance = tolerance)
+    expect_identical(cudaverse::cuda_provenance(x)$stage, "replacement")
+    expect_identical(cudaverse::cuda_provenance(x)$backend, "native")
+
+    replacement <- cudaverse::cuda_tensor(
+      c(404, 505), device = "cuda", dtype = dtype
+    )
+    x[c(2L, 3L), 4L] <- replacement
+    source[c(2L, 3L), 4L] <- c(404, 505)
+    expect_equal(cudaverse::to_cpu(x), source, tolerance = tolerance)
+    expect_identical(
+      cudaverse::cuda_provenance(x)$output_device,
+      "cuda"
+    )
+  }
+})
+
+test_that("native indexing errors recover and repeated buffers do not leak", {
+  skip_if_not(identical(Sys.getenv("CUDAVERSE_NATIVE_TESTS"), "true"))
+  skip_if_not(isTRUE(cudaverse:::.native_diagnostics()$available))
+  factory <- cudaverse:::.native_backend_factory()
+  source <- factory$from_host(matrix(1:64, 8, 8), "float64", c(8L, 8L))
+  replacement <- factory$from_host(c(100, 200), "float64", 2L)
+  on.exit(factory$release(source), add = TRUE)
+  on.exit(factory$release(replacement), add = TRUE)
+  factory$synchronize()
+  gc()
+  baseline <- cudaverse:::.native_memory_info()$used
+  tracked_baseline <- cudaverse:::.native_memory_tracker(reset = TRUE)$current
+
+  condition <- tryCatch(
+    cudaverse:::.backend_call("native", "subset", source, 65L, 1L),
+    error = identity
+  )
+  expect_s3_class(condition, "cudaverse_native_error")
+  expect_identical(condition$operation, "subset")
+
+  for (iteration in seq_len(1000L)) {
+    gathered <- factory$subset(source, c(64L, 1L), 2L)
+    replaced <- factory$replace(
+      source, c(2L, 63L), replacement, c(1L, 2L)
+    )
+    factory$release(gathered)
+    factory$release(replaced)
+  }
+  factory$synchronize()
+  gc()
+  final <- cudaverse:::.native_memory_info()$used
+  tracked_final <- cudaverse:::.native_memory_tracker()
+
+  expect_lte(abs(final - baseline), 1024^2)
+  expect_identical(tracked_final$current, tracked_baseline)
+  expect_equal(factory$to_host(source), 1:64, tolerance = 0)
 })
 
 test_that("native reductions match R across dimensions and dtypes", {

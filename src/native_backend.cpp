@@ -588,6 +588,23 @@ std::vector<int> parse_shape(SEXP shape, std::size_t& elements) {
   return result;
 }
 
+std::vector<int> parse_indices(SEXP indices, std::size_t upper_bound,
+                               const char* argument) {
+  if (TYPEOF(indices) != INTSXP || XLENGTH(indices) < 1) {
+    Rf_error("`%s` must be a non-empty integer vector.", argument);
+  }
+  std::vector<int> result(static_cast<std::size_t>(XLENGTH(indices)));
+  for (R_xlen_t index = 0; index < XLENGTH(indices); ++index) {
+    int value = INTEGER(indices)[index];
+    if (value == NA_INTEGER || value < 1 ||
+        static_cast<std::size_t>(value) > upper_bound) {
+      Rf_error("`%s` contains an out-of-range or missing index.", argument);
+    }
+    result[static_cast<std::size_t>(index)] = value - 1;
+  }
+  return result;
+}
+
 SharedBuffer* allocate_buffer(DType dtype, const std::vector<int>& shape,
                               std::size_t elements) {
   auto* buffer = new SharedBuffer{
@@ -1128,6 +1145,105 @@ extern "C" SEXP C_cudaverse_cuda_reshape(SEXP pointer,
     check_cuda(status, "cuMemcpyDtoD(reshape)");
   }
   return make_pointer(output, false);
+}
+
+extern "C" SEXP C_cudaverse_cuda_gather(SEXP pointer, SEXP indices_sexp,
+                                          SEXP shape_sexp) {
+  require_backend();
+  require_kernels();
+  SharedBuffer* input = get_buffer(pointer);
+  std::size_t output_elements = 0;
+  std::vector<int> output_shape = parse_shape(shape_sexp, output_elements);
+  std::vector<int> indices = parse_indices(
+      indices_sexp, input->elements, "indices");
+  if (indices.size() != output_elements) {
+    Rf_error("Native CUDA gather indices do not match the output shape.");
+  }
+
+  const char* kernel = input->dtype == DType::Float64
+      ? "cudaverse_gather_f64"
+      : (input->dtype == DType::Float32
+             ? "cudaverse_gather_f32"
+             : "cudaverse_gather_i32");
+  CUfunction function = get_kernel(kernel);
+  R_CheckUserInterrupt();
+  try {
+    DeviceMemory device_indices = copy_host_to_device(
+        indices.data(), indices.size() * sizeof(int),
+        "cuMemcpyHtoD(gather indices)");
+    DeviceMemory output(output_elements * dtype_size(input->dtype));
+    CUdeviceptr input_values = input->pointer;
+    CUdeviceptr index_values = device_indices.pointer();
+    CUdeviceptr output_values = output.pointer();
+    unsigned long long elements = output_elements;
+    void* parameters[] = {
+        &input_values, &index_values, &output_values, &elements};
+    launch_or_throw(function, kernel, output_elements, parameters);
+    return make_pointer(
+        shared_buffer_from_device(
+            std::move(output), input->dtype, output_shape, output_elements),
+        false);
+  } catch (const std::exception& exception) {
+    Rf_error("%s", exception.what());
+  }
+  return R_NilValue;
+}
+
+extern "C" SEXP C_cudaverse_cuda_scatter(
+    SEXP pointer, SEXP indices_sexp, SEXP replacement_pointer,
+    SEXP replacement_indices_sexp) {
+  require_backend();
+  require_kernels();
+  SharedBuffer* input = get_buffer(pointer);
+  SharedBuffer* replacement = get_buffer(replacement_pointer);
+  if (input->dtype != replacement->dtype) {
+    Rf_error("Native CUDA replacement dtype must match the tensor dtype.");
+  }
+  std::vector<int> indices = parse_indices(
+      indices_sexp, input->elements, "indices");
+  std::vector<int> replacement_indices = parse_indices(
+      replacement_indices_sexp, replacement->elements,
+      "replacement_indices");
+  if (indices.size() != replacement_indices.size()) {
+    Rf_error("Native CUDA replacement index vectors must have equal length.");
+  }
+
+  const char* kernel = input->dtype == DType::Float64
+      ? "cudaverse_scatter_f64"
+      : (input->dtype == DType::Float32
+             ? "cudaverse_scatter_f32"
+             : "cudaverse_scatter_i32");
+  CUfunction function = get_kernel(kernel);
+  R_CheckUserInterrupt();
+  try {
+    DeviceMemory device_indices = copy_host_to_device(
+        indices.data(), indices.size() * sizeof(int),
+        "cuMemcpyHtoD(scatter indices)");
+    DeviceMemory device_replacement_indices = copy_host_to_device(
+        replacement_indices.data(),
+        replacement_indices.size() * sizeof(int),
+        "cuMemcpyHtoD(scatter replacement indices)");
+    DeviceMemory output = copy_device_to_device(
+        input->pointer, input->bytes, "cuMemcpyDtoD(scatter source)");
+
+    CUdeviceptr output_values = output.pointer();
+    CUdeviceptr index_values = device_indices.pointer();
+    CUdeviceptr replacement_values = replacement->pointer;
+    CUdeviceptr replacement_index_values =
+        device_replacement_indices.pointer();
+    unsigned long long elements = indices.size();
+    void* parameters[] = {
+        &output_values, &index_values, &replacement_values,
+        &replacement_index_values, &elements};
+    launch_or_throw(function, kernel, indices.size(), parameters);
+    return make_pointer(
+        shared_buffer_from_device(
+            std::move(output), input->dtype, input->shape, input->elements),
+        false);
+  } catch (const std::exception& exception) {
+    Rf_error("%s", exception.what());
+  }
+  return R_NilValue;
 }
 
 extern "C" SEXP C_cudaverse_cuda_broadcast(SEXP pointer,
@@ -2143,6 +2259,10 @@ static const R_CallMethodDef call_methods[] = {
       reinterpret_cast<DL_FUNC>(&C_cudaverse_cuda_cast), 2},
      {"C_cudaverse_cuda_reshape",
       reinterpret_cast<DL_FUNC>(&C_cudaverse_cuda_reshape), 2},
+     {"C_cudaverse_cuda_gather",
+      reinterpret_cast<DL_FUNC>(&C_cudaverse_cuda_gather), 3},
+     {"C_cudaverse_cuda_scatter",
+      reinterpret_cast<DL_FUNC>(&C_cudaverse_cuda_scatter), 4},
      {"C_cudaverse_cuda_broadcast",
       reinterpret_cast<DL_FUNC>(&C_cudaverse_cuda_broadcast), 2},
      {"C_cudaverse_cuda_binary",

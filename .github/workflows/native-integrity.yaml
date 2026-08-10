@@ -69,6 +69,7 @@ jobs:
             generated-kernels/cudaverse_dense_kernels.ptx
           (cd inst/kernels && sha256sum --check SHA256SUMS)
       - uses: actions/upload-artifact@v7
+        if: always()
         with:
           name: cudaverse-ptx-cuda-12.8.1-${{ github.sha }}
           path: generated-kernels

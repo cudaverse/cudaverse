@@ -147,8 +147,8 @@ if (cuda_available()) {
   tensor_device(gpu_result)
   cuda_provenance(gpu_result)
 
-  # CUDA subsetting currently performs a CPU round trip and records the
-  # transfer stages before returning a CUDA tensor.
+  # Native CUDA gathers values on-device. A compatibility backend may record
+  # materialization and upload stages instead.
   gpu_subset <- gpu[1, , drop = FALSE]
   cuda_provenance(gpu_subset)
 }
@@ -180,9 +180,11 @@ bit-for-bit identical. Floating tensors may contain IEEE `Inf`, `-Inf`, and
 Creating a CUDA tensor from an R object transfers the dense input from host
 memory to GPU memory. `to_cpu()`, `as.array()`, and `as.matrix()` materialize
 the complete result in host memory. Mixed-device binary operations move the
-right operand to the left operand's device. CUDA subsetting and replacement
-currently make a CPU round trip; matrix arithmetic, broadcasting, reductions,
-reshape, and transpose use the tensor's backend.
+right operand to the left operand's device. Native CUDA subsetting and
+replacement evaluate index metadata in R but gather or replace tensor values
+on the GPU. Missing indices and backends without indexing operations use a
+recorded CPU round trip. Matrix arithmetic, broadcasting, reductions, reshape,
+and transpose use the tensor's backend.
 
 Large operations can temporarily require input, output, and intermediate
 allocations at once. The package does not currently provide out-of-core

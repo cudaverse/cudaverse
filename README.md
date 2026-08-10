@@ -25,7 +25,9 @@ shared-ownership COO/CSR storage, sparse multiplication and reductions,
 sparse-preserving normalization, and sparse-input PCA/kNN to the validated
 dense Phase 2 pipeline. Phase 4 adds the remaining arithmetic, broadcasting,
 reshape, transpose, and float32 matmul surface needed for safe automatic
-selection. Its measured design benefits are:
+selection. The 0.3 development line additionally moves tensor subsetting and
+replacement onto native device kernels while retaining R indexing semantics.
+Its measured design benefits are:
 
 - avoid requiring the full LibTorch installation, which occupied 6.86 GB in
   our Windows RTX 2000 development environment;
@@ -47,6 +49,8 @@ remains the observable fallback. Explicit CUDA requests never silently fall
 back. Reproducible PTX, RTX 2000
 parity/lifecycle evidence, the CycloneDX SBOM, and the third-party
 redistribution inventory are kept in this repository. See the
+[0.3 roadmap](.github/CUDAVERSE-0.3-ROADMAP.md) for the ordered milestones and
+acceptance gates, the historical
 [native CUDA roadmap](.github/NATIVE-CUDA-ROADMAP.md) for the architecture and
   acceptance criteria, the historical
   [Phase 4 RTX report](inst/reports/native/STAGE4.md)
@@ -87,6 +91,11 @@ testing, but it cannot bypass native contract, runtime, or self-test gates.
 The [backend support article](vignettes/backend-support.Rmd) distinguishes
 direct, hybrid, CPU-only, metadata, probe, and host-materializing APIs across
 the base, torch, and native backends.
+
+On the 0.3 development line, native CUDA subsetting and replacement keep tensor
+values on the GPU. Only index metadata is evaluated in R. Missing subscripts
+and compatibility backends without indexing operations use an explicit,
+provenance-visible host path.
 
 ## One workflow, one package
 

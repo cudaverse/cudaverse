@@ -127,6 +127,24 @@
     }
     checks <- c(checks, "arithmetic-reshape-broadcast-transpose")
 
+    gathered64 <- keep_dense(.native_subset(product64, c(4L, 1L), 2L))
+    if (!isTRUE(all.equal(
+      .native_to_host(gathered64), c(4, 1), tolerance = 1e-12
+    ))) {
+      stop("device gather parity failed", call. = FALSE)
+    }
+    replaced64 <- keep_dense(.native_replace(
+      product64, c(2L, 4L), left64, c(1L, 2L)
+    ))
+    if (!isTRUE(all.equal(
+      matrix(.native_to_host(replaced64), nrow = 2L),
+      matrix(c(1, 1, 3, 2), nrow = 2L),
+      tolerance = 1e-12
+    ))) {
+      stop("device replacement parity failed", call. = FALSE)
+    }
+    checks <- c(checks, "device-indexing")
+
     sparse <- keep_sparse(.native_sparse_from_coo(
       c(1L, 2L), c(1L, 2L), c(2, 4), c(2L, 2L), "csr"
     ))
@@ -210,6 +228,8 @@
     "reshape",
     "broadcast",
     "transpose",
+    "subset",
+    "replacement",
     "svd",
     "pca",
     "pca-predict",
@@ -319,6 +339,28 @@
 
 .native_reshape <- function(storage, source_shape, target_shape) {
   .Call(C_cudaverse_cuda_reshape, storage, as.integer(target_shape))
+}
+
+.native_subset <- function(storage, indices, shape) {
+  .native_ensure_kernels()
+  .Call(
+    C_cudaverse_cuda_gather,
+    storage,
+    as.integer(indices),
+    as.integer(shape)
+  )
+}
+
+.native_replace <- function(storage, indices, replacement,
+                            replacement_indices) {
+  .native_ensure_kernels()
+  .Call(
+    C_cudaverse_cuda_scatter,
+    storage,
+    as.integer(indices),
+    replacement,
+    as.integer(replacement_indices)
+  )
 }
 
 .native_broadcast <- function(storage, source_shape, target_shape) {
@@ -610,6 +652,8 @@
     sparse_release = .native_sparse_release,
     cast = .native_cast,
     reshape = .native_reshape,
+    subset = .native_subset,
+    replace = .native_replace,
     broadcast = .native_broadcast,
     binary = .native_binary,
     transpose = .native_transpose,
