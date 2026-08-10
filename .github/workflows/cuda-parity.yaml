@@ -32,11 +32,5 @@ jobs:
         ) &&
         github.event.pull_request.draft == false &&
         github.event.pull_request.head.repo.full_name == github.repository &&
-        github.event.pull_request.user.type == 'User' &&
-        github.event.sender.type == 'User' &&
-        !endsWith(github.actor, '[bot]') &&
-        contains(
-          fromJSON('["OWNER","MEMBER","COLLABORATOR"]'),
-          github.event.pull_request.author_association
-        )))
+        !endsWith(github.actor, '[bot]')))
     uses: cudaverse/.github/.github/workflows/cuda-parity.yaml@main
