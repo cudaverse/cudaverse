@@ -45,9 +45,13 @@ check_evidence_file <- function(path_value, sha_value, label) {
     file.path(bundle_root, relative)
   }
   path <- normalizePath(candidate, winslash = "/", mustWork = FALSE)
-  inside <- startsWith(
-    tolower(path), paste0(tolower(bundle_root), "/")
-  )
+  compared_path <- if (.Platform$OS.type == "windows") tolower(path) else path
+  compared_root <- if (.Platform$OS.type == "windows") {
+    tolower(bundle_root)
+  } else {
+    bundle_root
+  }
+  inside <- startsWith(compared_path, paste0(compared_root, "/"))
   require_gate(inside, paste(label, "is outside the evidence bundle"))
   exists <- file.exists(path)
   require_gate(exists, paste(label, "file is missing"))

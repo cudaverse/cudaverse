@@ -224,7 +224,26 @@ manifest$benchmark$report_file <- file.path(
 )
 write_manifest()
 expect_error_message(run_checker(), "benchmark report is outside")
+if (.Platform$OS.type != "windows") {
+  case_sibling <- file.path(dirname(work), toupper(basename(work)))
+  if (!identical(case_sibling, work)) {
+    dir.create(case_sibling)
+    case_sibling_report <- file.path(case_sibling, "benchmark.json")
+    stopifnot(file.copy(
+      file.path(work, evidence_files[["benchmark"]]),
+      case_sibling_report
+    ))
+    manifest$benchmark$report_file <- case_sibling_report
+    manifest$benchmark$report_sha256 <- digest::digest(
+      case_sibling_report,
+      algo = "sha256", file = TRUE, serialize = FALSE
+    )
+    write_manifest()
+    expect_error_message(run_checker(), "benchmark report is outside")
+  }
+}
 manifest$benchmark$report_file <- evidence_files[["benchmark"]]
+manifest$benchmark$report_sha256 <- sha_for("benchmark")
 
 manifest$benchmark$source_commit <- paste(rep("c", 40L), collapse = "")
 write_manifest()
