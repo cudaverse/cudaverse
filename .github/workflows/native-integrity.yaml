@@ -30,6 +30,8 @@ jobs:
         run: Rscript tools/check-consolidation-report.R
       - name: Validate the exported API backend capability matrix
         run: Rscript tools/check-capability-matrix.R
+      - name: Validate the 0.3 benchmark definition
+        run: Rscript tools/check-benchmark-definition.R
 
   cuda-12-8-1-abi:
     runs-on: ubuntu-latest

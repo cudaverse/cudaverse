@@ -206,3 +206,49 @@ Deferred beyond CP-04:
   benchmark milestone;
 - torch remains a compatibility backend through 0.2 and its future status is
   still an evidence-based 0.3 decision.
+
+## CP-05: reproducible benchmark contract
+
+Status: implementation and smoke validation complete on
+`agent/benchmark-contract`; PR 20 is ready for final exact-head CI.
+
+Scope:
+
+- replace ad hoc benchmark entry points with one versioned smoke/full workload
+  definition and `cudaverse-benchmark/1` report schema;
+- require float32/float64 matmul at 256, 1024, and 4096, and dense/sparse
+  PCA-kNN at 1,000 x 50, 10,000 x 100, and 50,000 x 128 with `k = 15`;
+- require five warmups and ten timed observations in every full case, retaining
+  raw times, median, p95, synchronized stage timing, numerical error, complete
+  provenance, installed size, and documented peak-memory sources;
+- report both host-boundary and resident timing where the public API separates
+  them, while explicitly marking dense-PCA upload as inseparable instead of
+  inferring a transfer duration;
+- preserve the historical phase reports unchanged and avoid universal GPU
+  performance claims.
+
+Required evidence before merge:
+
+- [x] the definition checker enforces every requested workload, dtype,
+  `k = 15`, and the 5-warmup/10-run full contract;
+- [x] package tests verify that the installed benchmark definition contains
+  both complete profiles;
+- [x] a development smoke run completes for base, native, and torch on the RTX
+  2000 and its report passes the machine-readable checker;
+- [x] dirty-source smoke evidence is visibly marked and a full dirty-source
+  report is rejected;
+- [x] exact clean commit
+  `cf40e4793ed33fe98bf7967641194aede0431d40` repeats the RTX smoke run and
+  retains a checked
+  report summary without committing bulky transient output;
+- [x] the local CPU suite and source package check pass, including vignette
+  rebuild, with `R CMD check --no-manual` reporting `Status: OK`;
+- [x] all GitHub cross-platform, pkgdown,
+  supply-chain, ABI/PTX, and artifact gates pass.
+
+Deferred beyond CP-05:
+
+- the expensive full 5/10 workload matrix is the next M5 evidence checkpoint,
+  not a prerequisite for accepting the runner/contract itself;
+- workload interpretation, regression investigation, and the final
+  release/defer/reduce-scope decision require the clean full report.
