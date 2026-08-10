@@ -32,6 +32,8 @@ jobs:
         run: Rscript tools/check-capability-matrix.R
       - name: Validate the 0.3 benchmark definition
         run: Rscript tools/check-benchmark-definition.R
+      - name: Validate benchmark-summary generation and rejection gates
+        run: Rscript tools/test-benchmark-summary.R
 
   cuda-12-8-1-abi:
     runs-on: ubuntu-latest

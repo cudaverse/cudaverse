@@ -1,5 +1,9 @@
 # cudaverse 0.2.0.9000
 
+- Added reproducible full-benchmark Markdown generation and validation. The
+  retained assessment is bound to the exact machine-readable report by its
+  SHA-256 and source commit, and incomplete drafts cannot pass the final
+  summary gate.
 - Added a machine-readable 0.3 benchmark contract and report runner for
   synchronized base, torch, and native measurements. The full profile fixes
   workload sizes, warmup/run counts, transfer boundaries, numerical gates,

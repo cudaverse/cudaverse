@@ -167,8 +167,8 @@ Deferred beyond CP-03:
 
 ## CP-04: executable public-backend conformance
 
-Status: implementation and local validation complete on
-`agent/backend-conformance`; PR 19 is ready for final exact-head CI.
+Status: completed and merged as PR 19 into `develop/native-cuda` at
+`60d04ae0cf98525f8f596f4c406cef5af4a10e27`.
 
 Scope:
 
@@ -209,8 +209,8 @@ Deferred beyond CP-04:
 
 ## CP-05: reproducible benchmark contract
 
-Status: implementation and smoke validation complete on
-`agent/benchmark-contract`; PR 20 is ready for final exact-head CI.
+Status: completed and merged as PR 20 into `develop/native-cuda` at
+`acd105fe8ef0ed8703e9e16f9ca4ce68a0d3db7d`.
 
 Scope:
 
@@ -252,3 +252,38 @@ Deferred beyond CP-05:
   not a prerequisite for accepting the runner/contract itself;
 - workload interpretation, regression investigation, and the final
   release/defer/reduce-scope decision require the clean full report.
+
+## CP-06: retained full benchmark evidence
+
+Status: in progress on `agent/full-benchmark-evidence` against exact clean
+source commit `acd105fe8ef0ed8703e9e16f9ca4ce68a0d3db7d`.
+
+Scope:
+
+- execute every full-profile matmul and dense/sparse PCA-kNN case for base,
+  native, and torch on the RTX 2000 development machine;
+- retain the complete machine-readable `cudaverse-benchmark/1` report and a
+  reproducibly generated human-readable summary tied to the same source
+  commit;
+- report cold and warm host-boundary timing, resident timing where separable,
+  stage timing, peak-memory provenance, installed footprint, and numerical
+  validation without making a universal GPU speed claim;
+- investigate workload-specific regressions and record whether the evidence
+  supports release, deferral, or a reduced benchmark/release scope.
+
+Required evidence before merge:
+
+- [x] full float32/float64 matmul at 256, 1024, and 4096 completes for all
+  three backends with numerical parity;
+- [ ] dense PCA-kNN at 1,000 x 50, 10,000 x 100, and 50,000 x 128 completes
+  for all three backends with projector/reconstruction and exact-index parity;
+- [ ] sparse PCA-kNN at the same three dimensions completes for all three
+  backends with normalization, projector/reconstruction, and exact-index
+  parity;
+- [ ] `tools/check-benchmark-report.R` accepts the final complete report;
+- [ ] the retained summary is generated from that exact report and records
+  the report SHA-256;
+- [ ] observed regressions and workload-specific conclusions are reviewed and
+  documented;
+- [ ] local package checks and all required GitHub checks pass on the evidence
+  branch.
