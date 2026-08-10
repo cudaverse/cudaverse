@@ -273,7 +273,10 @@ Scope:
 - investigate workload-specific regressions and record whether the evidence
   supports release, deferral, or a reduced benchmark/release scope;
 - maintain a candidate completion audit that maps every long-term requirement
-  to exact evidence and does not infer final completion from checkpoint tests.
+  to exact evidence and does not infer final completion from checkpoint tests;
+- define and self-test a `cudaverse-candidate-evidence/1` manifest checker that
+  rejects mixed source commits, failed or skipped required checks, lifecycle
+  leaks, bundled runtimes, unchecked benchmarks, and unauthorized deployment.
 
 Required evidence before merge:
 

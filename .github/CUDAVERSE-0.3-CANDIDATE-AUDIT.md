@@ -62,6 +62,13 @@ has all of the following retained together:
 10. a release/defer/reduce-scope report that names every remaining limitation
     and stops before any tag, release, deployment, or repository submission.
 
+The final JSON manifest uses schema `cudaverse-candidate-evidence/1` and must
+pass `tools/check-candidate-evidence.R`. The checker requires every source,
+check, artifact, RTX report, benchmark, documentation render, and decision to
+identify the same 40-character candidate commit. Its positive and rejection
+cases run in CI through `tools/test-candidate-evidence.R`; a plausible-looking
+manifest assembled from different checkpoints is therefore not final evidence.
+
 ## Final decision rule
 
 `release` is available only when every release-critical row above is proven on
