@@ -77,7 +77,7 @@
 #'   callable internal `operations`. Native automatic eligibility requires a compatible backend
 #'   contract, the complete tensor/algorithm capability set, all runtime
 #'   components, and a passing cached self-test. The legacy fields are retained
-#'   throughout the 0.2 release cycle.
+#'   throughout the 0.3 compatibility cycle.
 #' @export
 #' @examples
 #' cuda_diagnostics()
@@ -124,7 +124,7 @@ cuda_diagnostics <- function() {
     selected_details$detection_error
   } else {
     # Keep the legacy top-level field tied to the torch compatibility probe
-    # for the full 0.2 transition cycle. Native failures remain available in
+    # throughout the 0.3 compatibility cycle. Native failures remain in
     # backend_diagnostics$native$detection_error.
     torch$detection_error
   }

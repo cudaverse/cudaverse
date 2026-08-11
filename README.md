@@ -16,19 +16,14 @@ libraries are discovered only when CUDA diagnostics or selection is requested.
 When neither CUDA path is available, functions use their documented portable
 backend and record what actually ran.
 
-## Lightweight native CUDA direction
+## Lightweight native CUDA
 
-Version 0.1.0 uses `torch` only as an optional CUDA backend; it is not a hard
-package dependency. Development version 0.2 now has a backend registry and a
-built-in native implementation behind the same public R API. Phase 3 added
-shared-ownership COO/CSR storage, same-device sparse transpose, sparse
-multiplication and reductions,
-sparse-preserving normalization, and sparse-input PCA/kNN to the validated
-dense Phase 2 pipeline. Phase 4 adds the remaining arithmetic, broadcasting,
-reshape, transpose, and float32 matmul surface needed for safe automatic
-selection. The 0.3 development line additionally moves tensor subsetting and
-replacement onto native device kernels while retaining R indexing semantics.
-Its measured design benefits are:
+The 0.3 development line includes a backend registry and a built-in native
+CUDA implementation behind the same public R API. Native execution covers
+dense tensor operations, shared-ownership COO/CSR sparse storage, sparse
+normalization and multiplication, device-native indexing and replacement,
+and resident PCA, exact kNN, and k-means stages. Its measured design benefits
+are:
 
 - avoid requiring the full LibTorch installation, which occupied 6.86 GB in
   our Windows RTX 2000 development environment;
@@ -40,39 +35,37 @@ Its measured design benefits are:
   provenance directly; and
 - allow future backends to be added without changing user code.
 
-These are development-line results, not claims about release 0.1.0. In the
-Phase 4 candidate, native becomes the preferred CUDA backend for `device =
-"auto"` only when its backend contract and capabilities match,
-driver/cuBLAS/cuSOLVER/PTX components are healthy, and a
+Native is eligible for `device = "auto"` only when its backend contract and
+capabilities match, driver/cuBLAS/cuSOLVER/PTX components are healthy, and a
 cached runtime self-test passes. An incomplete or unhealthy native runtime
 cannot become automatic; torch remains the compatibility CUDA backend and CPU
 remains the observable fallback. Explicit CUDA requests never silently fall
-back. Reproducible PTX, RTX 2000
-parity/lifecycle evidence, the CycloneDX SBOM, and the third-party
-redistribution inventory are kept in this repository. See the
-[0.3 roadmap](.github/CUDAVERSE-0.3-ROADMAP.md) for the ordered milestones and
-acceptance gates, the historical
-[native CUDA roadmap](.github/NATIVE-CUDA-ROADMAP.md) for the architecture and
-  acceptance criteria, the historical
-  [Phase 4 RTX report](inst/reports/native/STAGE4.md)
-  for machine-backed evidence, and the
-  [0.2 release-candidate assessment](.github/NATIVE-CUDA-PHASE4-RC.md) for the
-  bounded release decision.
+back.
+
+Reproducible PTX, RTX 2000 parity and lifecycle evidence, the CycloneDX SBOM,
+and the third-party redistribution inventory are kept in this repository. See
+the [0.3 roadmap](.github/CUDAVERSE-0.3-ROADMAP.md) for ordered milestones, the
+[benchmark contract](https://github.com/cudaverse/cudaverse/blob/develop/native-cuda/inst/benchmarks/README.md)
+for performance evidence, and the
+[GPU setup and troubleshooting article](https://cudaverse.github.io/cudaverse/articles/gpu-setup.html)
+for runtime setup. The
+[backend support article](https://cudaverse.github.io/cudaverse/articles/backend-support.html)
+lists intentional native, compatibility, hybrid, and CPU boundaries.
 
 ## Installation
 
-During development, install from GitHub:
+Install the current 0.3 development line from GitHub:
 
 ```r
 # install.packages("pak")
-pak::pak("cudaverse/cudaverse")
+pak::pak("cudaverse/cudaverse@develop/native-cuda")
 ```
 
 The native backend is included but remains runtime-lazy, so installing
 `cudaverse` never downloads a CUDA runtime or requires a CUDA toolkit:
 
 ```r
-pak::pak("cudaverse/cudaverse@develop/native-cuda")
+library(cudaverse)
 
 diagnostics <- cuda_diagnostics()
 diagnostics$selected_backend
@@ -89,14 +82,17 @@ redistribute them.
 
 The option `cudaverse.cuda_backends` can still constrain backend order for
 testing, but it cannot bypass native contract, runtime, or self-test gates.
-The [backend support article](vignettes/backend-support.Rmd) distinguishes
+The [backend support article](https://cudaverse.github.io/cudaverse/articles/backend-support.html)
+distinguishes
 direct, hybrid, CPU-only, metadata, probe, and host-materializing APIs across
 the base, torch, and native backends. Its installed matrix also assigns every
 export to an executable conformance case. Hardware gates run those same public
 workflows on both CUDA backends rather than maintaining separate hand-written
 feature lists.
 
-The versioned [benchmark contract](inst/benchmarks/README.md) defines separate
+The versioned
+[benchmark contract](https://github.com/cudaverse/cudaverse/blob/develop/native-cuda/inst/benchmarks/README.md)
+defines separate
 smoke and full profiles. Full evidence uses five warmups and ten timed runs for
 base, torch, and native, reports raw times plus median/p95, distinguishes
 host-boundary and resident work where it can be measured directly, and records

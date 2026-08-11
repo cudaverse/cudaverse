@@ -8,6 +8,7 @@ articles:
   navbar: ~
   contents:
   - getting-started
+  - gpu-setup
   - backend-provenance
   - backend-support
 

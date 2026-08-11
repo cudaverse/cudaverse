@@ -361,3 +361,45 @@ Retained evidence and interpretation:
   backend and keeping torch as a compatibility backend. It does not support a
   benchmark-driven reduction of the dense/sparse 0.3 scope, removal of torch,
   or a universal performance claim.
+
+## CP-07: 0.3 public documentation alignment
+
+Status: complete on `agent/align-03-docs`. Post-benchmark local package,
+rendered-site, and exact-head pull-request gates all pass.
+
+Scope:
+
+- advance development metadata to `0.3.0.9000` while keeping the frozen 0.1
+  release lines untouched;
+- present the current single-package API, lightweight native CUDA behavior,
+  strict selection/fallback rules, and compatibility boundaries directly,
+  without leading users through old repository or package-merger history;
+- make the development installation command target `develop/native-cuda`
+  rather than the frozen `main` branch;
+- align README, NEWS, backend vignettes, diagnostics reference text, and SBOM
+  metadata with the same 0.3 semantics;
+- replace the package's dependency on outdated organization-level setup text
+  with a package-owned native-first GPU setup and troubleshooting article.
+
+Required evidence before merge:
+
+- [x] `DESCRIPTION`, NEWS, and the CycloneDX package component agree on
+  version `0.3.0.9000`;
+- [x] README and public backend articles describe current behavior and contain
+  no prominent obsolete package/repository consolidation narrative;
+- [x] the package-owned GPU setup article documents runtime discovery, strict
+  CUDA, visible fallback, native diagnostics, optional torch compatibility,
+  transfer/memory boundaries, and reproducible problem reports;
+- [x] SBOM, redistribution, exported-capability, and Markdown structure checks
+  pass locally;
+- [x] roxygen/reference regeneration is clean; a rebuilt 0.3.0.9000 source
+  package passes examples, tests, vignettes, vignette rebuilding, and all
+  package checks with 0 errors, 0 warnings, and one pre-release NOTE. The NOTE
+  records the development/new-submission version and the two intended pkgdown
+  article URLs that cannot resolve until Pages deployment is separately
+  authorized;
+- [x] pkgdown and all required GitHub checks pass on synchronized commit
+  `a6658f118caa98986a46cf5d55c23bd83fd2eb01`: R-CMD-check run
+  `31461001624`, pkgdown run `31461001629`, integration run `31461001877`,
+  and native-integrity run `31461001635`. The draft-only Pages deploy and
+  non-RTX hardware job skipped as designed.

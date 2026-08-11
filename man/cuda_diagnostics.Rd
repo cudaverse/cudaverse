@@ -15,7 +15,7 @@ details. Each backend detail distinguishes advertised \code{capabilities} from
 callable internal \code{operations}. Native automatic eligibility requires a compatible backend
 contract, the complete tensor/algorithm capability set, all runtime
 components, and a passing cached self-test. The legacy fields are retained
-throughout the 0.2 release cycle.
+throughout the 0.3 compatibility cycle.
 }
 \description{
 Inspecting the runtime is non-destructive and never installs or downloads

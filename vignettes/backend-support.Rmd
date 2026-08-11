@@ -27,7 +27,7 @@ The table below covers every exported function. Its status vocabulary is:
 
 - `direct`: the main numerical operation is implemented by that backend;
 - `hybrid`: meaningful stages are split between that backend and CPU code;
-- `cpu_only`: the operation deliberately runs on CPU for the 0.2 surface;
+- `cpu_only`: the operation deliberately runs on CPU for the current surface;
 - `metadata`: validation or metadata without a new numerical kernel;
 - `probe`: backend diagnosis or selection; and
 - `host`: an explicit host materialization.
@@ -62,7 +62,7 @@ boundaries, missing-runtime behavior, invalid inputs, and backend reuse after
 an error. Backend-specific ownership, injected CUDA failure, interruption, and
 1,000-cycle lifecycle tests continue to run beside this public surface suite.
 
-## Intentional 0.2 CPU boundaries
+## Intentional CPU and hybrid boundaries
 
 The following boundaries are deliberate and are not reasons to install more
 packages:

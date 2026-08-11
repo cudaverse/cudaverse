@@ -1,4 +1,4 @@
-# cudaverse 0.2 backend capability audit
+# Internal cudaverse 0.2 backend capability audit
 
 ## Baseline
 

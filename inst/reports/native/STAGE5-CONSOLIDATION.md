@@ -70,7 +70,7 @@ included.
 The reviewed replacement passed all required GitHub checks and was merged by
 [PR #9](https://github.com/cudaverse/cudaverse/pull/9). The cross-platform,
 native-integrity, CPU-integration, pkgdown, and trusted RTX evidence is linked
-from `.github/NATIVE-CUDA-CONSOLIDATION.md`.
+from `.github/internal/NATIVE-CUDA-CONSOLIDATION.md`.
 
 `cudaverseCUDA` now contains a migration notice at final commit `1cf973f`, is
 archived read-only on GitHub, and has a clean local checkout under
