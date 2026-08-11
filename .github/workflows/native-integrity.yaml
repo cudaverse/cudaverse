@@ -42,6 +42,8 @@ jobs:
         run: Rscript tools/test-benchmark-timing.R
       - name: Validate final RTX candidate report composition
         run: Rscript tools/test-native-candidate-report.R
+      - name: Validate consolidation advisory and release gates
+        run: Rscript tools/test-consolidation-report.R
       - name: Validate exact-candidate evidence rejection gates
         run: Rscript tools/test-candidate-evidence.R
 
@@ -118,6 +120,9 @@ jobs:
       - name: Validate final RTX candidate report composition
         shell: Rscript {0}
         run: source(file.path("tools", "test-native-candidate-report.R"))
+      - name: Validate consolidation advisory and release gates
+        shell: Rscript {0}
+        run: source(file.path("tools", "test-consolidation-report.R"))
       - name: Validate exact candidate evidence assembly
         shell: Rscript {0}
         run: source(file.path("tools", "test-candidate-evidence.R"))

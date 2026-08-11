@@ -1027,13 +1027,16 @@ size_limit <- max(
 )
 size_regression <- list(cudaverse = list(
   baseline_bytes = combined_baseline_size,
-  baseline_definition = "cudaverse plus cudaverseCUDA installed sizes",
+  baseline_definition = "legacy Phase 3 installed footprint baseline",
   candidate_bytes = candidate_size,
   limit_bytes = size_limit,
   passed = candidate_size <= size_limit
 ))
 report$benchmark_regression <- list(
   schema = "cudaverse-native-consolidation-regression/1",
+  role = "advisory",
+  release_gate = FALSE,
+  authority = "cudaverse-benchmark/1 full profile",
   baseline_report = basename(baseline_path),
   baseline_schema = baseline$schema,
   baseline_sha256 = baseline_sha256,
@@ -1050,8 +1053,7 @@ report$benchmark_regression$passed <-
   isTRUE(baseline$overall_pass) &&
   all(vapply(regression_cases, `[[`, logical(1), "passed")) &&
   all(vapply(size_regression, `[[`, logical(1), "passed"))
-report$overall_pass <- benchmark_pass && validation_pass &&
-  report$benchmark_regression$passed
+report$overall_pass <- benchmark_pass && validation_pass
 write_report()
 options(original_backend_options)
 

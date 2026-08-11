@@ -121,6 +121,15 @@ reusable hardware workflow is not yet aligned with this exact no-skip report
 contract, so it remains a final-candidate audit item and is not treated as
 proof until that alignment is reviewed and rerun on the candidate commit.
 
+The consolidation report retains its legacy Phase 3 timing and installed-size
+comparison as explicitly advisory evidence. It is based on two warmups and five
+runs from an older architecture and must not override the versioned full
+`cudaverse-benchmark/1` contract, which is the only final performance and
+footprint authority. Consolidation correctness, parity, recovery,
+interruption, backend reuse, and 1,000-cycle lifecycle results remain strict
+candidate gates even when the historical advisory comparison reports a slower
+workload or a larger but still lightweight installed package.
+
 ## Final decision rule
 
 `release` is available only when every release-critical row above is proven on

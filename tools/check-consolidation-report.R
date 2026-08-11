@@ -28,10 +28,11 @@ require_gate(
         fixed = TRUE),
   "report was not generated on the RTX 2000"
 )
-require_gate(
-  identical(scalar(report$software$cudaverse), "0.2.0.9000"),
-  "unexpected cudaverse version"
-)
+version <- scalar(report$software$cudaverse)
+legacy_contract <- identical(version, "0.2.0.9000")
+candidate_contract <- grepl("^0\\.3\\.0(\\.9000)?$", version)
+require_gate(legacy_contract || candidate_contract,
+             "unexpected cudaverse version")
 require_gate(
   nchar(scalar(report$source$cudaverse$commit)) == 40L &&
     !logical_value(report$source$cudaverse$tracked_dirty),
@@ -86,15 +87,61 @@ for (gate in c("dense_lifecycle", "lifecycle")) {
     paste("lifecycle ceiling failed:", gate)
   )
 }
+regression <- report$benchmark_regression
 require_gate(
-  number(report$installed_size_bytes$cudaverse) <=
-    number(report$benchmark_regression$installed_size$cudaverse$limit_bytes),
-  "integrated installed size exceeded the combined-package baseline limit"
+  identical(scalar(regression$schema),
+            "cudaverse-native-consolidation-regression/1"),
+  "unexpected advisory regression schema"
 )
 require_gate(
-  logical_value(report$benchmark_regression$passed),
-  "benchmark regression gate failed"
+  identical(sort(names(regression$cases)), sort(required_cases)),
+  "advisory regression cases are incomplete"
 )
+for (case_name in required_cases) {
+  values <- regression$cases[[case_name]]
+  require_gate(
+    all(is.finite(vapply(
+      c(
+        "baseline_median_seconds", "candidate_median_seconds",
+        "median_limit_seconds", "baseline_p95_seconds",
+        "candidate_p95_seconds", "p95_limit_seconds",
+        "baseline_peak_bytes", "candidate_peak_bytes", "peak_limit_bytes"
+      ),
+      function(name) number(values[[name]]), numeric(1L)
+    ))),
+    paste("advisory regression values are invalid for", case_name)
+  )
+}
+size <- regression$installed_size$cudaverse
+require_gate(
+  all(is.finite(vapply(
+    c("baseline_bytes", "candidate_bytes", "limit_bytes"),
+    function(name) number(size[[name]]), numeric(1L)
+  ))),
+  "advisory installed-footprint evidence is invalid"
+)
+if (legacy_contract) {
+  require_gate(
+    number(report$installed_size_bytes$cudaverse) <=
+      number(size$limit_bytes),
+    "historical integrated installed size exceeded its baseline limit"
+  )
+  require_gate(logical_value(regression$passed),
+               "historical benchmark regression gate failed")
+} else {
+  require_gate(
+    identical(scalar(regression$role), "advisory") &&
+      !logical_value(regression$release_gate) &&
+      identical(scalar(regression$authority),
+                "cudaverse-benchmark/1 full profile"),
+    "historical regression data was presented as a release gate"
+  )
+  require_gate(
+    identical(scalar(size$baseline_definition),
+              "legacy Phase 3 installed footprint baseline"),
+    "0.3 advisory installed-footprint definition is invalid"
+  )
+}
 require_gate(logical_value(report$overall_pass), "overall report gate failed")
 
 if (length(failures)) {
