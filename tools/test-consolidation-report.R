@@ -2,10 +2,11 @@ if (!requireNamespace("jsonlite", quietly = TRUE)) {
   stop("Testing consolidation reports requires `jsonlite`.", call. = FALSE)
 }
 
-fixture <- jsonlite::read_json(
+legacy <- jsonlite::read_json(
   file.path("inst", "reports", "native", "consolidation-rtx2000.json"),
   simplifyVector = FALSE
 )
+fixture <- legacy
 fixture$software$cudaverse <- "0.3.0.9000"
 fixture$benchmark_regression$role <- "advisory"
 fixture$benchmark_regression$release_gate <- FALSE
@@ -41,6 +42,7 @@ run_checker <- function(value) {
   }, error = identity)
 }
 
+stopifnot(is.null(run_checker(legacy)))
 stopifnot(is.null(run_checker(fixture)))
 
 bad <- fixture
