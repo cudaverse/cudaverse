@@ -257,10 +257,11 @@ Deferred beyond CP-05:
 
 ## CP-06: retained full benchmark evidence
 
-Status: evidence and local package checks complete on
-`agent/full-benchmark-evidence` for exact clean source commit
-`42d6ab4c02c4ab20b807fe858043e8edb203e626`; post-evidence pull-request
-checks remain before merge.
+Status: complete on `agent/full-benchmark-evidence`. The retained benchmark
+uses exact clean source commit
+`42d6ab4c02c4ab20b807fe858043e8edb203e626`; the evidence-bearing commit
+`15a909671194a1feb84c2f07632330573c09a47f` passed every required
+post-evidence pull-request check.
 
 Scope:
 
@@ -326,7 +327,10 @@ Required evidence before merge:
   `R CMD check --as-cran --no-manual` with 0 errors, 0 warnings, and only the
   expected development-version note; the linked-worktree `.git` file is
   explicitly excluded and absent from the rebuilt tarball;
-- [ ] all required GitHub checks pass on the post-evidence branch head.
+- [x] all required GitHub checks pass on the post-evidence branch head:
+  R-CMD-check run `31460126778`, pkgdown run `31460126761`, integration run
+  `31460127050`, and native-integrity run `31460126767`. The draft-only
+  Pages deploy and non-RTX hardware job skipped as designed.
 
 Retained evidence and interpretation:
 
