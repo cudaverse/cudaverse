@@ -1,4 +1,5 @@
 ^\.github$
+^\.git$
 ^.*\.Rproj$
 ^\.Rproj\.user$
 ^README\.Rmd$
