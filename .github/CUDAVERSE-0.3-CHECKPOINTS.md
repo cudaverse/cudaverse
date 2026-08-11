@@ -257,8 +257,10 @@ Deferred beyond CP-05:
 
 ## CP-06: retained full benchmark evidence
 
-Status: in progress on `agent/full-benchmark-evidence` against exact clean
-source commit `acd105fe8ef0ed8703e9e16f9ca4ce68a0d3db7d`.
+Status: evidence and local package checks complete on
+`agent/full-benchmark-evidence` for exact clean source commit
+`42d6ab4c02c4ab20b807fe858043e8edb203e626`; post-evidence pull-request
+checks remain before merge.
 
 Scope:
 
@@ -301,18 +303,18 @@ Required evidence before merge:
 
 - [x] full float32/float64 matmul at 256, 1024, and 4096 completes for all
   three backends with numerical parity;
-- [ ] dense PCA-kNN at 1,000 x 50, 10,000 x 100, and 50,000 x 128 completes
+- [x] dense PCA-kNN at 1,000 x 50, 10,000 x 100, and 50,000 x 128 completes
   for all three backends with projector/reconstruction and exact-index parity;
-- [ ] sparse PCA-kNN at the same three dimensions completes for all three
+- [x] sparse PCA-kNN at the same three dimensions completes for all three
   backends with normalization, projector/reconstruction, and exact-index
   parity;
-- [ ] `tools/check-benchmark-report.R` accepts the final complete report;
+- [x] `tools/check-benchmark-report.R` accepts the final complete report;
 - [x] benchmark-report integrity and rejection self-tests cover backend,
   contract-definition, raw-run/summary, finite timing, peak-memory, and native
   post-cleanup allocation tampering on Windows/Linux CI;
-- [ ] the retained summary is generated from that exact report and records
+- [x] the retained summary is generated from that exact report and records
   the report SHA-256;
-- [ ] observed regressions and workload-specific conclusions are reviewed and
+- [x] observed regressions and workload-specific conclusions are reviewed and
   documented;
 - [x] final RTX report composition and candidate-manifest self-tests reject
   mismatched commits, versions, GPUs, R runtimes, input hashes, skipped package
@@ -320,5 +322,38 @@ Required evidence before merge:
 - [x] float32 sparse storage is explicitly evidence-deferred, with the current
   float64 implementation evidence and quantitative re-entry gates retained in
   `.github/internal/CUDAVERSE-0.3-SPARSE-FLOAT32-DECISION.md`;
-- [ ] local package checks and all required GitHub checks pass on the evidence
-  branch.
+- [x] a rebuilt source tarball passes local Windows R 4.6.0
+  `R CMD check --as-cran --no-manual` with 0 errors, 0 warnings, and only the
+  expected development-version note; the linked-worktree `.git` file is
+  explicitly excluded and absent from the rebuilt tarball;
+- [ ] all required GitHub checks pass on the post-evidence branch head.
+
+Retained evidence and interpretation:
+
+- `inst/reports/benchmarks/CP06-FULL.json` is the complete clean-source report
+  for 12 cases and 36 ordered base/native/torch results. Its SHA-256 is
+  `9363aba0c4f5af0ee7ef84648bc2d6bec2177c7deccfd445454f9f7bdda43e93`;
+  every result is complete and passes its numerical validation.
+- `inst/reports/benchmarks/CP06-FULL.md` is generated from that exact JSON and
+  records the same digest. The report and summary checker success logs are
+  retained beside both files; Git line-ending conversion is disabled for the
+  four exact evidence files.
+- On this one RTX 2000 Ada system, native has the lowest host-boundary median
+  for every pipeline and for all matmul cases except 256 x 256 float64. The
+  measured 50,000 x 128 native medians are 2.918 seconds dense and 4.901
+  seconds sparse, versus 222.208/306.206 seconds for base and
+  173.605/156.882 seconds for torch. These are descriptive ten-run sample
+  medians from one machine, not universal speed claims.
+- The evidence retains two important counterexamples: base is 1.60x faster
+  than native at the 256 x 256 float64 host boundary, and torch is 2.88x
+  faster than native for resident 4096 x 4096 float32 matmul. Resident
+  float64 matmul at 4096 is effectively tied. These remain optimization
+  targets rather than being hidden by end-to-end ratios.
+- Native peak allocator use is 440.97 MiB for dense 50,000 x 128 and
+  444.41 MiB for sparse 50,000 x 128, with zero tracked post-cleanup bytes.
+  The installed package is 1,125,384 bytes, bundles no CUDA runtime, and the
+  optional torch installation measured 7,367,799,444 bytes.
+- CP-06 therefore supports retaining native as the preferred automatic CUDA
+  backend and keeping torch as a compatibility backend. It does not support a
+  benchmark-driven reduction of the dense/sparse 0.3 scope, removal of torch,
+  or a universal performance claim.

@@ -1,1 +1,5 @@
 *.ptx binary
+inst/reports/benchmarks/CP06-FULL.json -text whitespace=cr-at-eol
+inst/reports/benchmarks/CP06-FULL.md -text whitespace=cr-at-eol
+inst/reports/benchmarks/CP06-FULL-CHECK.log -text whitespace=cr-at-eol
+inst/reports/benchmarks/CP06-FULL-SUMMARY-CHECK.log -text whitespace=cr-at-eol
