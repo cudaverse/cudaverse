@@ -39,7 +39,8 @@ A `cudatensor` on the same device as `x`.
 
 ## Details
 
-The current implementation performs subsetting and replacement through a
-base R array, so a CUDA tensor is transferred to the CPU and the result
-is returned to its original device. Use these methods for data
-preparation, not inside performance-critical GPU loops.
+Backends may implement value gathering and replacement directly. The
+native CUDA backend evaluates only R index metadata on the host and
+keeps tensor values on the device. Compatibility backends without
+indexing operations use a recorded CPU round trip. Subscripts containing
+`NA` currently use the compatibility path.

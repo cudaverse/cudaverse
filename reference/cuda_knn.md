@@ -18,7 +18,7 @@ cuda_knn(
 
 - x:
 
-  Numeric matrix with observations in rows.
+  Numeric matrix or `cudasparse` object with observations in rows.
 
 - k:
 
@@ -54,10 +54,12 @@ deterministically in favour of the smaller row index.
 
 The implementation constructs at most a
 `min(batch_size, nrow(x))`-by-`nrow(x)` dense distance block instead of
-a complete pairwise distance matrix. On CUDA, distance blocks are
-computed with torch and transferred to the CPU for deterministic
-neighbour ordering. On CPU, Euclidean blocks use the same guarded
-translated-and-scaled implementation as
+a complete pairwise distance matrix. The native CUDA backend keeps
+distance blocks and deterministic top-k selection on the GPU, then
+transfers only the final `n`-by-`k` index and distance matrices.
+Compatibility backends without device-side selection transfer each
+distance block to the CPU for stable ordering. On CPU, Euclidean blocks
+use the same guarded translated-and-scaled implementation as
 [`cuda_distance()`](https://cudaverse.github.io/cudaverse/reference/cuda_distance.md).
 
 ## Examples

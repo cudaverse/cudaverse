@@ -20,7 +20,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">cudaverse</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.0.9000</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -33,8 +33,10 @@
 <li class="active nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
-<li><a class="dropdown-item" href="../articles/backend-provenance.html">Backend selection and compute provenance</a></li>
-    <li><a class="dropdown-item" href="../articles/getting-started.html">Getting started with cudaverse</a></li>
+<li><a class="dropdown-item" href="../articles/getting-started.html">Getting started with cudaverse</a></li>
+    <li><a class="dropdown-item" href="../articles/gpu-setup.html">GPU setup and troubleshooting</a></li>
+    <li><a class="dropdown-item" href="../articles/backend-provenance.html">Backend selection and compute provenance</a></li>
+    <li><a class="dropdown-item" href="../articles/backend-support.html">Backend support and release boundaries</a></li>
   </ul>
 </li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
@@ -60,7 +62,7 @@
       <h1>Backend selection and compute provenance</h1>
             
       
-      <small class="dont-index">Source: <a href="https://github.com/cudaverse/cudaverse/blob/main/vignettes/backend-provenance.Rmd" class="external-link"><code>vignettes/backend-provenance.Rmd</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/cudaverse/cudaverse/blob/develop/native-cuda/vignettes/backend-provenance.Rmd" class="external-link"><code>vignettes/backend-provenance.Rmd</code></a></small>
       <div class="d-none name"><code>backend-provenance.Rmd</code></div>
     </div>
 
@@ -76,8 +78,8 @@ conflate:</p>
 </ol>
 <p>The answers are recorded with the <code>cudaverse-stage/1</code>
 provenance schema. This tutorial runs completely on CPU. Its CUDA
-section is optional and only runs when a usable CUDA-enabled torch
-installation is visible.</p>
+section is optional and runs only when a registered native or torch CUDA
+backend is usable.</p>
 <div class="section level2">
 <h2 id="inspect-the-runtime">Inspect the runtime<a class="anchor" aria-label="anchor" href="#inspect-the-runtime"></a>
 </h2>
@@ -86,12 +88,35 @@ installation is visible.</p>
 <span></span>
 <span><span class="va">diagnostics</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cuda_diagnostics.html">cuda_diagnostics</a></span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="va">diagnostics</span></span>
-<span><span class="co">#&gt; &lt;cuda_diagnostics available=FALSE devices=0 torch=0.17.0 reason=backend_error&gt;</span></span></code></pre></div>
-<p><code><a href="../reference/cuda_diagnostics.html">cuda_diagnostics()</a></code> is non-destructive: it does not
-install torch or download a runtime. Important fields are
-<code>torch_installed</code>, <code>torch_version</code>,
-<code>cuda_available</code>, <code>cuda_device_count</code>,
-<code>reason</code>, and <code>detection_error</code>.</p>
+<span><span class="co">#&gt; &lt;cuda_diagnostics available=FALSE devices=NA selected=base torch=0.17.0 reason=backend_error&gt;</span></span></code></pre></div>
+<p><code><a href="../reference/cuda_diagnostics.html">cuda_diagnostics()</a></code> never installs torch or a CUDA
+runtime. <code>available_backends</code>,
+<code>auto_eligible_backends</code>, <code>auto_selection_reason</code>,
+<code>selected_backend</code>, and <code>backend_diagnostics</code>
+describe the registry. The first native diagnostic in a session runs and
+caches a small transfer, float32 and float64 matmul/reduction,
+arithmetic/broadcast/reshape/transpose, and sparse normalization
+self-test. The legacy fields <code>torch_installed</code>,
+<code>torch_version</code>, <code>cuda_available</code>,
+<code>cuda_device_count</code>, <code>reason</code>, and
+<code>detection_error</code> remain available throughout the 0.3
+compatibility cycle.</p>
+<p>Native is eligible for <code>"auto"</code> only when all four gates
+pass:</p>
+<ol style="list-style-type: decimal">
+<li>backend contract schema <code>cudaverse-backend/1</code>
+matches;</li>
+<li>the complete tensor and resident PCA/kNN capability set is
+present;</li>
+<li>driver, cuBLAS, cuSOLVER, and package PTX components load; and</li>
+<li>the cached runtime self-test passes without retaining tracked device
+memory.</li>
+</ol>
+<p>If any gate fails, diagnostics preserve its reason and automatic
+selection tries the torch compatibility backend before using the
+observable CPU fallback. Setting
+<code>options(cudaverse.cuda_backends = ...)</code> can constrain test
+order, but cannot bypass these gates.</p>
 <p>Device requests have these semantics:</p>
 <table class="table">
 <colgroup>
@@ -208,7 +233,7 @@ matters more than automatic hardware selection.</p>
 <code>device</code> is where that stage actually computed;</li>
 <li>
 <code>backend</code> names the implementation, such as
-<code>base</code> or <code>torch</code>;</li>
+<code>base</code>, <code>native</code>, or <code>torch</code>;</li>
 <li>
 <code>selection_reason</code> explains the resolution;</li>
 <li>
@@ -251,8 +276,8 @@ CPU request. For production runs that require a GPU, use
 <span>  <span class="fu"><a href="../reference/tensor_device.html">tensor_device</a></span><span class="op">(</span><span class="va">gpu_result</span><span class="op">)</span></span>
 <span>  <span class="fu"><a href="../reference/cuda_provenance.html">cuda_provenance</a></span><span class="op">(</span><span class="va">gpu_result</span><span class="op">)</span></span>
 <span></span>
-<span>  <span class="co"># CUDA subsetting currently performs a CPU round trip and records the</span></span>
-<span>  <span class="co"># transfer stages before returning a CUDA tensor.</span></span>
+<span>  <span class="co"># Native CUDA gathers values on-device. A compatibility backend may record</span></span>
+<span>  <span class="co"># materialization and upload stages instead.</span></span>
 <span>  <span class="va">gpu_subset</span> <span class="op">&lt;-</span> <span class="va">gpu</span><span class="op">[</span><span class="fl">1</span>, , drop <span class="op">=</span> <span class="cn">FALSE</span><span class="op">]</span></span>
 <span>  <span class="fu"><a href="../reference/cuda_provenance.html">cuda_provenance</a></span><span class="op">(</span><span class="va">gpu_subset</span><span class="op">)</span></span>
 <span><span class="op">}</span></span></code></pre></div>
@@ -265,11 +290,12 @@ NVIDIA hardware. It is not evidence that the CUDA path was tested.</p>
 <p>Dense <code>cudaverse</code> tensors use dense storage. The payload
 alone is approximately <code>prod(shape) * bytes_per_value</code>,
 before outputs and temporary tensors. The CPU fallback uses ordinary R
-vectors, so its physical storage differs from torch:</p>
+vectors, so its physical storage can differ from CUDA backends:</p>
 <table class="table">
 <thead><tr class="header">
 <th>dtype</th>
 <th align="right">CPU base storage</th>
+<th align="right">CUDA native storage</th>
 <th align="right">CUDA torch storage</th>
 </tr></thead>
 <tbody>
@@ -277,14 +303,17 @@ vectors, so its physical storage differs from torch:</p>
 <td><code>float32</code></td>
 <td align="right">8 bytes</td>
 <td align="right">4 bytes</td>
+<td align="right">4 bytes</td>
 </tr>
 <tr class="even">
 <td><code>float64</code></td>
 <td align="right">8 bytes</td>
 <td align="right">8 bytes</td>
+<td align="right">8 bytes</td>
 </tr>
 <tr class="odd">
 <td><code>integer</code></td>
+<td align="right">4 bytes</td>
 <td align="right">4 bytes</td>
 <td align="right">8 bytes</td>
 </tr>
@@ -292,17 +321,20 @@ vectors, so its physical storage differs from torch:</p>
 </table>
 <p>CPU <code>float32</code> values are rounded to IEEE single precision
 when stored and after each public operation, but base R kernels
-accumulate in double precision. CUDA kernels compute in the native torch
-dtype. Results should therefore be compared with an explicit tolerance
-rather than expected to be bit-for-bit identical. Floating tensors may
-contain IEEE <code>Inf</code>, <code>-Inf</code>, and <code>NaN</code>;
-integer tensors reject values that cannot be represented exactly.</p>
+accumulate in double precision. CUDA kernels compute in their backend’s
+native dtype. Results should therefore be compared with an explicit
+tolerance rather than expected to be bit-for-bit identical. Floating
+tensors may contain IEEE <code>Inf</code>, <code>-Inf</code>, and
+<code>NaN</code>; integer tensors reject values that cannot be
+represented exactly.</p>
 <p>Creating a CUDA tensor from an R object transfers the dense input
 from host memory to GPU memory. <code><a href="../reference/to_cpu.html">to_cpu()</a></code>,
 <code><a href="https://rdrr.io/r/base/array.html" class="external-link">as.array()</a></code>, and <code><a href="https://rdrr.io/r/base/matrix.html" class="external-link">as.matrix()</a></code> materialize the
 complete result in host memory. Mixed-device binary operations move the
-right operand to the left operand’s device. CUDA subsetting and
-replacement currently make a CPU round trip; matrix arithmetic,
+right operand to the left operand’s device. Native CUDA subsetting and
+replacement evaluate index metadata in R but gather or replace tensor
+values on the GPU. Missing indices and backends without indexing
+operations use a recorded CPU round trip. Matrix arithmetic,
 broadcasting, reductions, reshape, and transpose use the tensor’s
 backend.</p>
 <p>Large operations can temporarily require input, output, and
@@ -311,6 +343,16 @@ out-of-core execution or automatic chunking. Printing a tensor with more
 than 100 values shows metadata without copying the full CUDA allocation;
 explicitly call <code><a href="../reference/to_cpu.html">to_cpu()</a></code> only when that transfer is
 intended.</p>
+<p>The built-in native pipeline stores COO and CSR metadata in shared
+device storage. Sparse normalization remains sparse; sparse-input PCA
+expands directly into a GPU dense buffer, attaches shared device storage
+to PCA’s ordinary R score matrix, and a following
+<code><a href="../reference/cuda_knn.html">cuda_knn()</a></code> call reuses that allocation. Exact distance
+blocks and stable top-k selection remain on the GPU, and only compact
+results are returned. <code><a href="../reference/cuda_provenance.html">cuda_provenance()</a></code> records
+normalization, <code>sparse_to_dense</code>,
+<code>scores_resident</code>, device-resident input materialization,
+CUDA distance, and final CPU output as separate stages.</p>
 </div>
 <div class="section level2">
 <h2 id="hardware-gated-validation">Hardware-gated validation<a class="anchor" aria-label="anchor" href="#hardware-gated-validation"></a>
@@ -321,13 +363,19 @@ repository’s <code>cuda-parity</code> workflow is different: manual
 dispatch, or the organization variable
 <code>CUDAVERSE_NVIDIA_CI=enabled</code>, invokes a reusable job on a
 self-hosted runner labeled <code>cuda</code>.</p>
-<p>That job:</p>
+<p>The main-package compatibility job:</p>
 <ul>
 <li>sets <code>CUDAVERSE_REQUIRE_CUDA=true</code>;</li>
 <li>requires <code>nvidia-smi</code> to succeed;</li>
 <li>requires torch to report at least one CUDA device;</li>
 <li>runs required CPU/CUDA parity and provenance checks.</li>
 </ul>
+<p>The integrated native workflow compiles <code>cudaverse</code> on
+Windows, macOS, Ubuntu, and R-devel; reproducibly rebuilds its PTX in
+CUDA 12.8.1; and runs explicit native parity, structured-error,
+interruption, and 1,000-cycle VRAM contracts on the RTX 2000 development
+machine. The ordinary package checks do not need CUDA hardware or a CUDA
+toolkit.</p>
 <p>A missing CUDA runtime fails the hardware job. It is never converted
 into a successful skip.</p>
 </div>

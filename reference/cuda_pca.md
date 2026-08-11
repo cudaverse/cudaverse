@@ -18,7 +18,8 @@ cuda_pca(
 
 - x:
 
-  A matrix with observations in rows and features in columns.
+  A matrix or `cudasparse` object with observations in rows and features
+  in columns.
 
 - n_components:
 

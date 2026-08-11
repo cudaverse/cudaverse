@@ -42,6 +42,20 @@ sparse_info(sparse)
 #> [1] "cpu"
 ```
 
+Sparse normalization keeps the zero pattern and composes with the same
+PCA and kNN entry points:
+
+``` r
+
+counts <- matrix(c(1, 0, 3, 2, 4, 1, 0, 2, 5, 1, 3, 2), nrow = 4)
+sparse_counts <- cuda_sparse(counts, device = "cpu")
+normalized <- sparse_normalize(
+  sparse_counts, margin = "rows", scale_factor = 100, log1p = TRUE
+)
+sparse_pca <- cuda_pca(normalized, n_components = 2, device = "cpu")
+sparse_neighbors <- cuda_knn(sparse_pca$x, k = 2, device = "cpu")
+```
+
 ## Algorithms compose directly
 
 ``` r

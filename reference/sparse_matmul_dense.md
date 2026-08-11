@@ -20,8 +20,8 @@ sparse_matmul_dense(x, y)
 
 ## Value
 
-A dense `cudatensor`. CUDA multiplication is transferred back to the CPU
-in this first release so the result has portable semantics.
+A dense `cudatensor`. The native backend keeps the result on CUDA;
+compatibility backends retain their existing portable CPU result.
 
 ## Examples
 

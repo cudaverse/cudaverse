@@ -11,8 +11,8 @@
 <script src="deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
 <link href="deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
 <script src="deps/headroom-0.11.0/headroom.min.js"></script><script src="deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="deps/search-1.0.0/fuse.min.js"></script><script src="deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="pkgdown.js"></script><meta property="og:title" content="GPU-Aware Numerical Computing for R">
-<meta name="description" content="Provides one coherent interface for experimental GPU-aware numerical computing in R. Includes dense tensors, sparse matrices, decompositions, distances, nearest neighbours, clustering, graph workflows, and embeddings. Uses an optional CUDA-enabled torch installation for GPU execution and portable R backends for development, testing, and reproducible fallback behavior.">
-<meta property="og:description" content="Provides one coherent interface for experimental GPU-aware numerical computing in R. Includes dense tensors, sparse matrices, decompositions, distances, nearest neighbours, clustering, graph workflows, and embeddings. Uses an optional CUDA-enabled torch installation for GPU execution and portable R backends for development, testing, and reproducible fallback behavior.">
+<meta name="description" content="Provides one coherent interface for experimental GPU-aware numerical computing in R. Includes dense tensors, sparse matrices, decompositions, distances, nearest neighbours, clustering, graph workflows, and embeddings. Includes a lightweight native CUDA backend that discovers NVIDIA runtime libraries lazily, plus portable R and optional torch backends for development, testing, and reproducible fallback behavior.">
+<meta property="og:description" content="Provides one coherent interface for experimental GPU-aware numerical computing in R. Includes dense tensors, sparse matrices, decompositions, distances, nearest neighbours, clustering, graph workflows, and embeddings. Includes a lightweight native CUDA backend that discovers NVIDIA runtime libraries lazily, plus portable R and optional torch backends for development, testing, and reproducible fallback behavior.">
 </head>
 <body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
@@ -22,7 +22,7 @@
 
     <a class="navbar-brand me-2" href="index.html">cudaverse</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.0.9000</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -35,8 +35,10 @@
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
-<li><a class="dropdown-item" href="articles/backend-provenance.html">Backend selection and compute provenance</a></li>
-    <li><a class="dropdown-item" href="articles/getting-started.html">Getting started with cudaverse</a></li>
+<li><a class="dropdown-item" href="articles/getting-started.html">Getting started with cudaverse</a></li>
+    <li><a class="dropdown-item" href="articles/gpu-setup.html">GPU setup and troubleshooting</a></li>
+    <li><a class="dropdown-item" href="articles/backend-provenance.html">Backend selection and compute provenance</a></li>
+    <li><a class="dropdown-item" href="articles/backend-support.html">Backend support and release boundaries</a></li>
   </ul>
 </li>
 <li class="nav-item"><a class="nav-link" href="news/index.html">Changelog</a></li>
@@ -56,8 +58,8 @@
   <main id="main" class="col-md-9"><div class="section level1">
 <div class="page-header"><h1 id="cudaverse">cudaverse<a class="anchor" aria-label="anchor" href="#cudaverse"></a>
 </h1></div>
-<p><code>cudaverse</code> gives R users one package for GPU-aware numerical workflows. It combines the former <code>cudatensr</code>, <code>cudasparsr</code>, <code>cudalearnr</code>, <code>cudagraphR</code>, and <code>cudaembedr</code> projects behind a single installation and documentation site.</p>
-<p>The public API is organized by topic rather than by package:</p>
+<p><code>cudaverse</code> provides GPU-aware numerical workflows for R.</p>
+<p>The public API is organized by topic:</p>
 <ul>
 <li>device selection and compute provenance;</li>
 <li>dense tensors and sparse matrices;</li>
@@ -65,11 +67,11 @@
 <li>weighted kNN graphs, Louvain, and Leiden clustering;</li>
 <li>UMAP, t-SNE, and diffusion-map-style embeddings.</li>
 </ul>
-<p>CUDA is optional. When a supported CUDA-enabled <code>torch</code> installation is not available, functions use their documented portable backend and record what actually ran.</p>
+<p>CUDA is optional. The development line includes a lightweight native backend and can also use a supported CUDA-enabled <code>torch</code> installation. NVIDIA libraries are discovered only when CUDA diagnostics or selection is requested. When neither CUDA path is available, functions use their documented portable backend and record what actually ran.</p>
 <div class="section level2">
-<h2 id="lightweight-native-cuda-direction">Lightweight native CUDA direction<a class="anchor" aria-label="anchor" href="#lightweight-native-cuda-direction"></a>
+<h2 id="lightweight-native-cuda">Lightweight native CUDA<a class="anchor" aria-label="anchor" href="#lightweight-native-cuda"></a>
 </h2>
-<p>Version 0.1.0 uses <code>torch</code> only as an optional CUDA backend; it is not a hard package dependency. The next backend milestone is a lightweight native CUDA implementation behind the same public R API. Its intended benefits are:</p>
+<p>The 0.3 development line includes a backend registry and a built-in native CUDA implementation behind the same public R API. Native execution covers dense tensor operations, shared-ownership COO/CSR sparse storage, sparse normalization and multiplication, device-native indexing and replacement, and resident PCA, exact kNN, and k-means stages. Its measured design benefits are:</p>
 <ul>
 <li>avoid requiring the full LibTorch installation, which occupied 6.86 GB in our Windows RTX 2000 development environment;</li>
 <li>remove coupling to changes in torch’s R indexing, reshape semantics, and release cycle;</li>
@@ -77,20 +79,35 @@
 <li>control <code>cudatensor</code> and <code>cudasparse</code> memory layout, lifetime, and compute provenance directly; and</li>
 <li>allow future backends to be added without changing user code.</li>
 </ul>
-<p>These are roadmap goals, not performance or installation-size claims about the current release. They will become release claims only after reproducible parity, disk-footprint, and performance benchmarks pass. See the <a href="NATIVE-CUDA-ROADMAP.html">native CUDA roadmap</a> for the architecture and acceptance criteria.</p>
+<p>Native is eligible for <code>device = "auto"</code> only when its backend contract and capabilities match, driver/cuBLAS/cuSOLVER/PTX components are healthy, and a cached runtime self-test passes. An incomplete or unhealthy native runtime cannot become automatic; torch remains the compatibility CUDA backend and CPU remains the observable fallback. Explicit CUDA requests never silently fall back.</p>
+<p>Reproducible PTX, RTX 2000 parity and lifecycle evidence, the CycloneDX SBOM, and the third-party redistribution inventory are kept in this repository. See the <a href="CUDAVERSE-0.3-ROADMAP.html">0.3 roadmap</a> for ordered milestones, the <a href="https://github.com/cudaverse/cudaverse/blob/develop/native-cuda/inst/benchmarks/README.md" class="external-link">benchmark contract</a> for performance evidence, and the <a href="https://cudaverse.github.io/cudaverse/articles/gpu-setup.html">GPU setup and troubleshooting article</a> for runtime setup. The <a href="https://cudaverse.github.io/cudaverse/articles/backend-support.html">backend support article</a> lists intentional native, compatibility, hybrid, and CPU boundaries.</p>
 </div>
 <div class="section level2">
 <h2 id="installation">Installation<a class="anchor" aria-label="anchor" href="#installation"></a>
 </h2>
-<p>During development, install from GitHub:</p>
+<p>Install the current 0.3 development line from GitHub:</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># install.packages("pak")</span></span>
-<span><span class="fu">pak</span><span class="fu">::</span><span class="fu"><a href="https://pak.r-lib.org/reference/pak.html" class="external-link">pak</a></span><span class="op">(</span><span class="st">"cudaverse/cudaverse"</span><span class="op">)</span></span></code></pre></div>
+<span><span class="fu">pak</span><span class="fu">::</span><span class="fu"><a href="https://pak.r-lib.org/reference/pak.html" class="external-link">pak</a></span><span class="op">(</span><span class="st">"cudaverse/cudaverse@develop/native-cuda"</span><span class="op">)</span></span></code></pre></div>
+<p>The native backend is included but remains runtime-lazy, so installing <code>cudaverse</code> never downloads a CUDA runtime or requires a CUDA toolkit:</p>
+<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://cudaverse.github.io/cudaverse/">cudaverse</a></span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">diagnostics</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/cuda_diagnostics.html">cuda_diagnostics</a></span><span class="op">(</span><span class="op">)</span></span>
+<span><span class="va">diagnostics</span><span class="op">$</span><span class="va">selected_backend</span></span>
+<span><span class="va">diagnostics</span><span class="op">$</span><span class="va">auto_eligible_backends</span></span>
+<span><span class="va">diagnostics</span><span class="op">$</span><span class="va">backend_diagnostics</span><span class="op">$</span><span class="va">native</span><span class="op">$</span><span class="va">self_test</span></span>
+<span><span class="va">diagnostics</span><span class="op">$</span><span class="va">backend_diagnostics</span><span class="op">$</span><span class="va">native</span><span class="op">$</span><span class="va">capabilities</span></span>
+<span><span class="va">diagnostics</span><span class="op">$</span><span class="va">backend_diagnostics</span><span class="op">$</span><span class="va">native</span><span class="op">$</span><span class="va">operations</span></span></code></pre></div>
+<p>On Windows, <code>CUDAVERSE_CUBLAS_PATH</code> and <code>CUDAVERSE_CUSOLVER_PATH</code> may point to user-provided <code>cublas64_12.dll</code> and <code>cusolver64_11.dll</code> files when those libraries are not already on the loader path. The package does not copy or redistribute them.</p>
+<p>The option <code>cudaverse.cuda_backends</code> can still constrain backend order for testing, but it cannot bypass native contract, runtime, or self-test gates. The <a href="https://cudaverse.github.io/cudaverse/articles/backend-support.html">backend support article</a> distinguishes direct, hybrid, CPU-only, metadata, probe, and host-materializing APIs across the base, torch, and native backends. Its installed matrix also assigns every export to an executable conformance case. Hardware gates run those same public workflows on both CUDA backends rather than maintaining separate hand-written feature lists.</p>
+<p>The versioned <a href="https://github.com/cudaverse/cudaverse/blob/develop/native-cuda/inst/benchmarks/README.md" class="external-link">benchmark contract</a> defines separate smoke and full profiles. Full evidence uses five warmups and ten timed runs for base, torch, and native, reports raw times plus median/p95, distinguishes host-boundary and resident work where it can be measured directly, and records peak-memory source, installed footprint, numerical error, and provenance. Results are interpreted per workload; cudaverse does not claim that GPU execution is universally faster.</p>
+<p>On the 0.3 development line, native CUDA subsetting and replacement keep tensor values on the GPU. Only index metadata is evaluated in R. Missing subscripts and compatibility backends without indexing operations use an explicit, provenance-visible host path.</p>
 </div>
 <div class="section level2">
 <h2 id="one-workflow-one-package">One workflow, one package<a class="anchor" aria-label="anchor" href="#one-workflow-one-package"></a>
 </h2>
-<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://cudaverse.github.io/cudaverse/">cudaverse</a></span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">x</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">matrix</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="fl">400</span><span class="op">)</span>, nrow <span class="op">=</span> <span class="fl">40</span><span class="op">)</span></span>
@@ -101,12 +118,17 @@
 <span></span>
 <span><span class="fu"><a href="reference/cuda_provenance.html">cuda_provenance</a></span><span class="op">(</span><span class="va">pca</span><span class="op">)</span></span>
 <span><span class="fu"><a href="reference/embedding_coordinates.html">embedding_coordinates</a></span><span class="op">(</span><span class="va">embedding</span><span class="op">)</span></span></code></pre></div>
+<p>Sparse inputs use the same algorithms and can remain device-resident through normalization and PCA:</p>
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">counts</span> <span class="op">&lt;-</span> <span class="fu">Matrix</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/Matrix/man/rsparsematrix.html" class="external-link">rsparsematrix</a></span><span class="op">(</span><span class="fl">1000</span>, <span class="fl">100</span>, density <span class="op">=</span> <span class="fl">0.05</span><span class="op">)</span></span>
+<span><span class="va">counts</span><span class="op">@</span><span class="va">x</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">abs</a></span><span class="op">(</span><span class="va">counts</span><span class="op">@</span><span class="va">x</span><span class="op">)</span></span>
+<span><span class="va">sparse</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/cuda_sparse.html">cuda_sparse</a></span><span class="op">(</span><span class="va">counts</span>, device <span class="op">=</span> <span class="st">"cuda"</span><span class="op">)</span></span>
+<span><span class="va">normalized</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/sparse_normalize.html">sparse_normalize</a></span><span class="op">(</span></span>
+<span>  <span class="va">sparse</span>, margin <span class="op">=</span> <span class="st">"rows"</span>, scale_factor <span class="op">=</span> <span class="fl">1000</span>, log1p <span class="op">=</span> <span class="cn">TRUE</span></span>
+<span><span class="op">)</span></span>
+<span><span class="va">pca</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/cuda_pca.html">cuda_pca</a></span><span class="op">(</span><span class="va">normalized</span>, n_components <span class="op">=</span> <span class="fl">20</span>, device <span class="op">=</span> <span class="st">"cuda"</span><span class="op">)</span></span>
+<span><span class="va">neighbors</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/cuda_knn.html">cuda_knn</a></span><span class="op">(</span><span class="va">pca</span><span class="op">$</span><span class="va">x</span>, k <span class="op">=</span> <span class="fl">15</span>, device <span class="op">=</span> <span class="st">"cuda"</span><span class="op">)</span></span></code></pre></div>
 <p>Single-cell-specific workflows live in the separate <code>cudacellr</code> extension so general users do not need the SingleCellExperiment or Seurat ecosystems.</p>
-</div>
-<div class="section level2">
-<h2 id="project-history">Project history<a class="anchor" aria-label="anchor" href="#project-history"></a>
-</h2>
-<p>The original component repositories remain available as archived development history. New features, bug reports, documentation, and releases for the general-purpose API belong in this repository.</p>
 </div>
 </div>
   </main><aside class="col-md-3"><div class="links">

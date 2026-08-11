@@ -39,7 +39,7 @@ cuda_kmeans(
 
 - device:
 
-  Device used for the distance step.
+  Device used for the numerical clustering stages.
 
 ## Value
 
@@ -48,6 +48,16 @@ A `cuda_kmeans` list containing integer `cluster` assignments, final
 iteration count in `iter`, a logical `converged` flag, and the actual
 distance `device`. Observation and feature names are retained when
 supplied.
+
+## Details
+
+The native CUDA backend uploads the observations and initial centres
+once, then keeps distance calculation, deterministic assignment,
+accumulation, and centre updates on the device. Only the small
+convergence movement summary is inspected between iterations; final
+assignments, centres, and within-cluster sums are transferred to R.
+Compatibility backends without a resident k-means operation retain the
+established distance-on-backend and update-on-CPU implementation.
 
 ## Examples
 

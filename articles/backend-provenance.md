@@ -9,7 +9,7 @@
 
 The answers are recorded with the `cudaverse-stage/1` provenance schema.
 This tutorial runs completely on CPU. Its CUDA section is optional and
-only runs when a usable CUDA-enabled torch installation is visible.
+runs only when a registered native or torch CUDA backend is usable.
 
 ## Inspect the runtime
 
@@ -19,13 +19,33 @@ library(cudaverse)
 
 diagnostics <- cuda_diagnostics()
 diagnostics
-#> <cuda_diagnostics available=FALSE devices=0 torch=0.17.0 reason=backend_error>
+#> <cuda_diagnostics available=FALSE devices=NA selected=base torch=0.17.0 reason=backend_error>
 ```
 
 [`cuda_diagnostics()`](https://cudaverse.github.io/cudaverse/reference/cuda_diagnostics.md)
-is non-destructive: it does not install torch or download a runtime.
-Important fields are `torch_installed`, `torch_version`,
-`cuda_available`, `cuda_device_count`, `reason`, and `detection_error`.
+never installs torch or a CUDA runtime. `available_backends`,
+`auto_eligible_backends`, `auto_selection_reason`, `selected_backend`,
+and `backend_diagnostics` describe the registry. The first native
+diagnostic in a session runs and caches a small transfer, float32 and
+float64 matmul/reduction, arithmetic/broadcast/reshape/transpose, and
+sparse normalization self-test. The legacy fields `torch_installed`,
+`torch_version`, `cuda_available`, `cuda_device_count`, `reason`, and
+`detection_error` remain available throughout the 0.3 compatibility
+cycle.
+
+Native is eligible for `"auto"` only when all four gates pass:
+
+1.  backend contract schema `cudaverse-backend/1` matches;
+2.  the complete tensor and resident PCA/kNN capability set is present;
+3.  driver, cuBLAS, cuSOLVER, and package PTX components load; and
+4.  the cached runtime self-test passes without retaining tracked device
+    memory.
+
+If any gate fails, diagnostics preserve its reason and automatic
+selection tries the torch compatibility backend before using the
+observable CPU fallback. Setting
+`options(cudaverse.cuda_backends = ...)` can constrain test order, but
+cannot bypass these gates.
 
 Device requests have these semantics:
 
@@ -110,7 +130,8 @@ The provenance table has one row per stage:
 - `requested_device` is the caller’s policy (`"cpu"`, `"cuda"`,
   `"auto"`, `"fixed-cpu"`, or `"inherited"`);
 - `device` is where that stage actually computed;
-- `backend` names the implementation, such as `base` or `torch`;
+- `backend` names the implementation, such as `base`, `native`, or
+  `torch`;
 - `selection_reason` explains the resolution;
 - `fallback` is only true when an automatic request selected CPU;
 - `output_device` is where that stage placed its result.
@@ -150,8 +171,8 @@ if (cuda_available()) {
   tensor_device(gpu_result)
   cuda_provenance(gpu_result)
 
-  # CUDA subsetting currently performs a CPU round trip and records the
-  # transfer stages before returning a CUDA tensor.
+  # Native CUDA gathers values on-device. A compatibility backend may record
+  # materialization and upload stages instead.
   gpu_subset <- gpu[1, , drop = FALSE]
   cuda_provenance(gpu_subset)
 }
@@ -165,17 +186,17 @@ NVIDIA hardware. It is not evidence that the CUDA path was tested.
 Dense `cudaverse` tensors use dense storage. The payload alone is
 approximately `prod(shape) * bytes_per_value`, before outputs and
 temporary tensors. The CPU fallback uses ordinary R vectors, so its
-physical storage differs from torch:
+physical storage can differ from CUDA backends:
 
-| dtype     | CPU base storage | CUDA torch storage |
-|-----------|-----------------:|-------------------:|
-| `float32` |          8 bytes |            4 bytes |
-| `float64` |          8 bytes |            8 bytes |
-| `integer` |          4 bytes |            8 bytes |
+| dtype     | CPU base storage | CUDA native storage | CUDA torch storage |
+|-----------|-----------------:|--------------------:|-------------------:|
+| `float32` |          8 bytes |             4 bytes |            4 bytes |
+| `float64` |          8 bytes |             8 bytes |            8 bytes |
+| `integer` |          4 bytes |             4 bytes |            8 bytes |
 
 CPU `float32` values are rounded to IEEE single precision when stored
 and after each public operation, but base R kernels accumulate in double
-precision. CUDA kernels compute in the native torch dtype. Results
+precision. CUDA kernels compute in their backend’s native dtype. Results
 should therefore be compared with an explicit tolerance rather than
 expected to be bit-for-bit identical. Floating tensors may contain IEEE
 `Inf`, `-Inf`, and `NaN`; integer tensors reject values that cannot be
@@ -187,8 +208,10 @@ host memory to GPU memory.
 [`as.array()`](https://rdrr.io/r/base/array.html), and
 [`as.matrix()`](https://rdrr.io/r/base/matrix.html) materialize the
 complete result in host memory. Mixed-device binary operations move the
-right operand to the left operand’s device. CUDA subsetting and
-replacement currently make a CPU round trip; matrix arithmetic,
+right operand to the left operand’s device. Native CUDA subsetting and
+replacement evaluate index metadata in R but gather or replace tensor
+values on the GPU. Missing indices and backends without indexing
+operations use a recorded CPU round trip. Matrix arithmetic,
 broadcasting, reductions, reshape, and transpose use the tensor’s
 backend.
 
@@ -200,6 +223,18 @@ explicitly call
 [`to_cpu()`](https://cudaverse.github.io/cudaverse/reference/to_cpu.md)
 only when that transfer is intended.
 
+The built-in native pipeline stores COO and CSR metadata in shared
+device storage. Sparse normalization remains sparse; sparse-input PCA
+expands directly into a GPU dense buffer, attaches shared device storage
+to PCA’s ordinary R score matrix, and a following
+[`cuda_knn()`](https://cudaverse.github.io/cudaverse/reference/cuda_knn.md)
+call reuses that allocation. Exact distance blocks and stable top-k
+selection remain on the GPU, and only compact results are returned.
+[`cuda_provenance()`](https://cudaverse.github.io/cudaverse/reference/cuda_provenance.md)
+records normalization, `sparse_to_dense`, `scores_resident`,
+device-resident input materialization, CUDA distance, and final CPU
+output as separate stages.
+
 ## Hardware-gated validation
 
 Portable examples and ordinary R CMD check jobs use CPU and may guard
@@ -208,12 +243,18 @@ optional CUDA code with `if (cuda_available())`. The repository’s
 organization variable `CUDAVERSE_NVIDIA_CI=enabled`, invokes a reusable
 job on a self-hosted runner labeled `cuda`.
 
-That job:
+The main-package compatibility job:
 
 - sets `CUDAVERSE_REQUIRE_CUDA=true`;
 - requires `nvidia-smi` to succeed;
 - requires torch to report at least one CUDA device;
 - runs required CPU/CUDA parity and provenance checks.
+
+The integrated native workflow compiles `cudaverse` on Windows, macOS,
+Ubuntu, and R-devel; reproducibly rebuilds its PTX in CUDA 12.8.1; and
+runs explicit native parity, structured-error, interruption, and
+1,000-cycle VRAM contracts on the RTX 2000 development machine. The
+ordinary package checks do not need CUDA hardware or a CUDA toolkit.
 
 A missing CUDA runtime fails the hardware job. It is never converted
 into a successful skip.

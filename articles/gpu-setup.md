@@ -1,0 +1,303 @@
+# GPU setup and troubleshooting
+
+`cudaverse` always installs with a portable base R backend. CUDA is
+optional, runtime-lazy, and never downloaded by the package. The
+preferred CUDA path is the lightweight native backend; R torch remains
+an optional compatibility backend.
+
+## Start with the CPU contract
+
+Install the current development line and prove the same public API works
+on CPU before changing the runtime:
+
+``` r
+
+# install.packages("pak")
+pak::pak("cudaverse/cudaverse@develop/native-cuda")
+```
+
+``` r
+
+library(cudaverse)
+
+x <- matrix(seq_len(20), nrow = 5)
+fit <- cuda_pca(x, n_components = 2, device = "cpu")
+tensor <- cuda_tensor(x, device = "cpu")
+
+fit$device
+#> [1] "cpu"
+tensor_device(tensor)
+#>  device backend 
+#>   "cpu"  "base"
+cuda_provenance(fit)
+#> <cuda_provenance schema=cudaverse-stage/1 stages=2 compute=cpu>
+#>          stage requested_device device backend selection_reason fallback
+#>  preprocessing              cpu    cpu   stats     explicit_cpu    FALSE
+#>  decomposition              cpu    cpu   stats     explicit_cpu    FALSE
+#>  output_device
+#>            cpu
+#>            cpu
+```
+
+If this fails, diagnose the package or input before diagnosing CUDA.
+Include the CPU result in a GPU bug report.
+
+## Native CUDA runtime
+
+The package already contains its own checksum-pinned PTX kernels. It
+does not bundle or download NVIDIA runtime libraries. Native execution
+discovers these compatible system components only when CUDA is diagnosed
+or requested:
+
+- an NVIDIA driver and CUDA Driver API;
+- cuBLAS 12; and
+- cuSOLVER 11.
+
+A complete CUDA Toolkit is not required to install, build, or use the
+CPU backend. Installing an NVIDIA distribution that provides the
+required runtime libraries is one way to make native CUDA available.
+Follow NVIDIA’s official archived guides for the currently tested CUDA
+12.8 family on
+[Windows](https://docs.nvidia.com/cuda/archive/12.8.0/cuda-installation-guide-microsoft-windows/)
+or
+[Linux](https://docs.nvidia.com/cuda/archive/12.8.0/cuda-installation-guide-linux/)
+instead of copying an unverified command from an old article.
+Compatibility is determined by diagnostics and the runtime self-test,
+not by a directory name alone.
+
+On Windows or Linux, explicitly point cudaverse at compatible libraries
+when they are not already visible to the operating-system loader. Set
+these before loading the package:
+
+``` r
+
+Sys.setenv(
+  CUDAVERSE_CUBLAS_PATH = "C:/path/to/cublas64_12.dll",
+  CUDAVERSE_CUSOLVER_PATH = "C:/path/to/cusolver64_11.dll"
+)
+```
+
+On Linux, use absolute paths to `libcublas.so.12` and
+`libcusolver.so.11` instead. These variables identify user-provided
+runtime files; cudaverse does not copy or redistribute them. Native CUDA
+is unsupported on macOS, where the portable CPU backend remains
+available.
+
+## Read diagnostics before selecting a device
+
+Run diagnostics in a fresh R session after changing a driver or library
+path:
+
+``` r
+
+diagnostics <- cuda_diagnostics()
+diagnostics$available_backends
+#> [1] "base"
+diagnostics$auto_eligible_backends
+#> character(0)
+diagnostics$selected_backend
+#> [1] "base"
+diagnostics$auto_selection_reason
+#> [1] "backend_error"
+```
+
+For the native backend, inspect the complete gate rather than only
+device count:
+
+``` r
+
+native <- diagnostics$backend_diagnostics$native
+native[c(
+  "available", "reason", "driver_version", "cublas_loaded",
+  "cusolver_loaded", "kernels_loaded", "runtime_complete",
+  "capability_compatible", "self_test_passed", "auto_eligible"
+)]
+#> $available
+#> [1] FALSE
+#> 
+#> $reason
+#> [1] "backend_error"
+#> 
+#> $driver_version
+#> [1] 0
+#> 
+#> $cublas_loaded
+#> [1] FALSE
+#> 
+#> $cusolver_loaded
+#> [1] FALSE
+#> 
+#> $kernels_loaded
+#> [1] FALSE
+#> 
+#> $runtime_complete
+#> [1] FALSE
+#> 
+#> $capability_compatible
+#> [1] TRUE
+#> 
+#> $self_test_passed
+#> [1] FALSE
+#> 
+#> $auto_eligible
+#> [1] FALSE
+native$self_test
+#> $passed
+#> [1] FALSE
+#> 
+#> $reason
+#> [1] "backend_unavailable"
+#> 
+#> $error
+#> [1] "CUDA error 100 (CUDA_ERROR_NO_DEVICE): no CUDA-capable device is detected"
+#> 
+#> $checks
+#> character(0)
+#> 
+#> $duration_ms
+#> [1] 0
+native$missing_auto_capabilities
+#> character(0)
+```
+
+Native is eligible for automatic selection only when the versioned
+`cudaverse-backend/1` contract, required operations, runtime components,
+and cached self-test all pass. A detected GPU alone is insufficient.
+
+## Prove strict native execution
+
+Use an explicit CUDA request when the workflow must run on a GPU. To
+test native without allowing the torch compatibility backend, constrain
+the session’s backend order temporarily:
+
+``` r
+
+old <- options(cudaverse.cuda_backends = "native")
+
+x_gpu <- cuda_tensor(
+  matrix(rnorm(1024^2), 1024),
+  device = "cuda",
+  dtype = "float32"
+)
+y_gpu <- tensor_matmul(x_gpu, x_gpu)
+tensor_device(y_gpu)
+cuda_provenance(y_gpu)
+
+options(old)
+```
+
+`device = "cuda"` is strict: an unavailable or unhealthy runtime signals
+a structured `cudaverse_cuda_unavailable` condition and never returns a
+CPU result. `device = "auto"` may fall back, but provenance records the
+reason.
+
+## Optional torch compatibility backend
+
+Install R torch only when that compatibility path is wanted. Its
+LibTorch runtime is separate from cudaverse and can be much larger than
+this package. Follow the current official [R torch installation
+guide](https://torch.mlverse.org/docs/articles/installation) for
+supported platforms and CUDA builds.
+
+``` r
+
+install.packages("torch")
+options(cudaverse.cuda_backends = c("torch", "native"))
+cuda_diagnostics()$backend_diagnostics$torch
+```
+
+The backend option constrains selection order for testing; it cannot
+bypass runtime, capability, or self-test gates.
+
+## Device and fallback semantics
+
+| Request | Contract |
+|----|----|
+| `device = "cpu"` | Always use the portable CPU backend. |
+| `device = "auto"` | Use the first eligible CUDA backend; otherwise use CPU with visible fallback provenance. |
+| `device = "cuda"` | Require an eligible CUDA backend or signal a structured error; never silently use CPU. |
+
+Use
+[`tensor_device()`](https://cudaverse.github.io/cudaverse/reference/tensor_device.md)
+for tensors and
+[`cuda_provenance()`](https://cudaverse.github.io/cudaverse/reference/cuda_provenance.md)
+for all current results. Stage provenance distinguishes the requested
+policy, actual backend, compute device, output device, selection reason,
+and host/device boundaries. Graph and embedding workflows may contain
+intentional CPU or hybrid stages; the [backend support
+article](https://cudaverse.github.io/cudaverse/articles/backend-support.md)
+lists those boundaries.
+
+## Memory and transfer guidance
+
+- Exact
+  [`cuda_knn()`](https://cudaverse.github.io/cudaverse/reference/cuda_knn.md)
+  is quadratic in time. `batch_size` bounds the resident distance block;
+  lower it when memory is constrained.
+- [`cuda_distance()`](https://cudaverse.github.io/cudaverse/reference/cuda_distance.md)
+  intentionally returns the complete dense pairwise matrix. Use
+  [`cuda_knn()`](https://cudaverse.github.io/cudaverse/reference/cuda_knn.md)
+  when only neighbours are required.
+- [`to_cpu()`](https://cudaverse.github.io/cudaverse/reference/to_cpu.md)
+  and
+  [`to_dgCMatrix()`](https://cudaverse.github.io/cudaverse/reference/to_dgCMatrix.md)
+  explicitly materialize host values.
+- Native tensor subsetting and replacement are device operations for
+  supported ordinary indices. Missing subscripts and compatibility
+  backends may use a provenance-visible host path.
+- PCA, distance blocks, stable top-k, native k-means, and supported
+  sparse continuations reuse device storage. Inspect provenance rather
+  than inferring residency from the requested device.
+- Remove unused objects, call the relevant backend synchronization
+  through the public operation that created them, then run
+  [`gc()`](https://rdrr.io/r/base/gc.html) before diagnosing a suspected
+  leak. Whole-device readings can include unrelated applications.
+
+## Common failures
+
+### Native is installed but not auto-eligible
+
+Inspect `runtime_complete`, `missing_auto_capabilities`, and
+`self_test`. A missing cuBLAS/cuSOLVER symbol, incompatible contract, or
+failed self-test is fail-closed. Correct the runtime rather than forcing
+the backend past the gate.
+
+### Explicit CUDA reports unavailable
+
+Restart R after changing the NVIDIA driver or library paths, then rerun
+[`cuda_diagnostics()`](https://cudaverse.github.io/cudaverse/reference/cuda_diagnostics.md).
+Confirm that `nvidia-smi` can see the device and that the diagnostic
+paths identify the expected runtime files. Continue with
+`device = "cpu"` until the strict smoke test succeeds.
+
+### Results differ slightly across backends
+
+Floating-point reduction and multiplication order can differ. Use the
+operation’s documented tolerance. kNN ties are resolved by original row
+order; PCA comparisons should use reconstruction or subspace/projector
+error because component signs are not unique.
+
+### A result reports CPU or hybrid execution
+
+This is not automatically a hidden fallback. Inspect every provenance
+stage. UMAP, t-SNE, graph clustering, and parts of diffusion maps
+intentionally use CPU packages in the current surface.
+
+## Report a reproducible problem
+
+Include the following without redacting backend failure reasons:
+
+``` r
+
+sessionInfo()
+diagnostics <- cudaverse::cuda_diagnostics()
+diagnostics$selected_backend
+diagnostics$auto_selection_reason
+diagnostics$backend_diagnostics
+cudaverse::cuda_provenance(result)
+```
+
+Also include a small input, the requested device, whether the CPU call
+passes, the exact cudaverse commit or version, operating system, GPU
+model, driver version, and the complete structured condition
+class/message. Do not begin with a large production dataset.

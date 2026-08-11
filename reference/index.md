@@ -52,6 +52,8 @@
   : Convert sparse storage format
 - [`dimnames(`*`<cudasparse>`*`)`](https://cudaverse.github.io/cudaverse/reference/dimnames.cudasparse.md)
   : Inspect sparse matrix dimension labels
+- [`t(`*`<cudasparse>`*`)`](https://cudaverse.github.io/cudaverse/reference/t.cudasparse.md)
+  : Transpose a GPU-aware sparse matrix
 - [`to_dgCMatrix()`](https://cudaverse.github.io/cudaverse/reference/to_dgCMatrix.md)
   : Convert to an R sparse matrix
 - [`sparse_info()`](https://cudaverse.github.io/cudaverse/reference/sparse_info.md)
@@ -60,6 +62,8 @@
   : Sparse matrix by dense matrix multiplication
 - [`sparse_matvec()`](https://cudaverse.github.io/cudaverse/reference/sparse_matvec.md)
   : Sparse matrix-vector multiplication
+- [`sparse_normalize()`](https://cudaverse.github.io/cudaverse/reference/sparse_normalize.md)
+  : Normalize sparse rows or columns without densifying
 - [`sparse_row_sums()`](https://cudaverse.github.io/cudaverse/reference/sparse_row_sums.md)
   [`sparse_col_sums()`](https://cudaverse.github.io/cudaverse/reference/sparse_row_sums.md)
   : Sparse row and column reductions

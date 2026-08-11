@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">cudaverse</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.0.9000</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -18,8 +18,10 @@
       <ul class="navbar-nav me-auto"><li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
-  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/backend-provenance.html">Backend selection and compute provenance</a></li>
-    <li><a class="dropdown-item" href="../articles/getting-started.html">Getting started with cudaverse</a></li>
+  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/getting-started.html">Getting started with cudaverse</a></li>
+    <li><a class="dropdown-item" href="../articles/gpu-setup.html">GPU setup and troubleshooting</a></li>
+    <li><a class="dropdown-item" href="../articles/backend-provenance.html">Backend selection and compute provenance</a></li>
+    <li><a class="dropdown-item" href="../articles/backend-support.html">Backend support and release boundaries</a></li>
   </ul></li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
@@ -34,7 +36,7 @@
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>k-nearest neighbours</h1>
-      <small class="dont-index">Source: <a href="https://github.com/cudaverse/cudaverse/blob/main/R/algorithms.R" class="external-link"><code>R/algorithms.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/cudaverse/cudaverse/blob/develop/native-cuda/R/algorithms.R" class="external-link"><code>R/algorithms.R</code></a></small>
       <div class="d-none name"><code>cuda_knn.Rd</code></div>
     </div>
 
@@ -58,7 +60,7 @@
 
 
 <dl><dt id="arg-x">x<a class="anchor" aria-label="anchor" href="#arg-x"></a></dt>
-<dd><p>Numeric matrix with observations in rows.</p></dd>
+<dd><p>Numeric matrix or <code>cudasparse</code> object with observations in rows.</p></dd>
 
 
 <dt id="arg-k">k<a class="anchor" aria-label="anchor" href="#arg-k"></a></dt>
@@ -94,10 +96,12 @@ observation itself is always excluded. Equal distances are resolved
 deterministically in favour of the smaller row index.</p>
 <p>The implementation constructs at most a
 <code>min(batch_size, nrow(x))</code>-by-<code>nrow(x)</code> dense distance block instead of a
-complete pairwise distance matrix. On CUDA, distance blocks are computed
-with torch and transferred to the CPU for deterministic neighbour ordering.
-On CPU, Euclidean blocks use the same guarded translated-and-scaled
-implementation as <code><a href="cuda_distance.html">cuda_distance()</a></code>.</p>
+complete pairwise distance matrix. The native CUDA backend keeps distance
+blocks and deterministic top-k selection on the GPU, then transfers only the
+final <code>n</code>-by-<code>k</code> index and distance matrices. Compatibility backends without
+device-side selection transfer each distance block to the CPU for stable
+ordering. On CPU, Euclidean blocks use the same guarded
+translated-and-scaled implementation as <code><a href="cuda_distance.html">cuda_distance()</a></code>.</p>
     </div>
 
     <div class="section level2">

@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">cudaverse</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.0.9000</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -18,8 +18,10 @@
       <ul class="navbar-nav me-auto"><li class="nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
-  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/backend-provenance.html">Backend selection and compute provenance</a></li>
-    <li><a class="dropdown-item" href="../articles/getting-started.html">Getting started with cudaverse</a></li>
+  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/getting-started.html">Getting started with cudaverse</a></li>
+    <li><a class="dropdown-item" href="../articles/gpu-setup.html">GPU setup and troubleshooting</a></li>
+    <li><a class="dropdown-item" href="../articles/backend-provenance.html">Backend selection and compute provenance</a></li>
+    <li><a class="dropdown-item" href="../articles/backend-support.html">Backend support and release boundaries</a></li>
   </ul></li>
 <li class="active nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
@@ -34,23 +36,39 @@
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Changelog</h1>
-      <small>Source: <a href="https://github.com/cudaverse/cudaverse/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
+      <small>Source: <a href="https://github.com/cudaverse/cudaverse/blob/develop/native-cuda/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
     <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.3.0.9000" id="cudaverse-0309000">cudaverse 0.3.0.9000<a class="anchor" aria-label="anchor" href="#cudaverse-0309000"></a></h2>
+<ul><li>Added reproducible full-benchmark Markdown generation and validation. The retained assessment is bound to the exact machine-readable report by its SHA-256 and source commit, and incomplete drafts cannot pass the final summary gate.</li>
+<li>Added a machine-readable 0.3 benchmark contract and report runner for synchronized base, torch, and native measurements. The full profile fixes workload sizes, warmup/run counts, transfer boundaries, numerical gates, peak-memory sources, installed size, and provenance without treating an inseparable dense-PCA upload as a measured transfer duration.</li>
+<li>Added an executable public-backend conformance matrix. Every exported function is assigned to a diagnostics, tensor, sparse, algorithm, graph, or embedding contract case, and the shared suite runs the same small workflows on base, torch, and native when CUDA hardware coverage is required.</li>
+<li>Added <code><a href="https://rdrr.io/r/base/t.html" class="external-link">t()</a></code> for <code>cudasparse</code> matrices. Native CUDA transposes CSR backing storage on device while preserving stable COO metadata, logical format, dimnames, shared ownership, and same-device provenance; compatibility backends rebuild storage from the already-public COO metadata.</li>
+<li>Added registry-driven resident native CUDA k-means. Observations and centres are uploaded once; distance, stable assignment, accumulation, and Lloyd centre updates remain on device, with compact convergence and final-result transfers. The base and torch compatibility paths are unchanged.</li>
+<li>Added registry-driven, device-native tensor subsetting and replacement for the native CUDA backend, including dtype preservation, dimnames, R recycling, and deterministic last-write handling for duplicate indices.</li>
+<li>Added a backend registry and integrated the lightweight native CUDA implementation into <code>cudaverse</code> without changing the public device API.</li>
+<li>Added native dense casts, reductions, SVD/PCA, exact distance blocks, and deterministic top-k/kNN integration.</li>
+<li>Added shared-ownership native COO/CSR storage, sparse Matrix conversion, sparse matrix-vector/matrix multiplication, row/column reductions, and sparse-preserving normalization.</li>
+<li>Added sparse inputs to <code><a href="../reference/cuda_pca.html">cuda_pca()</a></code> and <code><a href="../reference/cuda_knn.html">cuda_knn()</a></code>; the native path expands them on the GPU and continues through the existing resident dense pipeline.</li>
+<li>Kept <code>PCA -&gt; distance -&gt; top-k</code> intermediate data on the GPU for the native path and retained the <code>cudaverse-stage/1</code> provenance schema.</li>
+<li>Preserved portable CPU behavior and the optional torch compatibility backend.</li>
+<li>Added capability-gated automatic native selection. Native is preferred only when the native contract, complete tensor/algorithm capability set, driver/cuBLAS/cuSOLVER/PTX runtime, and cached runtime self-test all pass; otherwise torch or the recorded CPU fallback retains compatibility.</li>
+<li>Added native float32 matmul plus device-native element-wise arithmetic, trailing-dimension broadcasting, reshape, and transpose coverage required by the global automatic-selection gate.</li>
+<li>Required SVD and PCA prediction compatibility in that same fail-closed gate, and published the bounded Phase 4 release-candidate assessment with links to the checksum-pinned RTX evidence.</li>
+</ul></div>
+    <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.1.0" id="cudaverse-010">cudaverse 0.1.0<a class="anchor" aria-label="anchor" href="#cudaverse-010"></a></h2>
-<ul><li>Establishes one user-facing package for the general-purpose cudaverse API.</li>
-<li>Incorporates dense tensor functionality from <code>cudatensr</code>.</li>
-<li>Incorporates sparse matrix functionality from <code>cudasparsr</code>.</li>
-<li>Incorporates numerical algorithms from <code>cudalearnr</code>.</li>
-<li>Incorporates graph workflows from <code>cudagraphR</code>.</li>
-<li>Incorporates embedding workflows from <code>cudaembedr</code>.</li>
+<ul><li>Establishes the general-purpose cudaverse API.</li>
+<li>Adds dense tensor and sparse matrix functionality.</li>
+<li>Adds numerical algorithms, graph workflows, and embedding workflows.</li>
 <li>Preserves the canonical <code><a href="../reference/cuda_provenance.html">cuda_provenance()</a></code> protocol across all modules.</li>
 <li>Keeps single-cell-specific workflows in the separate <code>cudacellr</code> package.</li>
 <li>Fixes CUDA indexing, R column-major reshape semantics, and exact self-distance diagonals for compatibility with R torch 0.17.</li>
 <li>Documents the measured, benchmark-gated roadmap toward a lightweight native CUDA backend while retaining the current portable CPU fallback.</li>
 </ul></div>
-  </main></div>
+  </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
+    </nav></aside></div>
 
 
     <footer><div class="pkgdown-footer-left">

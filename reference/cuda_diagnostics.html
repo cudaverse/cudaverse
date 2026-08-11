@@ -9,7 +9,7 @@ torch. The returned reason is suitable for logs and provenance."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">cudaverse</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.0.9000</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -20,8 +20,10 @@ torch. The returned reason is suitable for logs and provenance."></head><body>
       <ul class="navbar-nav me-auto"><li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
-  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/backend-provenance.html">Backend selection and compute provenance</a></li>
-    <li><a class="dropdown-item" href="../articles/getting-started.html">Getting started with cudaverse</a></li>
+  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/getting-started.html">Getting started with cudaverse</a></li>
+    <li><a class="dropdown-item" href="../articles/gpu-setup.html">GPU setup and troubleshooting</a></li>
+    <li><a class="dropdown-item" href="../articles/backend-provenance.html">Backend selection and compute provenance</a></li>
+    <li><a class="dropdown-item" href="../articles/backend-support.html">Backend support and release boundaries</a></li>
   </ul></li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
@@ -36,7 +38,7 @@ torch. The returned reason is suitable for logs and provenance."></head><body>
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Diagnose the optional CUDA runtime</h1>
-      <small class="dont-index">Source: <a href="https://github.com/cudaverse/cudaverse/blob/main/R/provenance.R" class="external-link"><code>R/provenance.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/cudaverse/cudaverse/blob/develop/native-cuda/R/provenance.R" class="external-link"><code>R/provenance.R</code></a></small>
       <div class="d-none name"><code>cuda_diagnostics.Rd</code></div>
     </div>
 
@@ -52,14 +54,21 @@ torch. The returned <code>reason</code> is suitable for logs and provenance.</p>
 
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>A named list containing <code>torch_installed</code>, <code>torch_version</code>,
-<code>cuda_available</code>, <code>cuda_device_count</code>, <code>reason</code>, and <code>detection_error</code>.</p>
+    <p>A named list containing the legacy fields <code>torch_installed</code>,
+<code>torch_version</code>, <code>cuda_available</code>, <code>cuda_device_count</code>, <code>reason</code>, and
+<code>detection_error</code>, plus <code>available_backends</code>, <code>auto_eligible_backends</code>,
+<code>auto_selection_reason</code>, <code>selected_backend</code>, and per-backend diagnostic
+details. Each backend detail distinguishes advertised <code>capabilities</code> from
+callable internal <code>operations</code>. Native automatic eligibility requires a compatible backend
+contract, the complete tensor/algorithm capability set, all runtime
+components, and a passing cached self-test. The legacy fields are retained
+throughout the 0.3 compatibility cycle.</p>
     </div>
 
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="fu">cuda_diagnostics</span><span class="op">(</span><span class="op">)</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> &lt;cuda_diagnostics available=FALSE devices=0 torch=0.17.0 reason=backend_error&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> &lt;cuda_diagnostics available=FALSE devices=NA selected=base torch=0.17.0 reason=backend_error&gt;</span>
 </code></pre></div>
     </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

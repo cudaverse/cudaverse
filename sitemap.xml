@@ -1,10 +1,11 @@
 <urlset xmlns = 'http://www.sitemaps.org/schemas/sitemap/0.9'>
 <url><loc>https://cudaverse.github.io/cudaverse/404.html</loc></url>
-<url><loc>https://cudaverse.github.io/cudaverse/CRAN-RELEASE.html</loc></url>
+<url><loc>https://cudaverse.github.io/cudaverse/CUDAVERSE-0.3-ROADMAP.html</loc></url>
 <url><loc>https://cudaverse.github.io/cudaverse/LICENSE-text.html</loc></url>
-<url><loc>https://cudaverse.github.io/cudaverse/NATIVE-CUDA-ROADMAP.html</loc></url>
 <url><loc>https://cudaverse.github.io/cudaverse/articles/backend-provenance.html</loc></url>
+<url><loc>https://cudaverse.github.io/cudaverse/articles/backend-support.html</loc></url>
 <url><loc>https://cudaverse.github.io/cudaverse/articles/getting-started.html</loc></url>
+<url><loc>https://cudaverse.github.io/cudaverse/articles/gpu-setup.html</loc></url>
 <url><loc>https://cudaverse.github.io/cudaverse/articles/index.html</loc></url>
 <url><loc>https://cudaverse.github.io/cudaverse/authors.html</loc></url>
 <url><loc>https://cudaverse.github.io/cudaverse/index.html</loc></url>
@@ -31,6 +32,7 @@
 <url><loc>https://cudaverse.github.io/cudaverse/reference/cuda_umap.html</loc></url>
 <url><loc>https://cudaverse.github.io/cudaverse/reference/cudatensor-operators.html</loc></url>
 <url><loc>https://cudaverse.github.io/cudaverse/reference/cudatensor-subset.html</loc></url>
+<url><loc>https://cudaverse.github.io/cudaverse/reference/cudaverse-package.html</loc></url>
 <url><loc>https://cudaverse.github.io/cudaverse/reference/dimnames.cudasparse.html</loc></url>
 <url><loc>https://cudaverse.github.io/cudaverse/reference/dimnames.cudatensor.html</loc></url>
 <url><loc>https://cudaverse.github.io/cudaverse/reference/embedding_coordinates.html</loc></url>
@@ -40,7 +42,9 @@
 <url><loc>https://cudaverse.github.io/cudaverse/reference/sparse_info.html</loc></url>
 <url><loc>https://cudaverse.github.io/cudaverse/reference/sparse_matmul_dense.html</loc></url>
 <url><loc>https://cudaverse.github.io/cudaverse/reference/sparse_matvec.html</loc></url>
+<url><loc>https://cudaverse.github.io/cudaverse/reference/sparse_normalize.html</loc></url>
 <url><loc>https://cudaverse.github.io/cudaverse/reference/sparse_row_sums.html</loc></url>
+<url><loc>https://cudaverse.github.io/cudaverse/reference/t.cudasparse.html</loc></url>
 <url><loc>https://cudaverse.github.io/cudaverse/reference/tensor_broadcast_to.html</loc></url>
 <url><loc>https://cudaverse.github.io/cudaverse/reference/tensor_device.html</loc></url>
 <url><loc>https://cudaverse.github.io/cudaverse/reference/tensor_matmul.html</loc></url>

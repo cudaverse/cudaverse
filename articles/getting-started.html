@@ -20,7 +20,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">cudaverse</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.0.9000</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -33,8 +33,10 @@
 <li class="active nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
-<li><a class="dropdown-item" href="../articles/backend-provenance.html">Backend selection and compute provenance</a></li>
-    <li><a class="dropdown-item" href="../articles/getting-started.html">Getting started with cudaverse</a></li>
+<li><a class="dropdown-item" href="../articles/getting-started.html">Getting started with cudaverse</a></li>
+    <li><a class="dropdown-item" href="../articles/gpu-setup.html">GPU setup and troubleshooting</a></li>
+    <li><a class="dropdown-item" href="../articles/backend-provenance.html">Backend selection and compute provenance</a></li>
+    <li><a class="dropdown-item" href="../articles/backend-support.html">Backend support and release boundaries</a></li>
   </ul>
 </li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
@@ -60,7 +62,7 @@
       <h1>Getting started with cudaverse</h1>
             
       
-      <small class="dont-index">Source: <a href="https://github.com/cudaverse/cudaverse/blob/main/vignettes/getting-started.Rmd" class="external-link"><code>vignettes/getting-started.Rmd</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/cudaverse/cudaverse/blob/develop/native-cuda/vignettes/getting-started.Rmd" class="external-link"><code>vignettes/getting-started.Rmd</code></a></small>
       <div class="d-none name"><code>getting-started.Rmd</code></div>
     </div>
 
@@ -105,11 +107,21 @@ performed each stage.</p>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; $compute_device</span></span>
 <span><span class="co">#&gt; [1] "cpu"</span></span></code></pre></div>
+<p>Sparse normalization keeps the zero pattern and composes with the
+same PCA and kNN entry points:</p>
+<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">counts</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">matrix</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">0</span>, <span class="fl">3</span>, <span class="fl">2</span>, <span class="fl">4</span>, <span class="fl">1</span>, <span class="fl">0</span>, <span class="fl">2</span>, <span class="fl">5</span>, <span class="fl">1</span>, <span class="fl">3</span>, <span class="fl">2</span><span class="op">)</span>, nrow <span class="op">=</span> <span class="fl">4</span><span class="op">)</span></span>
+<span><span class="va">sparse_counts</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cuda_sparse.html">cuda_sparse</a></span><span class="op">(</span><span class="va">counts</span>, device <span class="op">=</span> <span class="st">"cpu"</span><span class="op">)</span></span>
+<span><span class="va">normalized</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/sparse_normalize.html">sparse_normalize</a></span><span class="op">(</span></span>
+<span>  <span class="va">sparse_counts</span>, margin <span class="op">=</span> <span class="st">"rows"</span>, scale_factor <span class="op">=</span> <span class="fl">100</span>, log1p <span class="op">=</span> <span class="cn">TRUE</span></span>
+<span><span class="op">)</span></span>
+<span><span class="va">sparse_pca</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cuda_pca.html">cuda_pca</a></span><span class="op">(</span><span class="va">normalized</span>, n_components <span class="op">=</span> <span class="fl">2</span>, device <span class="op">=</span> <span class="st">"cpu"</span><span class="op">)</span></span>
+<span><span class="va">sparse_neighbors</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cuda_knn.html">cuda_knn</a></span><span class="op">(</span><span class="va">sparse_pca</span><span class="op">$</span><span class="va">x</span>, k <span class="op">=</span> <span class="fl">2</span>, device <span class="op">=</span> <span class="st">"cpu"</span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="algorithms-compose-directly">Algorithms compose directly<a class="anchor" aria-label="anchor" href="#algorithms-compose-directly"></a>
 </h2>
-<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">1</span><span class="op">)</span></span>
 <span><span class="va">x</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">matrix</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="fl">120</span><span class="op">)</span>, nrow <span class="op">=</span> <span class="fl">30</span><span class="op">)</span></span>
 <span></span>

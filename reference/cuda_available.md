@@ -1,7 +1,8 @@
 # Detect a usable CUDA backend
 
-Detection requires the optional `torch` package and a CUDA-enabled
-libtorch installation.
+Detection uses the built-in lightweight native backend or a CUDA-enabled
+installation of the optional `torch` package. NVIDIA libraries are
+loaded only when diagnostics or CUDA selection is requested.
 
 ## Usage
 
