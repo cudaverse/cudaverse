@@ -8,6 +8,14 @@ if (length(missing_packages)) {
     call. = FALSE
   )
 }
+sys.source(
+  file.path("tools", "benchmark-checkpoint-io.R"),
+  envir = environment()
+)
+sys.source(
+  file.path("tools", "benchmark-timing.R"),
+  envir = environment()
+)
 
 truthy <- function(name, default = "false") {
   tolower(Sys.getenv(name, unset = default)) %in% c("1", "true", "yes")
@@ -47,6 +55,14 @@ output <- Sys.getenv(
   unset = file.path(tempdir(), paste0("cudaverse-benchmark-", profile, ".json"))
 )
 dir.create(dirname(output), recursive = TRUE, showWarnings = FALSE)
+resume <- truthy("CUDAVERSE_BENCHMARK_RESUME")
+overwrite <- truthy("CUDAVERSE_BENCHMARK_OVERWRITE")
+if (resume && overwrite) {
+  stop(
+    "CUDAVERSE_BENCHMARK_RESUME and CUDAVERSE_BENCHMARK_OVERWRITE cannot ",
+    "both be true.", call. = FALSE
+  )
+}
 
 elapsed <- function() as.numeric(Sys.time())
 summary_times <- function(values) {
@@ -276,30 +292,6 @@ make_sparse <- function(case) {
   )), "dgCMatrix")
 }
 
-time_runs <- function(cold_run, timed_run, warmups, timed_runs) {
-  cold_start <- elapsed()
-  cold_value <- cold_run()
-  cold_seconds <- elapsed() - cold_start
-  cold_value <- NULL
-  invisible(gc(FALSE))
-  for (index in seq_len(warmups)) {
-    warm_value <- timed_run()
-    warm_value <- NULL
-    invisible(gc(FALSE))
-  }
-  values <- numeric(timed_runs)
-  last <- NULL
-  for (index in seq_len(timed_runs)) {
-    start <- elapsed()
-    value <- timed_run()
-    values[[index]] <- elapsed() - start
-    if (index == timed_runs) last <- value
-    value <- NULL
-    if (index != timed_runs) invisible(gc(FALSE))
-  }
-  list(cold_seconds = cold_seconds, warm = summary_times(values), last = last)
-}
-
 matmul_case <- function(case, backend, source) {
   left <- source$left
   right <- source$right
@@ -325,11 +317,13 @@ matmul_case <- function(case, backend, source) {
       result
     }
 
-    host_timing <- time_runs(
-      host_run, host_run, case$warmups, case$timed_runs
+    host_timing <- benchmark_time_runs(
+      host_run, host_run, case$warmups, case$timed_runs,
+      summarize = summary_times
     )
-    resident_timing <- time_runs(
-      resident_run, resident_run, case$warmups, case$timed_runs
+    resident_timing <- benchmark_time_runs(
+      resident_run, resident_run, case$warmups, case$timed_runs,
+      summarize = summary_times
     )
     actual <- host_timing$last$host
     scale <- max(1, max(abs(reference)))
@@ -497,11 +491,14 @@ pipeline_case <- function(case, backend, source, reference) {
     excluded_run <- function() pipeline_once(
       case, backend, source, preloaded = preloaded
     )
-    included <- time_runs(
-      included_run, included_run, case$warmups, case$timed_runs
+    included <- benchmark_time_runs(
+      included_run, included_run, case$warmups, case$timed_runs,
+      summarize = summary_times,
+      collect = function(result) result$seconds
     )
-    excluded <- if (is.null(preloaded)) NULL else time_runs(
-      excluded_run, excluded_run, case$warmups, case$timed_runs
+    excluded <- if (is.null(preloaded)) NULL else benchmark_time_runs(
+      excluded_run, excluded_run, case$warmups, case$timed_runs,
+      summarize = summary_times
     )
     value <- included$last$value
     validation <- if (is.null(reference)) {
@@ -515,19 +512,16 @@ pipeline_case <- function(case, backend, source, reference) {
       normalized = if (is.null(value$normalized)) NULL else
         provenance_payload(value$normalized)
     )
-    measurements <- do.call(rbind, lapply(seq_len(case$timed_runs), function(i) {
-      # Stage distributions come from a dedicated synchronized pass so every
-      # reported stage and the full boundary share one observation.
-      timed <- included_run()
-      seconds <- timed$seconds
-      timed$value <- NULL
-      seconds
-    }))
+    # Stage distributions are collected from the same synchronized timed runs
+    # as the host-boundary distribution. This keeps every stage and its full
+    # pipeline in one observation without executing the workload a second time.
+    measurements <- do.call(rbind, included$observations)
     stage_times <- lapply(seq_len(ncol(measurements)), function(index) {
       summary_times(measurements[, index])
     })
     names(stage_times) <- colnames(measurements)
     memory <- measure_memory(backend, included_run)
+    included$observations <- NULL
     included$last <- NULL
     if (!is.null(excluded)) excluded$last <- NULL
     preloaded <- NULL
@@ -578,7 +572,7 @@ pipeline_case <- function(case, backend, source, reference) {
   })
 }
 
-report <- list(
+expected_report <- list(
   schema = "cudaverse-benchmark/1",
   generated_at_utc = format(Sys.time(), tz = "UTC", usetz = TRUE),
   profile = profile,
@@ -596,6 +590,14 @@ report <- list(
     backends = backends,
     cases = cases,
     timing_clock = "wall clock with backend synchronization",
+    stage_sampling = paste(
+      "pipeline stages are collected from the same synchronized timed",
+      "host-boundary runs"
+    ),
+    memory_sampling = paste(
+      "one separate instrumented execution after timing; allocator tracking",
+      "is excluded from retained timing samples"
+    ),
     cold_runtime_diagnostics_seconds = diagnostics_cold_seconds,
     cold_scope = paste(
       "Cold case time is the first workload execution after package loading",
@@ -623,12 +625,52 @@ report <- list(
   complete = FALSE
 )
 
+previous_output <- benchmark_checkpoint_previous(output)
+if (resume) {
+  if (!benchmark_checkpoint_valid(output)) {
+    recover_benchmark_checkpoint(output)
+  }
+  report <- jsonlite::read_json(output, simplifyVector = FALSE)
+  validate_benchmark_resume(report, expected_report)
+  reusable_cases <- names(report$cases)[vapply(
+    report$cases,
+    benchmark_checkpoint_case_complete,
+    logical(1L),
+    backends = backends
+  )]
+  report$complete <- FALSE
+  history <- report$contract$resume_history
+  if (is.null(history)) history <- list()
+  history[[length(history) + 1L]] <- list(
+    resumed_at_utc = format(Sys.time(), tz = "UTC", usetz = TRUE),
+    reused_complete_cases = unname(reusable_cases)
+  )
+  report$contract$resume_history <- history
+  message(
+    "Validated benchmark resume; reusing ", length(reusable_cases),
+    " complete case(s)."
+  )
+} else {
+  existing_paths <- c(output, previous_output)[file.exists(c(output, previous_output))]
+  if (length(existing_paths) && !overwrite) {
+    stop(
+      "Benchmark output already exists. Set CUDAVERSE_BENCHMARK_RESUME=true ",
+      "for a validated resume or CUDAVERSE_BENCHMARK_OVERWRITE=true to ",
+      "replace it.", call. = FALSE
+    )
+  }
+  if (overwrite && length(existing_paths)) {
+    failed <- vapply(existing_paths, unlink, integer(1L), force = TRUE)
+    if (any(failed != 0L)) {
+      stop("Could not remove existing benchmark output.", call. = FALSE)
+    }
+  }
+  report <- expected_report
+}
+
 write_report <- function() {
   report$generated_at_utc <<- format(Sys.time(), tz = "UTC", usetz = TRUE)
-  jsonlite::write_json(
-    report, output, auto_unbox = TRUE, pretty = TRUE, digits = 16,
-    null = "null", na = "null"
-  )
+  write_benchmark_checkpoint(report, output)
 }
 
 for (row in seq_len(nrow(cases))) {
@@ -641,6 +683,12 @@ for (row in seq_len(nrow(cases))) {
   case$components <- if (is.na(case$components)) NA_integer_ else
     as.integer(case$components)
   message("Running benchmark case ", case$case_id)
+  if (resume && benchmark_checkpoint_case_complete(
+    report$cases[[case$case_id]], backends
+  )) {
+    message("  reusing complete checkpoint")
+    next
+  }
   report$cases[[case$case_id]] <- list(
     definition = case,
     backends = list()
@@ -679,4 +727,5 @@ for (row in seq_len(nrow(cases))) {
 
 report$complete <- TRUE
 write_report()
+finalize_benchmark_checkpoint(output)
 message("Benchmark report complete: ", normalizePath(output, winslash = "/"))

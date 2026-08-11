@@ -32,6 +32,18 @@ jobs:
         run: Rscript tools/check-capability-matrix.R
       - name: Validate the 0.3 benchmark definition
         run: Rscript tools/check-benchmark-definition.R
+      - name: Validate benchmark-summary generation and rejection gates
+        run: Rscript tools/test-benchmark-summary.R
+      - name: Validate benchmark report integrity and rejection gates
+        run: Rscript tools/test-benchmark-report.R
+      - name: Validate benchmark checkpoint recovery
+        run: Rscript tools/test-benchmark-checkpoint-io.R
+      - name: Validate benchmark timing collection
+        run: Rscript tools/test-benchmark-timing.R
+      - name: Validate final RTX candidate report composition
+        run: Rscript tools/test-native-candidate-report.R
+      - name: Validate exact-candidate evidence rejection gates
+        run: Rscript tools/test-candidate-evidence.R
 
   cuda-12-8-1-abi:
     runs-on: ubuntu-latest
@@ -94,6 +106,21 @@ jobs:
         shell: Rscript {0}
         run: |
           install.packages(c("Matrix", "digest", "jsonlite"))
+      - name: Validate recoverable benchmark checkpoints
+        shell: Rscript {0}
+        run: source(file.path("tools", "test-benchmark-checkpoint-io.R"))
+      - name: Validate benchmark report integrity
+        shell: Rscript {0}
+        run: source(file.path("tools", "test-benchmark-report.R"))
+      - name: Validate benchmark timing collection
+        shell: Rscript {0}
+        run: source(file.path("tools", "test-benchmark-timing.R"))
+      - name: Validate final RTX candidate report composition
+        shell: Rscript {0}
+        run: source(file.path("tools", "test-native-candidate-report.R"))
+      - name: Validate exact candidate evidence assembly
+        shell: Rscript {0}
+        run: source(file.path("tools", "test-candidate-evidence.R"))
       - name: Verify source payload before packaging
         shell: Rscript {0}
         run: |

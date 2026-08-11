@@ -1,4 +1,4 @@
-# Internal cudaverse 0.3 checkpoint log
+# cudaverse 0.3 checkpoint log
 
 ## Baseline audit
 
@@ -164,11 +164,13 @@ Deferred beyond CP-03:
   guarantee that device storage and public COO order stay aligned; a parallel
   stable scatter is benchmark-driven follow-up work, not a release claim;
 - float32 sparse storage remains evidence-gated and is not introduced here.
+  The 0.3 decision and quantitative re-entry gates are retained in
+  `.github/internal/CUDAVERSE-0.3-SPARSE-FLOAT32-DECISION.md`.
 
 ## CP-04: executable public-backend conformance
 
-Status: implementation and local validation complete on
-`agent/backend-conformance`; PR 19 is ready for final exact-head CI.
+Status: completed and merged as PR 19 into `develop/native-cuda` at
+`60d04ae0cf98525f8f596f4c406cef5af4a10e27`.
 
 Scope:
 
@@ -209,8 +211,8 @@ Deferred beyond CP-04:
 
 ## CP-05: reproducible benchmark contract
 
-Status: implementation and smoke validation complete on
-`agent/benchmark-contract`; PR 20 is ready for final exact-head CI.
+Status: completed and merged as PR 20 into `develop/native-cuda` at
+`acd105fe8ef0ed8703e9e16f9ca4ce68a0d3db7d`.
 
 Scope:
 
@@ -253,9 +255,117 @@ Deferred beyond CP-05:
 - workload interpretation, regression investigation, and the final
   release/defer/reduce-scope decision require the clean full report.
 
+## CP-06: retained full benchmark evidence
+
+Status: complete on `agent/full-benchmark-evidence`. The retained benchmark
+uses exact clean source commit
+`42d6ab4c02c4ab20b807fe858043e8edb203e626`; the evidence-bearing commit
+`15a909671194a1feb84c2f07632330573c09a47f` passed every required
+post-evidence pull-request check.
+
+Scope:
+
+- execute every full-profile matmul and dense/sparse PCA-kNN case for base,
+  native, and torch on the RTX 2000 development machine;
+- retain the complete machine-readable `cudaverse-benchmark/1` report and a
+  reproducibly generated human-readable summary tied to the same source
+  commit;
+- report cold and warm host-boundary timing, resident timing where separable,
+  stage timing, peak-memory provenance, installed footprint, and numerical
+  validation without making a universal GPU speed claim;
+- investigate workload-specific regressions and record whether the evidence
+  supports release, deferral, or a reduced benchmark/release scope;
+- maintain a candidate completion audit that maps every long-term requirement
+  to exact evidence and does not infer final completion from checkpoint tests;
+- stage and parse every report update, retain the previous valid checkpoint
+  during multi-hour execution, self-test interrupted-write recovery, and remove
+  the recovery copy only after a complete report is installed;
+- permit explicit resume only when the clean source, software, GPU, profile,
+  backend order, and ordered case contract match exactly; reuse only complete,
+  passing whole cases and rerun every incomplete case from its base reference;
+- collect synchronized pipeline stages from the same ten retained timed runs,
+  avoiding an unreported duplicate ten-run pass while preserving all five
+  warmups, ten observations, distinct sparse resident timing, and separately
+  instrumented peak-memory execution;
+- define and self-test a `cudaverse-candidate-evidence/1` manifest checker that
+  rejects mixed source commits, failed or skipped required checks, lifecycle
+  leaks, bundled runtimes, unchecked benchmarks, unauthorized deployment,
+  evidence outside the retained bundle, and missing or SHA-mismatched files.
+- require the benchmark checker to recompute median/p95 from every retained
+  run, match every embedded case definition to `contract.csv`, require the
+  ordered base/native/torch matrix for full reports, and reject non-finite
+  timings, invalid memory values, or retained native allocations;
+- compose the final `cudaverse-native-candidate/1` RTX report only from a
+  passing consolidation report and a complete no-skip package test report
+  that identify the same clean commit, package version, RTX 2000, and R
+  runtime, retaining and checking both input SHA-256 values.
+
+Required evidence before merge:
+
+- [x] full float32/float64 matmul at 256, 1024, and 4096 completes for all
+  three backends with numerical parity;
+- [x] dense PCA-kNN at 1,000 x 50, 10,000 x 100, and 50,000 x 128 completes
+  for all three backends with projector/reconstruction and exact-index parity;
+- [x] sparse PCA-kNN at the same three dimensions completes for all three
+  backends with normalization, projector/reconstruction, and exact-index
+  parity;
+- [x] `tools/check-benchmark-report.R` accepts the final complete report;
+- [x] benchmark-report integrity and rejection self-tests cover backend,
+  contract-definition, raw-run/summary, finite timing, peak-memory, and native
+  post-cleanup allocation tampering on Windows/Linux CI;
+- [x] the retained summary is generated from that exact report and records
+  the report SHA-256;
+- [x] observed regressions and workload-specific conclusions are reviewed and
+  documented;
+- [x] final RTX report composition and candidate-manifest self-tests reject
+  mismatched commits, versions, GPUs, R runtimes, input hashes, skipped package
+  tests, failed lifecycle gates, and altered retained evidence;
+- [x] float32 sparse storage is explicitly evidence-deferred, with the current
+  float64 implementation evidence and quantitative re-entry gates retained in
+  `.github/internal/CUDAVERSE-0.3-SPARSE-FLOAT32-DECISION.md`;
+- [x] a rebuilt source tarball passes local Windows R 4.6.0
+  `R CMD check --as-cran --no-manual` with 0 errors, 0 warnings, and only the
+  expected development-version note; the linked-worktree `.git` file is
+  explicitly excluded and absent from the rebuilt tarball;
+- [x] all required GitHub checks pass on the post-evidence branch head:
+  R-CMD-check run `31460126778`, pkgdown run `31460126761`, integration run
+  `31460127050`, and native-integrity run `31460126767`. The draft-only
+  Pages deploy and non-RTX hardware job skipped as designed.
+
+Retained evidence and interpretation:
+
+- `inst/reports/benchmarks/CP06-FULL.json` is the complete clean-source report
+  for 12 cases and 36 ordered base/native/torch results. Its SHA-256 is
+  `9363aba0c4f5af0ee7ef84648bc2d6bec2177c7deccfd445454f9f7bdda43e93`;
+  every result is complete and passes its numerical validation.
+- `inst/reports/benchmarks/CP06-FULL.md` is generated from that exact JSON and
+  records the same digest. The report and summary checker success logs are
+  retained beside both files; Git line-ending conversion is disabled for the
+  four exact evidence files.
+- On this one RTX 2000 Ada system, native has the lowest host-boundary median
+  for every pipeline and for all matmul cases except 256 x 256 float64. The
+  measured 50,000 x 128 native medians are 2.918 seconds dense and 4.901
+  seconds sparse, versus 222.208/306.206 seconds for base and
+  173.605/156.882 seconds for torch. These are descriptive ten-run sample
+  medians from one machine, not universal speed claims.
+- The evidence retains two important counterexamples: base is 1.60x faster
+  than native at the 256 x 256 float64 host boundary, and torch is 2.88x
+  faster than native for resident 4096 x 4096 float32 matmul. Resident
+  float64 matmul at 4096 is effectively tied. These remain optimization
+  targets rather than being hidden by end-to-end ratios.
+- Native peak allocator use is 440.97 MiB for dense 50,000 x 128 and
+  444.41 MiB for sparse 50,000 x 128, with zero tracked post-cleanup bytes.
+  The installed package is 1,125,384 bytes, bundles no CUDA runtime, and the
+  optional torch installation measured 7,367,799,444 bytes.
+- CP-06 therefore supports retaining native as the preferred automatic CUDA
+  backend and keeping torch as a compatibility backend. It does not support a
+  benchmark-driven reduction of the dense/sparse 0.3 scope, removal of torch,
+  or a universal performance claim.
+
 ## CP-07: 0.3 public documentation alignment
 
-Status: in progress on `agent/align-03-docs`.
+Status: post-benchmark local package and rendered-site gates complete on
+`agent/align-03-docs`; exact-head pull-request checks remain before merge.
 
 Scope:
 
@@ -282,6 +392,10 @@ Required evidence before merge:
   transfer/memory boundaries, and reproducible problem reports;
 - [x] SBOM, redistribution, exported-capability, and Markdown structure checks
   pass locally;
-- [ ] roxygen/reference generation, vignettes, and a complete local source
-  package check pass;
+- [x] roxygen/reference regeneration is clean; a rebuilt 0.3.0.9000 source
+  package passes examples, tests, vignettes, vignette rebuilding, and all
+  package checks with 0 errors, 0 warnings, and one pre-release NOTE. The NOTE
+  records the development/new-submission version and the two intended pkgdown
+  article URLs that cannot resolve until Pages deployment is separately
+  authorized;
 - [ ] pkgdown and all required GitHub checks pass on the exact PR source.
