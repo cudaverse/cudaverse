@@ -364,8 +364,8 @@ Retained evidence and interpretation:
 
 ## CP-07: 0.3 public documentation alignment
 
-Status: post-benchmark local package and rendered-site gates complete on
-`agent/align-03-docs`; exact-head pull-request checks remain before merge.
+Status: complete on `agent/align-03-docs`. Post-benchmark local package,
+rendered-site, and exact-head pull-request gates all pass.
 
 Scope:
 
@@ -398,4 +398,8 @@ Required evidence before merge:
   records the development/new-submission version and the two intended pkgdown
   article URLs that cannot resolve until Pages deployment is separately
   authorized;
-- [ ] pkgdown and all required GitHub checks pass on the exact PR source.
+- [x] pkgdown and all required GitHub checks pass on synchronized commit
+  `a6658f118caa98986a46cf5d55c23bd83fd2eb01`: R-CMD-check run
+  `31461001624`, pkgdown run `31461001629`, integration run `31461001877`,
+  and native-integrity run `31461001635`. The draft-only Pages deploy and
+  non-RTX hardware job skipped as designed.
