@@ -40,6 +40,7 @@ source_state <- function(path = ".") {
 }
 
 source <- source_state(".")
+backend_options_before <- options("cudaverse.cuda_backends")
 test_error <- NULL
 results <- tryCatch(
   testthat::test_local(
@@ -50,6 +51,12 @@ results <- tryCatch(
     test_error <<- conditionMessage(error)
     NULL
   }
+)
+backend_option_after_tests <- getOption("cudaverse.cuda_backends", NULL)
+options(backend_options_before)
+backend_option_restored <- identical(
+  getOption("cudaverse.cuda_backends", NULL),
+  backend_options_before[["cudaverse.cuda_backends"]]
 )
 diagnostics <- if (is.null(results)) {
   simpleError("Package source did not load.")
@@ -107,14 +114,34 @@ report <- list(
   software = list(
     R = R.version.string,
     cudaverse = unname(read.dcf("DESCRIPTION", fields = "Version")[[1L]]),
-    native_diagnostics = native
+    native_diagnostics = native,
+    backend_selection = if (inherits(diagnostics, "error")) {
+      list(error = conditionMessage(diagnostics))
+    } else {
+      list(
+        available_backends = diagnostics$available_backends,
+        auto_eligible_backends = diagnostics$auto_eligible_backends,
+        selected_backend = diagnostics$selected_backend,
+        auto_selection_reason = diagnostics$auto_selection_reason
+      )
+    },
+    runner_state = list(
+      backend_option_before = backend_options_before[[
+        "cudaverse.cuda_backends"
+      ]],
+      backend_option_after_tests = backend_option_after_tests,
+      backend_option_restored = backend_option_restored
+    )
   ),
   testthat = c(counts, list(
     native_ready = native_ready,
+    backend_option_restored = backend_option_restored,
     runner_error = test_error,
-    passed = passed && native_ready && !source$tracked_dirty
+    passed = passed && native_ready && backend_option_restored &&
+      !source$tracked_dirty
   )),
-  overall_pass = passed && native_ready && !source$tracked_dirty
+  overall_pass = passed && native_ready && backend_option_restored &&
+    !source$tracked_dirty
 )
 dir.create(dirname(output), recursive = TRUE, showWarnings = FALSE)
 jsonlite::write_json(
