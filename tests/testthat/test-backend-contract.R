@@ -784,3 +784,48 @@ test_that("sparse transpose dispatches by backend operation", {
   expect_equal(as.matrix(to_dgCMatrix(result)), t(source))
   expect_identical(result$compute_stages$sparse_transpose$device, "cuda")
 })
+
+test_that("sparse normalization accepts storage-only backend results", {
+  calls <- new.env(parent = emptyenv())
+  calls$normalize <- 0L
+  factory <- cudaverse:::.base_backend_factory()
+  factory$name <- "sparse-normalize-contract"
+  factory$device <- "cuda"
+  factory$sparse_normalize <- function(storage, margin, scale_factor, log1p) {
+    calls$normalize <- calls$normalize + 1L
+    expect_identical(storage, list(marker = "source"))
+    expect_identical(margin, 0L)
+    expect_identical(scale_factor, 10)
+    expect_true(log1p)
+    list(storage = list(marker = "normalized"))
+  }
+  cudaverse:::.backend_register(factory, replace = TRUE)
+  on.exit(
+    rm(
+      list = "sparse-normalize-contract",
+      envir = cudaverse:::.cudaverse_backends
+    ),
+    add = TRUE
+  )
+
+  source <- matrix(c(1, 3, 0, 2, 4, 0), nrow = 2L)
+  sparse <- cuda_sparse(source, device = "cpu")
+  sparse$device <- "cuda"
+  sparse$backend <- "sparse-normalize-contract"
+  sparse$backend_id <- "sparse-normalize-contract"
+  sparse$storage <- list(marker = "source")
+  result <- sparse_normalize(
+    sparse, margin = "rows", scale_factor = 10, log1p = TRUE
+  )
+  expected <- log1p(source * 10 / rowSums(source))
+
+  expect_identical(calls$normalize, 1L)
+  expect_identical(result$storage, list(marker = "normalized"))
+  expect_equal(as.matrix(to_dgCMatrix(result)), expected, tolerance = 1e-12)
+  expect_equal(
+    result$values,
+    log1p(sparse$values * 10 / rowSums(source)[sparse$i]),
+    tolerance = 1e-12
+  )
+  expect_identical(result$compute_stages$normalization$device, "cuda")
+})

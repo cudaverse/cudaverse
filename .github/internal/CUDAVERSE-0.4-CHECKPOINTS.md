@@ -570,3 +570,69 @@ Remote evidence at the implementation commit:
 - supply-chain and repository workflow-boundary checks pass;
 - Linux and Windows no-CUDA artifact builds pass; and
 - CUDA 12.8.1 ABI and regenerated PTX reproducibility checks pass.
+
+## CP-04A: resident sparse normalization output
+
+Status: complete at implementation commit
+`25e9e3a2ac9c781d7be64a43bd98c45682ef10f4`; the checkpoint-record-only
+follow-up must pass the same PR gates before merge.
+
+Review:
+
+- draft PR: <https://github.com/cudaverse/cudaverse/pull/36>;
+- target: `develop/0.4` (not `main`);
+- no tag, release, CRAN submission, or Pages deployment; and
+- GitHub Pages deploy job skipped as required.
+
+Scope:
+
+- retain native sparse-normalization storage on CUDA without downloading the
+  complete margin-sum or normalized-value vectors;
+- validate positive finite margin sums on the device and return only one
+  small status flag;
+- update the required public host COO value mirror from metadata already held
+  by the `cudasparse` object, without constructing a temporary Matrix object;
+- preserve public values, errors, dimnames, provenance, and downstream native
+  sparse PCA/kNN behavior; and
+- leave CPU, torch, and third-party backend contracts compatible.
+
+Required gate:
+
+- row and column normalization parity, including `log1p`, remains within the
+  float64 tolerance;
+- a backend may return only resident sparse `storage` while the public host
+  mirror remains correct;
+- an empty or invalid margin retains its structured public error and leaves
+  the native backend reusable;
+- 1,000 resident normalization cycles return to the exact tracked-memory
+  baseline and stay within the 1 MiB whole-device gate; and
+- ordinary, RTX, no-CUDA, cross-platform, source, supply-chain, and
+  documentation gates stay green.
+
+Local evidence:
+
+- the complete ordinary suite and complete explicitly enabled RTX 2000 suite
+  pass;
+- the storage-only backend contract and native row-normalization parity pass,
+  including the existing public COO value mirror;
+- native normalization continues directly into resident sparse PCA and exact
+  stable kNN with established provenance;
+- empty-margin validation returns a structured `cudaverse_native_error` and
+  the backend remains reusable;
+- 1,000 resident normalization cycles return to the exact tracked-memory
+  baseline and satisfy the 1 MiB whole-device gate;
+- source PTX rebuilt under CUDA 12.8.1 has SHA-256
+  `839666346300D40E761B6A01608BE77806ED1D63CE36C9001BA6BA5EF5A6215F`;
+- exact full-vignette source tarball SHA-256 is
+  `FE7C1D97E1AFEB2FD4DAA60A384EE7C66D0C9D29B7D0789F1F96BD21FE7F8EF9`;
+- Windows `R CMD check --as-cran --no-manual` reports 0 errors, 0 warnings,
+  and only the expected development-version incoming NOTE; and
+- capability, redistribution, SBOM, release-boundary, benchmark, candidate,
+  rejection, pkgdown, and public-documentation gates pass without deployment.
+
+Remote evidence at the implementation commit:
+
+- CPU integration passes;
+- supply-chain and repository workflow-boundary checks pass;
+- Linux and Windows no-CUDA artifact builds pass; and
+- CUDA 12.8.1 ABI and regenerated PTX reproducibility checks pass.

@@ -27,6 +27,10 @@ A \code{cudasparse} matrix on the same device as \code{x}.
 Each selected row or column is divided by its sum and multiplied by
 \code{scale_factor}. Optionally, \code{log1p()} is applied to stored non-zero values.
 The operation preserves sparse structure and dimension labels.
+The native CUDA backend retains normalized storage on the device and updates
+the public host COO mirror from metadata already held by the object. It does
+not download the normalized values or the complete margin-sum vector; only
+a small device-validation flag crosses back before the result is returned.
 }
 \examples{
 x <- cuda_sparse(matrix(c(1, 0, 3, 2), 2), device = "cpu")

@@ -679,6 +679,15 @@ extern "C" __global__ void cudaverse_sparse_col_sums_f64(
   if (position < nnz) atomicAdd(output + col_index[position], values[position]);
 }
 
+extern "C" __global__ void cudaverse_validate_positive_finite_f64(
+    const double* input, int* invalid, unsigned long long elements) {
+  unsigned long long index = blockIdx.x * blockDim.x + threadIdx.x;
+  if (index < elements &&
+      (!isfinite(input[index]) || input[index] <= 0.0)) {
+    atomicExch(invalid, 1);
+  }
+}
+
 extern "C" __global__ void cudaverse_sparse_transpose_count_i32(
     const int* col_index, int* counts, int nnz) {
   int position = blockIdx.x * blockDim.x + threadIdx.x;
