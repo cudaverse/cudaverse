@@ -172,6 +172,21 @@ the [backend support article](backend-support.html) lists those boundaries.
 
 ## Memory and transfer guidance
 
+Inspect memory without retaining a user tensor:
+
+```{r memory-info}
+memory <- cuda_memory_info("auto")
+memory
+```
+
+The native report distinguishes whole-device `total_bytes`, `free_bytes`, and
+`used_bytes` from cudaverse-owned `allocated_bytes` and
+`allocated_peak_bytes`. The torch compatibility report exposes its allocator's
+allocated and reserved counters. Unsupported counters stay `NA`; they are not
+guessed from another backend's allocator. On the first CUDA selection in a
+session, native peak bytes can include the released temporary allocations from
+the runtime self-test.
+
 - Exact `cuda_knn()` is quadratic in time. `batch_size` bounds the resident
   distance block; lower it when memory is constrained.
 - `cuda_distance()` intentionally returns the complete dense pairwise matrix.
@@ -225,6 +240,7 @@ diagnostics <- cudaverse::cuda_diagnostics()
 diagnostics$selected_backend
 diagnostics$auto_selection_reason
 diagnostics$backend_diagnostics
+cudaverse::cuda_memory_info("auto")
 cudaverse::cuda_provenance(result)
 ```
 

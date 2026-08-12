@@ -326,6 +326,7 @@
     "sparse-knn",
     "synchronize",
     "shared-ownership",
+    "memory-observability",
     "dtype-float32",
     "dtype-float64",
     "runtime-self-test"
@@ -867,6 +868,7 @@
     algorithm_sparse_knn_prepare = .native_sparse_knn_prepare,
     algorithm_knn_block = .native_knn_block_compat,
     algorithm_knn_select = .native_knn_select,
+    memory_info = .native_backend_memory_info,
     synchronize = .native_synchronize,
     release = .native_release,
     test_inject_cuda_error = .native_test_inject_cuda_error,
@@ -880,6 +882,22 @@
 
 .native_memory_tracker <- function(reset = FALSE) {
   .Call(C_cudaverse_cuda_memory_tracker, reset)
+}
+
+.native_backend_memory_info <- function() {
+  physical <- .native_memory_info()
+  tracked <- .native_memory_tracker()
+  list(
+    available = TRUE,
+    total_bytes = as.numeric(physical$total),
+    free_bytes = as.numeric(physical$free),
+    used_bytes = as.numeric(physical$used),
+    allocated_bytes = as.numeric(tracked$current),
+    allocated_peak_bytes = as.numeric(tracked$peak),
+    reserved_bytes = NA_real_,
+    reserved_peak_bytes = NA_real_,
+    reason = "native_driver_reported"
+  )
 }
 
 .native_test_inject_cuda_error <- function(bytes = 4096L) {

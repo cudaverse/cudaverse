@@ -174,6 +174,20 @@
   }
 }
 
+.backend_empty_memory_info <- function(reason) {
+  list(
+    available = FALSE,
+    total_bytes = NA_real_,
+    free_bytes = NA_real_,
+    used_bytes = NA_real_,
+    allocated_bytes = NA_real_,
+    allocated_peak_bytes = NA_real_,
+    reserved_bytes = NA_real_,
+    reserved_peak_bytes = NA_real_,
+    reason = reason
+  )
+}
+
 .base_backend_factory <- function() {
   list(
     name = "base",
@@ -321,9 +335,27 @@
         1 - tcrossprod(values[rows, , drop = FALSE], values)
       }
     },
+    memory_info = function() .backend_empty_memory_info(
+      "cpu_backend_selected"
+    ),
     synchronize = function() invisible(TRUE),
     release = function(storage) invisible(TRUE),
     error_translate = .backend_default_error_translate("base")
+  )
+}
+
+.torch_memory_info <- function() {
+  stats <- torch::cuda_memory_stats()
+  list(
+    available = TRUE,
+    total_bytes = NA_real_,
+    free_bytes = NA_real_,
+    used_bytes = NA_real_,
+    allocated_bytes = as.numeric(stats$allocated_bytes$all$current),
+    allocated_peak_bytes = as.numeric(stats$allocated_bytes$all$peak),
+    reserved_bytes = as.numeric(stats$reserved_bytes$all$current),
+    reserved_peak_bytes = as.numeric(stats$reserved_bytes$all$peak),
+    reason = "torch_allocator_reported"
   )
 }
 
@@ -537,6 +569,7 @@
       }
       .torch_array(result)
     },
+    memory_info = .torch_memory_info,
     synchronize = function() {
       torch::cuda_synchronize()
       invisible(TRUE)
