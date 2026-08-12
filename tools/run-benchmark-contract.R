@@ -168,8 +168,10 @@ synchronize <- function(backend) {
   invisible(TRUE)
 }
 
-measure_memory <- function(backend, run) {
-  benchmark_measure_memory(
+measure_memory <- function(backend, run, progress = NULL) {
+  if (!is.null(progress)) progress("memory_started", 1L, 1L, NA_real_)
+  started <- elapsed()
+  result <- benchmark_measure_memory(
     backend,
     run,
     synchronize = synchronize,
@@ -184,6 +186,10 @@ measure_memory <- function(backend, run) {
       invisible(TRUE)
     }
   )
+  if (!is.null(progress)) {
+    progress("memory_complete", 1L, 1L, elapsed() - started)
+  }
+  result
 }
 
 provenance_payload <- function(x) {
@@ -270,11 +276,17 @@ matmul_case <- function(case, backend, source) {
 
     host_timing <- benchmark_time_runs(
       host_run, host_run, case$warmups, case$timed_runs,
-      summarize = summary_times
+      summarize = summary_times,
+      progress = benchmark_progress_logger(
+        case$case_id, backend, "host_boundary"
+      )
     )
     resident_timing <- benchmark_time_runs(
       resident_run, resident_run, case$warmups, case$timed_runs,
-      summarize = summary_times
+      summarize = summary_times,
+      progress = benchmark_progress_logger(
+        case$case_id, backend, "resident_compute"
+      )
     )
     actual <- host_timing$last$host
     scale <- max(1, max(abs(reference)))
@@ -293,7 +305,10 @@ matmul_case <- function(case, backend, source) {
       passed = absolute <= tolerance$atol + tolerance$rtol * scale
     )
     provenance <- provenance_payload(resident_timing$last)
-    memory <- measure_memory(backend, host_run)
+    memory <- measure_memory(
+      backend, host_run,
+      progress = benchmark_progress_logger(case$case_id, backend, "memory")
+    )
     host_timing$last <- NULL
     resident_timing$last <- NULL
     rm(resident_x, resident_y)
@@ -445,11 +460,17 @@ pipeline_case <- function(case, backend, source, reference) {
     included <- benchmark_time_runs(
       included_run, included_run, case$warmups, case$timed_runs,
       summarize = summary_times,
-      collect = function(result) result$seconds
+      collect = function(result) result$seconds,
+      progress = benchmark_progress_logger(
+        case$case_id, backend, "host_boundary"
+      )
     )
     excluded <- if (is.null(preloaded)) NULL else benchmark_time_runs(
       excluded_run, excluded_run, case$warmups, case$timed_runs,
-      summarize = summary_times
+      summarize = summary_times,
+      progress = benchmark_progress_logger(
+        case$case_id, backend, "resident_continuation"
+      )
     )
     value <- included$last$value
     validation <- if (is.null(reference)) {
@@ -471,7 +492,10 @@ pipeline_case <- function(case, backend, source, reference) {
       summary_times(measurements[, index])
     })
     names(stage_times) <- colnames(measurements)
-    memory <- measure_memory(backend, included_run)
+    memory <- measure_memory(
+      backend, included_run,
+      progress = benchmark_progress_logger(case$case_id, backend, "memory")
+    )
     included$observations <- NULL
     included$last <- NULL
     if (!is.null(excluded)) excluded$last <- NULL

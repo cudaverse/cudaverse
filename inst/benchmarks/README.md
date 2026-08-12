@@ -48,6 +48,13 @@ from a dirty source tree fails validation. The report is raw machine evidence,
 not a universal speed claim; workload-specific interpretation belongs in the
 candidate benchmark assessment.
 
+The runner logs `started` and `complete` events for cold, every warmup, every
+timed run, and the separate memory pass within each case/backend/scope. Progress
+callbacks run outside retained timing intervals, so the logged completion
+duration does not include logging or garbage collection. These messages make a
+multi-hour backend observable but are not checkpoints or evidence: only a
+fully validated backend written to the JSON can be resumed or counted.
+
 After the complete report passes its machine-readable gate, generate and check
 the human-readable assessment from that exact file:
 

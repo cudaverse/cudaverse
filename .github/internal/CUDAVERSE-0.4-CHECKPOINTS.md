@@ -1135,3 +1135,50 @@ Evidence at the implementation commit:
 - integration run `31604757080` passes the CPU and identifier contract; and
 - native-integrity run `31604755982` passes supply chain, Windows/Linux
   artifacts, CUDA 12.8.1 ABI, and byte-reproducible PTX gates.
+
+## CP-10A: benchmark substage progress observability
+
+Status: complete at implementation commit
+`9c361fdaa33d73b7855e6794e6a0519a4e475c78`; this checkpoint-record-only
+follow-up must pass the same PR gates before merge.
+
+Review:
+
+- draft PR: <https://github.com/cudaverse/cudaverse/pull/46>;
+- target: `develop/0.4` (not `main`);
+- no tag, release, CRAN/Bioconductor submission, or Pages deployment; and
+- the change is restricted to maintainer benchmark execution and tests, with
+  no public R API, numerical, tolerance, report-schema, or resume-policy change.
+
+Scope:
+
+- log started and complete events for cold, every warmup, and every retained
+  timed run with exact case/backend/scope and run counts;
+- log the separate post-timing memory pass under the same identity;
+- invoke progress callbacks outside retained timing intervals;
+- report completed-run duration without including the callback or subsequent
+  garbage collection; and
+- document that progress messages are observability only and cannot be counted
+  or resumed as benchmark evidence.
+
+Required gate:
+
+- callback event order, index, total, duration, and rendered messages pass
+  exact self-tests;
+- timing values and collected stage observations remain unchanged;
+- benchmark checkpoint/recovery, report, summary, and memory rejection suites
+  remain green;
+- Windows, macOS, Ubuntu, R-devel, CPU, pkgdown, supply-chain, no-CUDA artifact,
+  ABI, and PTX checks pass; and
+- development PR deployment remains skipped.
+
+Evidence at the implementation commit:
+
+- timing/progress, checkpoint/recovery, report, summary, and memory tool tests
+  pass locally;
+- R-CMD-check run `31607054120` passes Windows, macOS, Ubuntu, and R-devel;
+- pkgdown run `31607054132` builds and validates the public boundary while its
+  deployment job is skipped;
+- integration run `31607054521` passes the CPU and identifier contract; and
+- native-integrity run `31607054148` passes supply chain, Windows/Linux
+  artifacts, CUDA 12.8.1 ABI, and byte-reproducible PTX gates.
