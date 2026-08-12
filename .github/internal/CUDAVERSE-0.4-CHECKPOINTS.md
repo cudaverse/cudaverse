@@ -1182,3 +1182,61 @@ Evidence at the implementation commit:
 - integration run `31607054521` passes the CPU and identifier contract; and
 - native-integrity run `31607054148` passes supply chain, Windows/Linux
   artifacts, CUDA 12.8.1 ABI, and byte-reproducible PTX gates.
+
+## CP-07B: complete full benchmark baseline
+
+Status: complete for exact clean benchmark source
+`deb77127eebf68e0c6f788e9e10c40c5cb8dacfc`; this is a checkpoint baseline,
+not final-candidate evidence. The final clean 0.4 candidate must repeat the
+same unchanged contract after all accepted performance work is merged.
+
+Review:
+
+- branch: `agent/16-full-benchmark-evidence`;
+- target: `develop/0.4` (not `main`);
+- no tag, release, CRAN/Bioconductor submission, or Pages deployment; and
+- retained timings are descriptive for the recorded RTX 2000 machine,
+  software, input, and provenance only.
+
+Scope:
+
+- retain the complete 12-case/36-backend `cudaverse-benchmark/1` report;
+- preserve cold, five-warmup/ten-timed-run median and p95 distributions for
+  host and resident boundaries without inferring one from the other;
+- retain numerical parity, exact kNN indices, transfer semantics, public
+  allocator observations, whole-device cleanup, installed size, and backend
+  provenance;
+- generate the human summary only from the complete report; and
+- validate both the machine report and its exact generated summary with
+  fail-closed checkers.
+
+Evidence:
+
+- `inst/reports/benchmarks/CP07-FULL.json` is complete, records clean source
+  `deb77127eebf68e0c6f788e9e10c40c5cb8dacfc`, contains all 12 cases and all
+  36 base/native/torch results, and has SHA-256
+  `707AECBD0D72A5B1E1BD209A0892B555C41771FE9E3870F5414B7613650C380A`;
+- every backend result has `status = complete` and passes its numerical gate;
+  all kNN comparisons retain exact indices, including the final
+  `sparse-50000x128@0.01` workload;
+- for that final workload, host-boundary medians are 217.632 seconds for base,
+  2.800 seconds for native, and 126.739 seconds for torch; these values locate
+  the old CPU/torch stable-selection bottleneck and are not universal claims;
+- the same native workload has maximum normalized, PCA-projector,
+  reconstruction, and kNN-distance errors of `1.29e-16`, `8.70e-12`,
+  `1.49e-11`, and `3.14e-11`; its tracked and whole-device post-cleanup
+  differences are both zero;
+- the installed footprint is 1,447,216 bytes for cudaverse versus
+  7,367,799,444 bytes for optional torch, while cudaverse bundles zero CUDA
+  runtime bytes;
+- generated summary `CP07-FULL.md` has SHA-256
+  `5E04846E268B6505D12B8180FEDDC8B8A48AD88C0E759B1B41C56D444B9DF315`;
+- report and summary checker logs have SHA-256
+  `572B9C77660EE0B17AD4AFFBE0AF09269CF3B36A86BAAD7C41786662597BDDF1`
+  and `98F093CB8DB3C2CADB1C9DAEDAE4E499D236C0FC111C126071C19F27D776C392`;
+- the validated-resume run log has SHA-256
+  `22BBCAE3245933F5C70F8C6EFF5B3A05D13C7A7FB9B53B8668AAF4566CF68B4F`;
+  the runner accepted only complete prior checkpoints and finished the final
+  report atomically; and
+- the exact installed benchmark source tarball has SHA-256
+  `8B123AD1F948710A920415A63BAAD748D722BC622D35DF2613D963F98865058E`.
