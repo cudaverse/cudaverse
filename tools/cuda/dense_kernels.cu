@@ -225,6 +225,45 @@ extern "C" __global__ void cudaverse_column_stats_f64(
   }
 }
 
+template <typename T>
+__device__ void cudaverse_validate_matrix_columns(
+    const T* input, int* flags, int rows, int columns,
+    int check_constant) {
+  int column = blockIdx.x * blockDim.x + threadIdx.x;
+  if (column >= columns) return;
+  const T* values = input +
+      static_cast<unsigned long long>(column) * rows;
+  T first = values[0];
+  bool constant = true;
+  for (int row = 0; row < rows; ++row) {
+    T value = values[row];
+    if (!isfinite(static_cast<double>(value))) atomicExch(flags, 1);
+    if (check_constant && value != first) constant = false;
+  }
+  if (check_constant && constant) atomicExch(flags + 1, 1);
+}
+
+extern "C" __global__ void cudaverse_validate_matrix_f64(
+    const double* input, int* flags, int rows, int columns,
+    int check_constant) {
+  cudaverse_validate_matrix_columns(
+      input, flags, rows, columns, check_constant);
+}
+
+extern "C" __global__ void cudaverse_validate_matrix_f32(
+    const float* input, int* flags, int rows, int columns,
+    int check_constant) {
+  cudaverse_validate_matrix_columns(
+      input, flags, rows, columns, check_constant);
+}
+
+extern "C" __global__ void cudaverse_validate_matrix_i32(
+    const int* input, int* flags, int rows, int columns,
+    int check_constant) {
+  cudaverse_validate_matrix_columns(
+      input, flags, rows, columns, check_constant);
+}
+
 extern "C" __global__ void cudaverse_center_scale_f64(
     const double* input, double* output, const double* center,
     const double* scale, int rows, int columns) {

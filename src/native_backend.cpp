@@ -1891,6 +1891,57 @@ extern "C" SEXP C_cudaverse_cuda_sparse_to_dense(SEXP pointer) {
   return R_NilValue;
 }
 
+extern "C" SEXP C_cudaverse_cuda_matrix_validate(
+    SEXP pointer, SEXP check_constant_sexp) {
+  require_backend();
+  require_kernels();
+  SharedBuffer* input = get_buffer(pointer);
+  if (input->shape.size() != 2 || input->shape[0] < 1 ||
+      input->shape[1] < 1) {
+    Rf_error("Native CUDA matrix validation requires one non-empty matrix.");
+  }
+  int check_constant = Rf_asLogical(check_constant_sexp);
+  if (check_constant == NA_LOGICAL) {
+    Rf_error("Native CUDA matrix validation flag must be TRUE or FALSE.");
+  }
+
+  const char* kernel = input->dtype == DType::Float64
+      ? "cudaverse_validate_matrix_f64"
+      : (input->dtype == DType::Float32
+             ? "cudaverse_validate_matrix_f32"
+             : "cudaverse_validate_matrix_i32");
+  try {
+    DeviceMemory flags(2 * sizeof(int));
+    CUdeviceptr flag_pointer = flags.pointer();
+    int zero = 0;
+    unsigned long long flag_count = 2;
+    void* fill_parameters[] = {&flag_pointer, &zero, &flag_count};
+    launch_or_throw(get_kernel("cudaverse_fill_i32"),
+                    "cudaverse_fill_i32", 2, fill_parameters);
+
+    CUdeviceptr input_pointer = input->pointer;
+    int rows = input->shape[0];
+    int columns = input->shape[1];
+    void* validate_parameters[] = {
+        &input_pointer, &flag_pointer, &rows, &columns, &check_constant};
+    launch_or_throw(get_kernel(kernel), kernel, columns,
+                    validate_parameters);
+
+    int host_flags[2] = {0, 0};
+    cuda_or_throw(api.cuMemcpyDtoH(
+                      host_flags, flags.pointer(), 2 * sizeof(int)),
+                  "cuMemcpyDtoH(matrix validation flags)");
+    SEXP result = PROTECT(named_list({"finite", "constant"}));
+    SET_VECTOR_ELT(result, 0, Rf_ScalarLogical(host_flags[0] == 0));
+    SET_VECTOR_ELT(result, 1, Rf_ScalarLogical(host_flags[1] != 0));
+    UNPROTECT(1);
+    return result;
+  } catch (const std::exception& exception) {
+    Rf_error("%s", exception.what());
+  }
+  return R_NilValue;
+}
+
 extern "C" SEXP C_cudaverse_cuda_svd(SEXP pointer, SEXP nu_sexp,
                                         SEXP nv_sexp) {
   SharedBuffer* input = get_buffer(pointer);
@@ -2656,6 +2707,8 @@ static const R_CallMethodDef call_methods[] = {
      reinterpret_cast<DL_FUNC>(&C_cudaverse_cuda_sparse_matmul_dense), 2},
     {"C_cudaverse_cuda_sparse_to_dense",
      reinterpret_cast<DL_FUNC>(&C_cudaverse_cuda_sparse_to_dense), 1},
+    {"C_cudaverse_cuda_matrix_validate",
+     reinterpret_cast<DL_FUNC>(&C_cudaverse_cuda_matrix_validate), 2},
      {"C_cudaverse_cuda_cast",
       reinterpret_cast<DL_FUNC>(&C_cudaverse_cuda_cast), 2},
      {"C_cudaverse_cuda_reshape",

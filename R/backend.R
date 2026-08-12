@@ -8,8 +8,8 @@
 .native_auto_required_capabilities <- c(
   "driver-detection", "allocation", "transfer", "cast", "matmul",
   "reduce", "arithmetic", "reshape", "broadcast", "transpose",
-  "subset", "replacement", "svd",
-  "pca", "pca-predict", "distance", "distance-batched", "knn",
+  "subset", "replacement", "matrix-validation", "svd", "svd-resident",
+  "pca", "pca-resident", "pca-predict", "distance", "distance-batched", "knn",
   "stable-topk", "sparse",
   "sparse-coo", "sparse-csr", "sparse-normalize", "sparse-matmul",
   "sparse-reduce", "sparse-pca", "sparse-knn", "synchronize",

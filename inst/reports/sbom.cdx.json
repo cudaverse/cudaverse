@@ -50,7 +50,7 @@
       "name": "cudaverse_dense_kernels.ptx",
       "scope": "required",
       "hashes": [
-        {"alg": "SHA-256", "content": "d15dddeb84e8c54ccffc051c299940958b310e1adf4a4f8bc8e6527b75cd4800"}
+        {"alg": "SHA-256", "content": "08227d30a0c253b37bf11d55f93919cf556374fcd1ea19f9315c19a77f6bb327"}
       ],
       "licenses": [{"license": {"id": "MIT"}}],
       "properties": [

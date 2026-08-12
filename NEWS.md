@@ -24,6 +24,9 @@
 - Kept native PCA prediction scores in shared device storage after returning
   their compatible R matrix, allowing following distance and kNN stages to
   reuse the scores without an upload.
+- Added device-side finite/constant validation and resident SVD/PCA dispatch
+  for native `cudatensor` inputs. Float32 and integer inputs cast on the GPU;
+  the full input matrix is no longer downloaded and uploaded for decomposition.
 
 # cudaverse 0.3.0.9000
 

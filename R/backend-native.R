@@ -145,6 +145,35 @@
     }
     checks <- c(checks, "device-indexing")
 
+    validation <- .native_algorithm_matrix_validate(left64, FALSE)
+    if (!identical(validation$finite, TRUE) ||
+        !identical(validation$constant, FALSE)) {
+      stop("resident matrix validation failed", call. = FALSE)
+    }
+    resident_svd <- .native_algorithm_svd_storage(
+      left64, c(2L, 2L), "float64", 2L, 2L
+    )
+    reconstructed <- resident_svd$u %*%
+      diag(resident_svd$d, nrow = 2L) %*% t(resident_svd$v)
+    if (!isTRUE(all.equal(reconstructed, values, tolerance = 1e-10))) {
+      stop("resident SVD parity failed", call. = FALSE)
+    }
+    pca_values <- rbind(c(0, 0), c(0, 1), c(1, 0), c(1, 1))
+    pca_storage <- keep_dense(.native_from_host(
+      pca_values, "float64", c(4L, 2L)
+    ))
+    resident_pca <- .native_algorithm_pca_storage(
+      pca_storage, c(4L, 2L), "float64", 2L, TRUE, FALSE
+    )
+    pca_state <- attr(resident_pca$x, "cudaverse_native_state", exact = TRUE)
+    keep_dense(pca_state$storage)
+    if (!identical(dim(resident_pca$x), c(4L, 2L)) ||
+        !identical(dim(resident_pca$rotation), c(2L, 2L)) ||
+        any(!is.finite(resident_pca$x))) {
+      stop("resident PCA parity failed", call. = FALSE)
+    }
+    checks <- c(checks, "resident-matrix-validation-svd-pca")
+
     distance_values <- rbind(c(0, 0), c(1, 0), c(0, 1), c(1, 1))
     distance <- .native_algorithm_distance_batched(
       distance_values, distance_values, "euclidean", 2L
@@ -274,8 +303,11 @@
     "transpose",
     "subset",
     "replacement",
+    "matrix-validation",
     "svd",
+    "svd-resident",
     "pca",
+    "pca-resident",
     "pca-predict",
     "distance",
     "distance-batched",
@@ -442,19 +474,40 @@
   )
 }
 
-.native_algorithm_svd <- function(x, nu, nv) {
+.native_algorithm_matrix_validate <- function(storage,
+                                              check_constant = FALSE) {
   .native_ensure_kernels()
-  storage <- .native_from_host(x, "float64", dim(x))
-  on.exit(.native_release(storage), add = TRUE)
+  .Call(
+    C_cudaverse_cuda_matrix_validate,
+    storage,
+    as.logical(check_constant)
+  )
+}
+
+.native_svd_from_storage <- function(storage, shape, nu, nv) {
+  .native_ensure_kernels()
   result <- .Call(
     C_cudaverse_cuda_svd,
     storage,
     as.integer(nu),
     as.integer(nv)
   )
-  result$u <- matrix(result$u, nrow = nrow(x), ncol = nu)
-  result$v <- matrix(result$v, nrow = ncol(x), ncol = nv)
+  result$u <- matrix(result$u, nrow = shape[[1L]], ncol = nu)
+  result$v <- matrix(result$v, nrow = shape[[2L]], ncol = nv)
   result
+}
+
+.native_algorithm_svd_storage <- function(storage, shape, dtype, nu, nv) {
+  dtype <- match.arg(dtype, c("integer", "float32", "float64"))
+  storage64 <- .native_cast(storage, "float64")
+  on.exit(.native_release(storage64), add = TRUE)
+  .native_svd_from_storage(storage64, as.integer(shape), nu, nv)
+}
+
+.native_algorithm_svd <- function(x, nu, nv) {
+  storage <- .native_from_host(x, "float64", dim(x))
+  on.exit(.native_release(storage), add = TRUE)
+  .native_svd_from_storage(storage, dim(x), nu, nv)
 }
 
 .native_pca_from_storage <- function(storage, shape, n_components,
@@ -490,6 +543,16 @@
   on.exit(.native_release(storage), add = TRUE)
   .native_pca_from_storage(
     storage, dim(x), n_components, center, scale
+  )
+}
+
+.native_algorithm_pca_storage <- function(storage, shape, dtype,
+                                          n_components, center, scale) {
+  dtype <- match.arg(dtype, c("integer", "float32", "float64"))
+  storage64 <- .native_cast(storage, "float64")
+  on.exit(.native_release(storage64), add = TRUE)
+  .native_pca_from_storage(
+    storage64, as.integer(shape), n_components, center, scale
   )
 }
 
@@ -789,8 +852,11 @@
     transpose = .native_transpose,
     matmul = .native_matmul,
     reduce = .native_reduce,
+    algorithm_matrix_validate = .native_algorithm_matrix_validate,
     algorithm_svd = .native_algorithm_svd,
+    algorithm_svd_storage = .native_algorithm_svd_storage,
     algorithm_pca = .native_algorithm_pca,
+    algorithm_pca_storage = .native_algorithm_pca_storage,
     algorithm_pca_predict = .native_algorithm_pca_predict,
     algorithm_sparse_pca = .native_algorithm_sparse_pca,
     algorithm_distance = .native_algorithm_distance,

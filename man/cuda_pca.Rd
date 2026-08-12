@@ -33,6 +33,13 @@ names are preserved on every backend.
 \description{
 GPU-aware principal component analysis
 }
+\details{
+A native CUDA \code{cudatensor} selected on the same backend is validated
+on the device and passed directly into preprocessing and cuSOLVER without
+downloading its input matrix. Float32 and integer tensors are converted to
+float64 on the device. PCA scores retain shared native storage for direct
+composition with native distance and kNN operations.
+}
 \examples{
 fit <- cuda_pca(iris[, 1:4], n_components = 2, device = "cpu")
 fit
