@@ -185,8 +185,10 @@ the complete result in host memory. Mixed-device binary operations move the
 right operand to the left operand's device. Native CUDA subsetting and
 replacement evaluate index metadata in R but gather or replace tensor values
 on the GPU. Missing indices and backends without indexing operations use a
-recorded CPU round trip. Matrix arithmetic, broadcasting, reductions, reshape,
-and transpose use the tensor's backend.
+recorded CPU round trip. Native reshape creates an allocation-free metadata
+view over shared device storage, so releasing the source does not invalidate
+the view and the allocation is freed after its final owner. Matrix arithmetic,
+broadcasting, reductions, and transpose use the tensor's backend.
 
 Large operations can temporarily require input, output, and intermediate
 allocations at once. The package does not currently provide out-of-core

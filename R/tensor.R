@@ -452,6 +452,11 @@ tensor_shape <- function(x) {
 #' @param x A `cudatensor`.
 #' @param shape Positive whole-number dimensions whose product equals
 #'   `length(x)`.
+#' @details The native CUDA backend creates an allocation-free metadata view
+#'   that shares the source device allocation. The source and reshaped tensor
+#'   have independent external-pointer lifetimes, and the allocation is freed
+#'   only after the final view is released. Compatibility backends retain their
+#'   established reshape behavior.
 #' @return A `cudatensor` on the same device with the requested shape.
 #' @export
 #' @examples

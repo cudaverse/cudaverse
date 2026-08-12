@@ -6,6 +6,9 @@
   `summary`, actionable `next_steps`, and a backend comparison table. Strict
   CUDA-unavailable conditions now retain the same reason and guidance.
 - Added the ordered 0.4 roadmap and enabled development-line CI coverage.
+- Made native CUDA reshape allocation-free by separating dense view metadata
+  from shared device-allocation ownership. Nested reshape views remain valid
+  after their sources are released and free the allocation exactly once.
 
 # cudaverse 0.3.0.9000
 

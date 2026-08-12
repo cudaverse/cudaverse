@@ -744,6 +744,93 @@ test_that("shared native ownership frees an allocation exactly once", {
   expect_error(factory$to_host(shared), "released")
 })
 
+test_that("native reshape creates allocation-free shared views", {
+  skip_if_not(identical(Sys.getenv("CUDAVERSE_NATIVE_TESTS"), "true"))
+  skip_if_not(isTRUE(cudaverse:::.native_diagnostics()$available))
+  factory <- cudaverse:::.native_backend_factory()
+  factory$synchronize()
+  gc()
+  baseline <- cudaverse:::.native_memory_tracker(reset = TRUE)$current
+  source <- first_view <- second_view <- view <- NULL
+  on.exit({
+    for (pointer in list(view, second_view, first_view, source)) {
+      if (!is.null(pointer)) try(factory$release(pointer), silent = TRUE)
+    }
+  }, add = TRUE)
+
+  source <- factory$from_host(
+    matrix(seq_len(24) / 7, 4, 6), "float64", c(4L, 6L)
+  )
+  source_bytes <- cudaverse:::.native_memory_tracker(reset = TRUE)$current
+  expect_identical(source_bytes - baseline, 24 * 8)
+
+  first_view <- factory$reshape(source, c(4L, 6L), c(3L, 8L))
+  second_view <- factory$reshape(first_view, c(3L, 8L), c(2L, 12L))
+  after_views <- cudaverse:::.native_memory_tracker()
+  expect_identical(after_views$current, source_bytes)
+  expect_identical(after_views$peak, source_bytes)
+
+  factory$release(source)
+  source <- NULL
+  factory$release(first_view)
+  first_view <- NULL
+  expect_equal(
+    factory$to_host(second_view), seq_len(24) / 7, tolerance = 1e-10
+  )
+
+  for (iteration in seq_len(1000L)) {
+    view <- factory$reshape(second_view, c(2L, 12L), c(6L, 4L))
+    expect_identical(
+      cudaverse:::.native_memory_tracker()$current,
+      source_bytes
+    )
+    factory$release(view)
+    view <- NULL
+  }
+  factory$release(second_view)
+  second_view <- NULL
+  factory$synchronize()
+  gc()
+
+  final <- cudaverse:::.native_memory_tracker()
+  expect_identical(final$current, baseline)
+  expect_identical(final$peak, source_bytes)
+})
+
+test_that("native reshape views carry shape into downstream kernels", {
+  skip_if_not(identical(Sys.getenv("CUDAVERSE_NATIVE_TESTS"), "true"))
+  skip_if_not(isTRUE(cudaverse:::.native_diagnostics()$available))
+  factory <- cudaverse:::.native_backend_factory()
+  source <- view <- right <- product <- NULL
+  on.exit({
+    for (pointer in list(product, right, view, source)) {
+      if (!is.null(pointer)) try(factory$release(pointer), silent = TRUE)
+    }
+  }, add = TRUE)
+
+  values <- matrix(seq_len(24) / 5, 4, 6)
+  right_values <- matrix(seq_len(16) / 9, 8, 2)
+  source <- factory$from_host(values, "float64", c(4L, 6L))
+  view <- factory$reshape(source, c(4L, 6L), c(3L, 8L))
+  right <- factory$from_host(right_values, "float64", c(8L, 2L))
+  factory$release(source)
+  source <- NULL
+
+  product <- factory$matmul(view, right)
+  expect_equal(
+    factory$to_host(product),
+    as.vector(array(values, dim = c(3L, 8L)) %*% right_values),
+    tolerance = 1e-10
+  )
+
+  factory$release(product)
+  product <- NULL
+  factory$release(right)
+  right <- NULL
+  factory$release(view)
+  view <- NULL
+})
+
 test_that("operation-owned allocation telemetry reports a high-water mark", {
   skip_if_not(identical(Sys.getenv("CUDAVERSE_NATIVE_TESTS"), "true"))
   skip_if_not(isTRUE(cudaverse:::.native_diagnostics()$available))
