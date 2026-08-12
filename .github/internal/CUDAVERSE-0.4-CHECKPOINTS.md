@@ -282,6 +282,70 @@ Remote evidence at the implementation commit:
 - Linux and Windows no-CUDA artifact builds pass; and
 - CUDA 12.8.1 ABI and unchanged PTX checks pass.
 
+## CP-03C: device-resident PCA prediction scores
+
+Status: complete at implementation commit
+`62a68e77b8279eb30efaee0601e3b97211adbdb2`; the checkpoint-record-only
+follow-up must pass the same PR gates before merge.
+
+Review:
+
+- draft PR: <https://github.com/cudaverse/cudaverse/pull/34>;
+- target: `develop/0.4` (not `main`);
+- no tag, release, CRAN submission, or Pages deployment; and
+- GitHub Pages deploy job skipped as required.
+
+Scope:
+
+- retain native PCA prediction scores in shared device storage after returning
+  the same compatible R matrix;
+- mark the resident output in the existing `cudaverse-stage/1` provenance;
+- let following native distance and kNN stages reuse the storage without an
+  upload; and
+- preserve CPU/torch behavior, public classes, dimnames, numerical results,
+  and model-device selection.
+
+Required gate:
+
+- native prediction matches the CPU matrix product within the float64 heavy
+  numerical tolerance;
+- kNN preparation shares the prediction allocation and adds only one row-norm
+  vector rather than another score allocation;
+- native prediction-to-kNN matches CPU and records `device_resident_input`;
+- 1,000 resident prediction cycles return to the exact tracked-memory
+  baseline; and
+- ordinary, RTX, no-CUDA, cross-platform, source, and documentation gates stay
+  green.
+
+Local evidence:
+
+- the complete ordinary suite and the complete explicitly enabled RTX 2000
+  suite pass;
+- prediction values match the centered/scaled CPU matrix product and retain
+  the same R matrix, dimnames, public device attribute, and backend result;
+- native kNN preparation over resident predictions increases tracked memory by
+  exactly `nrow(scores) * 8` bytes for cached row norms, proving there is no
+  duplicate score upload, and releases exactly to its prior baseline;
+- native prediction-to-kNN matches CPU and starts provenance with backend
+  `native` and reason `device_resident_input`;
+- 1,000 resident prediction cycles return to the exact tracked-memory
+  baseline;
+- the exact full-vignette source tarball SHA-256 is
+  `26CE3D1019569EC355974D248166422313B362EA2D70D5CC367144AA193D3216`;
+- Windows `R CMD check --as-cran --no-manual` reports 0 errors, 0 warnings,
+  and only the expected development-version incoming NOTE; and
+- capability, redistribution, SBOM, license/PTX, release-boundary, benchmark,
+  candidate, rejection, pkgdown, and public-documentation gates pass without
+  deployment.
+
+Remote evidence at the implementation commit:
+
+- Windows, macOS, Ubuntu, and R-devel package checks pass;
+- CPU integration and pkgdown pass;
+- supply-chain and repository workflow-boundary checks pass;
+- Linux and Windows no-CUDA artifact builds pass; and
+- CUDA 12.8.1 ABI and unchanged PTX checks pass.
+
 ## CP-02D: allocation-free contiguous subset views
 
 Status: complete at implementation commit
