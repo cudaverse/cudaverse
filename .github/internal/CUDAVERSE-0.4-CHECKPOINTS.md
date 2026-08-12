@@ -754,3 +754,55 @@ Remote evidence at the implementation commit:
 - supply-chain and repository workflow-boundary checks pass;
 - Linux and Windows no-CUDA artifact builds pass; and
 - CUDA 12.8.1 ABI and unchanged PTX reproducibility checks pass.
+
+## CP-04D: Matrix-free sparse PCA preprocessing
+
+Status: complete at implementation commit
+`edb54161a2b8e2343d17fedf396168dee6257ec8`; the checkpoint-record-only
+follow-up must pass the same PR gates before merge.
+
+Review:
+
+- draft PR: <https://github.com/cudaverse/cudaverse/pull/39>;
+- target: `develop/0.4` (not `main`);
+- no tag, release, CRAN submission, or Pages deployment; and
+- GitHub Pages deploy job skipped as required.
+
+Scope:
+
+- skip sparse constant-feature scanning entirely when PCA scaling is disabled;
+- compute column sums and squared sums directly from the stable COO mirror
+  when scaling is enabled;
+- transfer sparse PCA and kNN inputs through direct `cudasparse`
+  rematerialization rather than a temporary Matrix object; and
+- preserve constant-feature errors, numerical results, backend dispatch,
+  provenance, and native device-resident decomposition/distance stages.
+
+Required gate:
+
+- scaled and unscaled sparse PCA dispatch while `.triplet_matrix()` is bound
+  to an immediate error;
+- constant sparse features are still rejected before backend upload;
+- PCA projector/reconstruction and exact stable kNN parity remain green;
+- complete ordinary and RTX suites retain zero failures; and
+- no-CUDA, cross-platform, source, supply-chain, PTX, and documentation gates
+  stay green.
+
+Local evidence:
+
+- the Matrix-free synthetic contract passes both scaled and unscaled sparse
+  PCA and records exactly two direct COO uploads;
+- a constant zero feature is rejected before a third upload;
+- the complete ordinary and explicitly enabled RTX 2000 suites pass;
+- exact full-vignette source tarball SHA-256 is
+  `B166E51306D55E2833A139F37E07FD40986801D8F9A15906B4F073D0D32FEFC8`;
+- Windows `R CMD check --as-cran --no-manual` reports 0 errors, 0 warnings,
+  and only the expected development-version incoming NOTE; and
+- capability, redistribution, SBOM, release-boundary, benchmark, candidate,
+  rejection, pkgdown, and public-documentation gates pass without deployment.
+
+Remote evidence at the implementation commit:
+
+- supply-chain and repository workflow-boundary checks pass;
+- Linux and Windows no-CUDA artifact builds pass; and
+- CUDA 12.8.1 ABI and unchanged PTX reproducibility checks pass.
