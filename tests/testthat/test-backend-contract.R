@@ -116,6 +116,109 @@ test_that("capabilities and callable operations have distinct contracts", {
   ) %in% cudaverse:::.backend_operations(base)))
 })
 
+test_that("torch stable top-k keeps distance blocks on the backend", {
+  skip_if_not_installed("torch")
+  skip_if_not(cudaverse:::.torch_stable_sort_available())
+
+  values <- rbind(
+    c(0, 0), c(1, 0), c(-1, 0), c(0, 1), c(0, -1), c(0, 0)
+  )
+  storage <- torch::torch_tensor(
+    values,
+    dtype = torch::torch_float64(),
+    device = "cpu"
+  )
+  result <- cudaverse:::.torch_algorithm_knn_select(
+    storage, values, 3L, "euclidean", 2L
+  )
+
+  distance <- as.matrix(stats::dist(values))
+  diag(distance) <- Inf
+  expected_index <- t(vapply(
+    seq_len(nrow(values)),
+    function(row) {
+      order(
+        distance[row, ], seq_len(nrow(values)), method = "radix"
+      )[seq_len(3L)]
+    },
+    integer(3L)
+  ))
+  expected_distance <- matrix(
+    distance[cbind(
+      rep(seq_len(nrow(values)), each = 3L),
+      as.vector(t(expected_index))
+    )],
+    nrow = nrow(values),
+    ncol = 3L,
+    byrow = TRUE
+  )
+
+  expect_identical(result$index, expected_index)
+  expect_equal(result$distance, expected_distance, tolerance = 1e-12)
+  expect_true(all(result$index != row(result$index)))
+
+  factory <- cudaverse:::.torch_backend_factory()
+  expect_true(is.function(factory$algorithm_knn_select))
+  expect_true("stable-topk" %in% factory$capabilities())
+})
+
+test_that("torch cosine stable top-k clamps roundoff before selection", {
+  skip_if_not_installed("torch")
+  skip_if_not(cudaverse:::.torch_stable_sort_available())
+
+  values <- rbind(
+    c(1, 0), c(0, 1), c(-1, 0), c(0, -1),
+    c(sqrt(0.5), sqrt(0.5)), c(sqrt(0.5), -sqrt(0.5))
+  )
+  storage <- torch::torch_tensor(
+    values,
+    dtype = torch::torch_float64(),
+    device = "cpu"
+  )
+  result <- cudaverse:::.torch_algorithm_knn_select(
+    storage, values, 2L, "cosine", 1L
+  )
+
+  distance <- pmin(pmax(1 - tcrossprod(values), 0), 2)
+  diag(distance) <- Inf
+  expected_index <- t(vapply(
+    seq_len(nrow(values)),
+    function(row) {
+      order(
+        distance[row, ], seq_len(nrow(values)), method = "radix"
+      )[seq_len(2L)]
+    },
+    integer(2L)
+  ))
+  expected_distance <- matrix(
+    distance[cbind(
+      rep(seq_len(nrow(values)), each = 2L),
+      as.vector(t(expected_index))
+    )],
+    nrow = nrow(values),
+    ncol = 2L,
+    byrow = TRUE
+  )
+
+  expect_identical(result$index, expected_index)
+  expect_equal(result$distance, expected_distance, tolerance = 1e-12)
+  expect_true(all(is.finite(result$distance)))
+  expect_true(all(result$distance >= 0 & result$distance <= 2))
+  expect_true(all(result$index != row(result$index)))
+})
+
+test_that("older torch APIs retain the explicit compatibility path", {
+  skip_if_not_installed("torch")
+  testthat::local_mocked_bindings(
+    .torch_stable_sort_available = function() FALSE
+  )
+
+  factory <- cudaverse:::.torch_backend_factory()
+
+  expect_false(is.function(factory$algorithm_knn_select))
+  expect_false("stable-topk" %in% factory$capabilities())
+})
+
 test_that("invalid capability declarations fail registration", {
   factory <- cudaverse:::.base_backend_factory()
   factory$name <- "invalid-capabilities"

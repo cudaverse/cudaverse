@@ -76,6 +76,9 @@ packages:
 - native CUDA k-means keeps distance, stable assignment, accumulation, and
   centre updates on the device; the torch compatibility path uses GPU distance
   and CPU assignment/centre updates;
+- exact kNN keeps each distance block and stable top-k selection on the native
+  backend, and does the same on torch versions that expose stable device sort;
+  only the final index and distance matrices cross the host boundary;
 - kNN graph construction uses `Matrix`, while Louvain and Leiden use `igraph`;
 - UMAP and t-SNE use `uwot` and `Rtsne` on CPU; and
 - diffusion maps may calculate distance on CUDA, but construct the kernel and

@@ -7,7 +7,7 @@ cuda_diagnostics,diagnostics,diagnostics,probe,probe,probe,host,Reports compatib
 cuda_diffusion_map,embedding,embedding,direct,hybrid,hybrid,host,Native reuses device-resident PCA scores for distance while kernel construction and eigendecomposition are CPU; optional SingleCellExperiment reduced dimensions begin at a host boundary
 cuda_distance,algorithm,algorithm,direct,direct,direct,host,Distance kernels use the selected backend and return an R matrix
 cuda_kmeans,algorithm,algorithm,direct,hybrid,direct,host,Native keeps repeated distance assignment accumulation and centre updates on device; torch retains CPU updates
-cuda_knn,algorithm,algorithm,direct,hybrid,direct,host,Torch transfers distance blocks for CPU stable top-k while native selects on device
+cuda_knn,algorithm,algorithm,direct,direct,direct,host,Native and torch with stable-sort support select deterministic top-k on device and transfer only final indices and distances; older torch APIs use the recorded compatibility path
 cuda_knn_graph,graph,graph,direct,cpu_only,cpu_only,host,Graph assembly always uses Matrix on CPU from a completed kNN result
 cuda_leiden,graph,graph,direct,cpu_only,cpu_only,host,Community detection always uses igraph on CPU
 cuda_louvain,graph,graph,direct,cpu_only,cpu_only,host,Community detection always uses igraph on CPU

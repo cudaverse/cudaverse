@@ -1,5 +1,8 @@
 # cudaverse 0.4.0.9000
 
+- Kept torch kNN distance blocks and deterministic stable top-k selection on
+  the selected torch device when the installed torch API supports stable sort;
+  only the final `n`-by-`k` indices and distances are transferred to R.
 - Unified benchmark memory collection with the public `cuda_memory_info()`
   contract while retaining native peak reset as an untimed maintainer-only
   measurement action.
