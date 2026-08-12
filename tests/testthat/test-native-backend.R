@@ -699,30 +699,68 @@ test_that("native k-means keeps Lloyd updates resident and matches CPU", {
       case$values, centers = case$centers, iter.max = 20L,
       tolerance = 1e-10, device = "cpu"
     )
-    native <- cudaverse::cuda_kmeans(
-      case$values, centers = case$centers, iter.max = 20L,
-      tolerance = 1e-10, device = "cuda"
-    )
-    expect_identical(native$cluster, cpu$cluster)
-    expect_equal(native$centers, cpu$centers, tolerance = 1e-8)
-    expect_equal(native$withinss, cpu$withinss, tolerance = 1e-8)
-    expect_equal(native$tot.withinss, cpu$tot.withinss, tolerance = 1e-8)
-    expect_identical(native$iter, cpu$iter)
-    expect_identical(native$converged, cpu$converged)
-    expect_identical(native$backend, "native")
-    expect_identical(native$compute_stages$distance$output_device, "cuda")
-    expect_identical(native$compute_stages$assignment$output_device, "cuda")
-    expect_identical(native$compute_stages$center_update$output_device, "cuda")
-    expect_identical(native$compute_stages$finalization$output_device, "cpu")
-    if (identical(case_name, "separated")) {
-      expect_identical(names(native$cluster), rownames(case$values))
-      expect_identical(colnames(native$centers), colnames(case$values))
-      expect_identical(
-        rownames(native$centers), paste0("cluster_", seq_len(2L))
+    for (batch_size in c(1L, 3L, 100L)) {
+      native <- cudaverse::cuda_kmeans(
+        case$values, centers = case$centers, iter.max = 20L,
+        tolerance = 1e-10, batch_size = batch_size, device = "cuda"
       )
-      expect_identical(names(native$withinss), rownames(native$centers))
+      expect_identical(native$cluster, cpu$cluster)
+      expect_equal(native$centers, cpu$centers, tolerance = 1e-8)
+      expect_equal(native$withinss, cpu$withinss, tolerance = 1e-8)
+      expect_equal(native$tot.withinss, cpu$tot.withinss, tolerance = 1e-8)
+      expect_identical(native$iter, cpu$iter)
+      expect_identical(native$converged, cpu$converged)
+      expect_identical(native$backend, "native")
+      expect_identical(native$parameters$batch_size,
+                       min(batch_size, nrow(case$values)))
+      expect_identical(native$compute_stages$distance$output_device, "cuda")
+      expect_identical(native$compute_stages$assignment$output_device, "cuda")
+      expect_identical(native$compute_stages$center_update$output_device, "cuda")
+      expect_identical(native$compute_stages$finalization$output_device, "cpu")
+      if (identical(case_name, "separated")) {
+        expect_identical(names(native$cluster), rownames(case$values))
+        expect_identical(colnames(native$centers), colnames(case$values))
+        expect_identical(
+          rownames(native$centers), paste0("cluster_", seq_len(2L))
+        )
+        expect_identical(names(native$withinss), rownames(native$centers))
+      }
     }
   }
+})
+
+test_that("native k-means batching bounds peak VRAM", {
+  skip_if_not(identical(Sys.getenv("CUDAVERSE_NATIVE_TESTS"), "true"))
+  skip_if_not(isTRUE(cudaverse:::.native_diagnostics()$available))
+  factory <- cudaverse:::.native_backend_factory()
+  set.seed(486)
+  values <- matrix(rnorm(2048L * 16L), 2048L, 16L)
+  centers <- values[seq.int(1L, 2048L, length.out = 64L), , drop = FALSE]
+  factory$synchronize()
+  gc()
+  baseline <- cudaverse:::.native_memory_tracker(reset = TRUE)$current
+
+  full <- factory$algorithm_kmeans(
+    values, centers, 1L, 1e-8, nrow(values)
+  )
+  factory$synchronize()
+  full_tracker <- cudaverse:::.native_memory_tracker()
+  expect_identical(full_tracker$current, baseline)
+
+  cudaverse:::.native_memory_tracker(reset = TRUE)
+  batched <- factory$algorithm_kmeans(
+    values, centers, 1L, 1e-8, 64L
+  )
+  factory$synchronize()
+  batched_tracker <- cudaverse:::.native_memory_tracker()
+  expect_identical(batched$cluster, full$cluster)
+  expect_equal(batched$centers, full$centers, tolerance = 1e-8)
+  expect_equal(batched$withinss, full$withinss, tolerance = 1e-8)
+  expect_identical(batched_tracker$current, baseline)
+  expect_lt(
+    batched_tracker$peak - baseline,
+    full_tracker$peak - baseline
+  )
 })
 
 test_that("native k-means errors recover and repeated updates do not leak", {
@@ -749,7 +787,7 @@ test_that("native k-means errors recover and repeated updates do not leak", {
   expect_identical(condition$operation, "algorithm_kmeans")
 
   for (iteration in seq_len(1000L)) {
-    fit <- factory$algorithm_kmeans(values, centers, 3L, 1e-8)
+    fit <- factory$algorithm_kmeans(values, centers, 3L, 1e-8, 3L)
     expect_identical(length(fit$cluster), nrow(values))
   }
   rm(fit)
@@ -761,7 +799,7 @@ test_that("native k-means errors recover and repeated updates do not leak", {
   expect_lte(abs(final - baseline), 1024^2)
   expect_identical(tracked_final$current, tracked_baseline)
 
-  probe <- factory$algorithm_kmeans(values, centers, 3L, 1e-8)
+  probe <- factory$algorithm_kmeans(values, centers, 3L, 1e-8, 3L)
   expect_identical(length(probe$cluster), nrow(values))
 })
 

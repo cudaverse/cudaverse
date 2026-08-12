@@ -1365,6 +1365,10 @@ cuda_knn <- function(x, k = 15L, metric = c("euclidean", "cosine"),
 #' @param iter.max Maximum Lloyd iterations.
 #' @param tolerance Convergence tolerance for centre movement.
 #' @param seed Optional random seed used for initial centres.
+#' @param batch_size Maximum number of observations whose centre-distance
+#'   block is materialized at once. The native backend keeps observations,
+#'   centres, assignments, and updates on the GPU while bounding temporary
+#'   distance storage to approximately `batch_size * n_centers` values.
 #' @param device Device used for the numerical clustering stages.
 #' @return A `cuda_kmeans` list containing integer `cluster` assignments,
 #'   final `centers`, per-cluster `withinss`, `tot.withinss`, the number of
@@ -1384,7 +1388,7 @@ cuda_knn <- function(x, k = 15L, metric = c("euclidean", "cosine"),
 #' x <- rbind(matrix(rnorm(40), 20, 2), matrix(rnorm(40, 4), 20, 2))
 #' cuda_kmeans(x, centers = 2, seed = 1, device = "cpu")
 cuda_kmeans <- function(x, centers, iter.max = 100L, tolerance = 1e-6,
-                        seed = NULL,
+                        seed = NULL, batch_size = 256L,
                         device = c("auto", "cuda", "cpu")) {
   source_device <- .learn_source_device(x)
   source_class <- class(x)[[1L]]
@@ -1402,6 +1406,7 @@ cuda_kmeans <- function(x, centers, iter.max = 100L, tolerance = 1e-6,
       is.na(tolerance) || !is.finite(tolerance) || tolerance <= 0) {
     stop("`tolerance` must be a positive finite number.", call. = FALSE)
   }
+  batch_size <- .row_batch_size(batch_size, nrow(x))
   if (length(centers) == 1L && is.numeric(centers)) {
     k <- as.integer(centers)
     if (is.na(k) || k < 1L || k >= nrow(x) || centers != k) {
@@ -1423,18 +1428,33 @@ cuda_kmeans <- function(x, centers, iter.max = 100L, tolerance = 1e-6,
   }
 
   compute_backend <- .learn_selection_backend(selection)
-  resident_kmeans <- .backend_has_operation(
+  batched_kmeans <- .backend_has_operation(
+    compute_backend, "algorithm_kmeans_batched"
+  )
+  resident_kmeans <- batched_kmeans || .backend_has_operation(
     compute_backend, "algorithm_kmeans"
   )
   if (resident_kmeans) {
-    result <- .backend_call(
-      compute_backend,
-      "algorithm_kmeans",
-      x,
-      centre_matrix,
-      as.integer(iter.max),
-      tolerance
-    )
+    result <- if (batched_kmeans) {
+      .backend_call(
+        compute_backend,
+        "algorithm_kmeans_batched",
+        x,
+        centre_matrix,
+        as.integer(iter.max),
+        tolerance,
+        batch_size
+      )
+    } else {
+      .backend_call(
+        compute_backend,
+        "algorithm_kmeans",
+        x,
+        centre_matrix,
+        as.integer(iter.max),
+        tolerance
+      )
+    }
     cluster <- result$cluster
     centre_matrix <- result$centers
     withinss <- result$withinss
@@ -1442,7 +1462,9 @@ cuda_kmeans <- function(x, centers, iter.max = 100L, tolerance = 1e-6,
     converged <- result$converged
   } else {
     converged <- FALSE
-    final_distance <- cuda_distance(x, centre_matrix, device = device)
+    final_distance <- cuda_distance(
+      x, centre_matrix, device = device, batch_size = batch_size
+    )
     cluster <- max.col(-final_distance, ties.method = "first")
     for (iteration in seq_len(as.integer(iter.max))) {
       new_centres <- centre_matrix
@@ -1454,7 +1476,9 @@ cuda_kmeans <- function(x, centers, iter.max = 100L, tolerance = 1e-6,
       }
       movement <- max(abs(new_centres - centre_matrix))
       centre_matrix <- new_centres
-      final_distance <- cuda_distance(x, centre_matrix, device = device)
+      final_distance <- cuda_distance(
+        x, centre_matrix, device = device, batch_size = batch_size
+      )
       cluster <- max.col(-final_distance, ties.method = "first")
       if (movement <= tolerance) {
         converged <- TRUE
@@ -1534,7 +1558,9 @@ cuda_kmeans <- function(x, centers, iter.max = 100L, tolerance = 1e-6,
       },
       iter.max = as.integer(iter.max),
       tolerance = tolerance,
-      seed = seed
+      seed = seed,
+      batch_size = batch_size,
+      batches = as.integer(ceiling(nrow(x) / batch_size))
     ),
     source_device = source_device,
     source_class = source_class

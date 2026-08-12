@@ -2223,7 +2223,7 @@ extern "C" SEXP C_cudaverse_cuda_distance_block(
 
 extern "C" SEXP C_cudaverse_cuda_kmeans(
     SEXP input_pointer, SEXP centers_pointer, SEXP iter_max_sexp,
-    SEXP tolerance_sexp) {
+    SEXP tolerance_sexp, SEXP batch_size_sexp) {
   require_backend();
   require_kernels();
   SharedBuffer* input = get_buffer(input_pointer);
@@ -2238,11 +2238,13 @@ extern "C" SEXP C_cudaverse_cuda_kmeans(
   int columns = input->shape[1];
   int centers_count = initial_centers->shape[0];
   int iter_max = Rf_asInteger(iter_max_sexp);
+  int batch_size = Rf_asInteger(batch_size_sexp);
   double tolerance = Rf_asReal(tolerance_sexp);
   if (centers_count < 1 || centers_count >= rows) {
     Rf_error("Native CUDA k-means centre count is out of range.");
   }
   if (iter_max == NA_INTEGER || iter_max < 1 ||
+      batch_size == NA_INTEGER || batch_size < 1 ||
       !std::isfinite(tolerance) || tolerance <= 0.0) {
     Rf_error("Native CUDA k-means iteration parameters are invalid.");
   }
@@ -2252,6 +2254,7 @@ extern "C" SEXP C_cudaverse_cuda_kmeans(
     CUfunction fill_double = get_kernel("cudaverse_fill_f64");
     CUfunction fill_integer = get_kernel("cudaverse_fill_i32");
     CUfunction assign = get_kernel("cudaverse_kmeans_assign_f64");
+    CUfunction gather = get_kernel("cudaverse_gather_rows_f64");
     CUfunction count = get_kernel("cudaverse_kmeans_count_i32");
     CUfunction accumulate = get_kernel("cudaverse_kmeans_accumulate_f64");
     CUfunction update = get_kernel("cudaverse_kmeans_update_f64");
@@ -2268,21 +2271,45 @@ extern "C" SEXP C_cudaverse_cuda_kmeans(
         static_cast<std::size_t>(rows) * sizeof(double));
     DeviceMemory movement(center_elements * sizeof(double));
 
-    auto assign_nearest = [&](DeviceMemory& distance) {
-      CUdeviceptr distance_pointer = distance.pointer();
-      CUdeviceptr assignment_pointer = assignments.pointer();
-      CUdeviceptr minimum_pointer = minimum_distance.pointer();
-      void* parameters[] = {
-          &distance_pointer, &assignment_pointer, &minimum_pointer,
-          &rows, &centers_count};
-      launch_or_throw(assign, "cudaverse_kmeans_assign_f64", rows,
-                      parameters);
+    auto assign_nearest = [&]() {
+      DeviceMemory center_norms = row_norms_squared(
+          centers.pointer(), centers_count, columns);
+      for (int first = 0; first < rows; first += batch_size) {
+        int count_rows = std::min(batch_size, rows - first);
+        DeviceMemory compact_input;
+        CUdeviceptr query_pointer = input->pointer;
+        if (first != 0 || count_rows != rows) {
+          compact_input = DeviceMemory(
+              static_cast<std::size_t>(count_rows) * columns *
+              sizeof(double));
+          CUdeviceptr compact_pointer = compact_input.pointer();
+          void* gather_parameters[] = {
+              &query_pointer, &compact_pointer, &rows, &columns,
+              &first, &count_rows};
+          launch_or_throw(gather, "cudaverse_gather_rows_f64",
+                          static_cast<std::size_t>(count_rows) * columns,
+                          gather_parameters);
+          query_pointer = compact_pointer;
+        }
+
+        DeviceMemory distance = distance_device(
+            query_pointer, count_rows, centers.pointer(), centers_count,
+            columns, 0, first, 0, center_norms.pointer());
+        CUdeviceptr distance_pointer = distance.pointer();
+        CUdeviceptr assignment_pointer = assignments.pointer() +
+            static_cast<std::size_t>(first) * sizeof(int);
+        CUdeviceptr minimum_pointer = minimum_distance.pointer() +
+            static_cast<std::size_t>(first) * sizeof(double);
+        void* parameters[] = {
+            &distance_pointer, &assignment_pointer, &minimum_pointer,
+            &count_rows, &centers_count};
+        launch_or_throw(assign, "cudaverse_kmeans_assign_f64", count_rows,
+                        parameters);
+        interrupt_or_throw();
+      }
     };
 
-    DeviceMemory distances = distance_device(
-        input->pointer, rows, centers.pointer(), centers_count,
-        columns, 0, 0, 0);
-    assign_nearest(distances);
+    assign_nearest();
 
     int iteration = 0;
     bool converged = false;
@@ -2337,10 +2364,7 @@ extern "C" SEXP C_cudaverse_cuda_kmeans(
           host_movement.begin(), host_movement.end());
       centers = std::move(updated);
 
-      distances = distance_device(
-          input->pointer, rows, centers.pointer(), centers_count,
-          columns, 0, 0, 0);
-      assign_nearest(distances);
+      assign_nearest();
       interrupt_or_throw();
       if (maximum_movement <= tolerance) {
         converged = true;
@@ -2661,7 +2685,7 @@ static const R_CallMethodDef call_methods[] = {
     {"C_cudaverse_cuda_distance_block",
      reinterpret_cast<DL_FUNC>(&C_cudaverse_cuda_distance_block), 7},
     {"C_cudaverse_cuda_kmeans",
-     reinterpret_cast<DL_FUNC>(&C_cudaverse_cuda_kmeans), 4},
+     reinterpret_cast<DL_FUNC>(&C_cudaverse_cuda_kmeans), 5},
     {"C_cudaverse_cuda_knn_block",
      reinterpret_cast<DL_FUNC>(&C_cudaverse_cuda_knn_block), 6},
     {"C_cudaverse_cuda_matmul",

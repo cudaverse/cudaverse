@@ -280,6 +280,7 @@
     "distance",
     "distance-batched",
     "kmeans",
+    "kmeans-batched",
     "knn",
     "stable-topk",
     "sparse",
@@ -623,7 +624,8 @@
   result
 }
 
-.native_algorithm_kmeans <- function(x, centers, iter_max, tolerance) {
+.native_algorithm_kmeans <- function(x, centers, iter_max, tolerance,
+                                     batch_size = 256L) {
   .native_ensure_kernels()
   input_storage <- .native_from_host(x, "float64", dim(x))
   on.exit(.native_release(input_storage), add = TRUE)
@@ -634,7 +636,8 @@
     input_storage,
     center_storage,
     as.integer(iter_max),
-    as.numeric(tolerance)
+    as.numeric(tolerance),
+    as.integer(batch_size)
   )
   result$centers <- matrix(
     result$centers,
@@ -782,6 +785,7 @@
     algorithm_distance = .native_algorithm_distance,
     algorithm_distance_batched = .native_algorithm_distance_batched,
     algorithm_kmeans = .native_algorithm_kmeans,
+    algorithm_kmeans_batched = .native_algorithm_kmeans,
     algorithm_knn_prepare = .native_knn_prepare,
     algorithm_sparse_knn_prepare = .native_sparse_knn_prepare,
     algorithm_knn_block = .native_knn_block_compat,

@@ -10,6 +10,7 @@ cuda_kmeans(
   iter.max = 100L,
   tolerance = 1e-06,
   seed = NULL,
+  batch_size = 256L,
   device = c("auto", "cuda", "cpu")
 )
 }
@@ -23,6 +24,11 @@ cuda_kmeans(
 \item{tolerance}{Convergence tolerance for centre movement.}
 
 \item{seed}{Optional random seed used for initial centres.}
+
+\item{batch_size}{Maximum number of observations whose centre-distance
+block is materialized at once. The native backend keeps observations,
+centres, assignments, and updates on the GPU while bounding temporary
+distance storage to approximately \code{batch_size * n_centers} values.}
 
 \item{device}{Device used for the numerical clustering stages.}
 }

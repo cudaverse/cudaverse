@@ -67,6 +67,8 @@ test_that("all numerical result types expose one provenance schema", {
   )
   expect_identical(kmeans$compute_device, "cpu")
   expect_identical(kmeans$backend, "base")
+  expect_identical(kmeans$parameters$batch_size, nrow(x))
+  expect_identical(kmeans$parameters$batches, 1L)
 })
 
 test_that("post-fit predictions expose their actual compute stages", {

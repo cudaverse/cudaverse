@@ -218,6 +218,70 @@ Remote evidence at the implementation commit:
 - Linux and Windows no-CUDA artifact builds pass; and
 - CUDA 12.8.1 ABI and unchanged PTX checks pass.
 
+## CP-03B: bounded-memory resident k-means
+
+Status: complete at implementation commit
+`86e1a6d3a8c79c1ae305fa7690501280dc9dc4ad`; the checkpoint-record-only
+follow-up must pass the same PR gates before merge.
+
+Review:
+
+- draft PR: <https://github.com/cudaverse/cudaverse/pull/33>;
+- target: `develop/0.4` (not `main`);
+- no tag, release, CRAN submission, or Pages deployment; and
+- GitHub Pages deploy job skipped as required.
+
+Scope:
+
+- add explicit, provenance-recorded `batch_size` control to `cuda_kmeans()`;
+- prefer a new `algorithm_kmeans_batched` backend operation while retaining
+  the four-argument `algorithm_kmeans` compatibility contract;
+- keep native observations, centres, assignments, accumulation, and Lloyd
+  updates resident while materializing only one observation-by-centre block;
+- cache centre norms once per assignment pass and interrupt safely between
+  blocks; and
+- pass the same explicit batch size through the base/torch compatibility
+  distance path.
+
+Required gate:
+
+- CPU and native results remain invariant across batch sizes 1, intermediate,
+  and larger than the observation count;
+- lowest-centre-index tie handling, empty-centre behavior, large-offset
+  accuracy, names, iteration count, and convergence remain unchanged;
+- the new operation is preferred when present and legacy adapters receive no
+  extra argument;
+- native peak temporary VRAM is lower than the full-batch path; and
+- 1,000 repeated batched native runs return to the exact tracked-memory
+  baseline with structured error recovery intact.
+
+Local evidence:
+
+- the complete ordinary suite and the complete explicitly enabled RTX 2000
+  suite pass;
+- CPU and native k-means parity passes across batch sizes and existing edge
+  cases, with the same assignments, centres, within-cluster sums, iteration
+  count, convergence, names, backend, and stage provenance;
+- for `2048 x 16` data and 64 centres, batch size 64 reduces tracked peak delta
+  from 2,433,792 bytes to 394,496 bytes, an 83.8% reduction;
+- final tracked VRAM delta is zero, and 1,000 repeated small batched fits return
+  to the exact tracked-memory baseline;
+- the exact full-vignette source tarball SHA-256 is
+  `F1D9B9CDD3F0363AED565B1469D9F1563C287BCF4C4E1F28FD74F85BD328E1BD`;
+- Windows `R CMD check --as-cran --no-manual` reports 0 errors, 0 warnings,
+  and only the expected development-version incoming NOTE; and
+- capability, redistribution, SBOM, license/PTX, release-boundary, benchmark,
+  candidate, rejection, pkgdown, and public-documentation gates pass without
+  deployment.
+
+Remote evidence at the implementation commit:
+
+- Windows, macOS, Ubuntu, and R-devel package checks pass;
+- CPU integration and pkgdown pass;
+- supply-chain and repository workflow-boundary checks pass;
+- Linux and Windows no-CUDA artifact builds pass; and
+- CUDA 12.8.1 ABI and unchanged PTX checks pass.
+
 ## CP-02D: allocation-free contiguous subset views
 
 Status: complete at implementation commit
