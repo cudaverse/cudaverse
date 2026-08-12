@@ -35,6 +35,7 @@ to embed. See \code{\link[=cuda_umap]{cuda_umap()}} for automatic selection.}
 \value{
 A \code{cuda_embedding} with the stable fields documented by
 \code{\link[=cuda_umap]{cuda_umap()}}, stage-level distance/kernel/eigendecomposition provenance,
+an optional \code{distance_input} stage when resident native storage is reused,
 and an additional \code{eigenvalues} element.
 }
 \description{

@@ -1199,6 +1199,52 @@ test_that("native PCA prediction remains compatible with automatic selection", {
   expect_identical(neighbor_stages$backend[[1L]], "native")
 })
 
+test_that("native PCA scores enter diffusion distance without re-upload", {
+  skip_if_not(identical(Sys.getenv("CUDAVERSE_NATIVE_TESTS"), "true"))
+  skip_if_not(nzchar(Sys.getenv("CUDAVERSE_CUSOLVER_PATH")))
+  skip_if_not(isTRUE(cudaverse:::.native_diagnostics()$auto_eligible))
+  old <- options(cudaverse.cuda_backends = "native")
+  on.exit(options(old), add = TRUE)
+
+  values <- matrix(sin(seq_len(120L) / 7), 30L, 4L)
+  fit <- cudaverse::cuda_pca(
+    values, n_components = 3L, center = TRUE, scale. = TRUE,
+    device = "cuda"
+  )
+  state <- attr(fit$x, "cudaverse_native_state", exact = TRUE)
+  expect_type(state$storage, "externalptr")
+  input <- cudaverse:::.embedding_input(fit)
+  expect_identical(
+    attr(input$matrix, "cudaverse_native_state", exact = TRUE)$storage,
+    state$storage
+  )
+
+  testthat::local_mocked_bindings(
+    .native_from_host = function(...) {
+      stop("resident diffusion input was uploaded again", call. = FALSE)
+    },
+    .package = "cudaverse"
+  )
+  embedding <- cudaverse::cuda_diffusion_map(
+    fit, n_components = 2L, device = "cuda"
+  )
+
+  provenance <- cudaverse::cuda_provenance(embedding)
+  expect_identical(
+    provenance$stage,
+    c("distance_input", "distance", "kernel", "eigendecomposition")
+  )
+  expect_identical(
+    provenance$selection_reason[[1L]],
+    "device_resident_input"
+  )
+  expect_identical(provenance$backend[[1L]], "native")
+  expect_identical(provenance$output_device[[1L]], "cuda")
+  expect_identical(provenance$output_device[[2L]], "cpu")
+  expect_identical(embedding$compute_device, "hybrid")
+  expect_true(all(is.finite(embedding$coordinates)))
+})
+
 test_that("one thousand resident PCA predictions release exactly", {
   skip_if_not(identical(Sys.getenv("CUDAVERSE_NATIVE_TESTS"), "true"))
   skip_if_not(nzchar(Sys.getenv("CUDAVERSE_CUSOLVER_PATH")))
