@@ -18,6 +18,9 @@
 - Added explicit, provenance-recorded distance batching across base, torch,
   and native backends. Native execution retains input/reference storage and
   cached reference norms across blocks, bounding peak device memory.
+- Added explicit k-means batching with a backward-compatible backend contract.
+  Native Lloyd iterations now keep data, centres, assignments, and updates on
+  the GPU while bounding temporary distance storage by observation batch.
 
 # cudaverse 0.3.0.9000
 

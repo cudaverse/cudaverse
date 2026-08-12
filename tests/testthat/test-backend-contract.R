@@ -559,6 +559,62 @@ test_that("k-means dispatches resident updates by backend operation", {
   expect_identical(fit$compute_stages$finalization$output_device, "cpu")
 })
 
+test_that("k-means prefers the bounded-memory backend contract", {
+  values <- rbind(c(0, 0), c(0, 1), c(10, 10), c(10, 11))
+  initial <- values[c(1L, 3L), , drop = FALSE]
+  calls <- new.env(parent = emptyenv())
+  calls$legacy <- 0L
+  calls$batched <- 0L
+  factory <- cudaverse:::.base_backend_factory()
+  factory$name <- "kmeans-batched-contract-test"
+  factory$device <- "cuda"
+  result <- list(
+    cluster = c(1L, 1L, 2L, 2L),
+    centers = rbind(c(0, 0.5), c(10, 10.5)),
+    withinss = c(0.5, 0.5),
+    iter = 2L,
+    converged = TRUE
+  )
+  factory$algorithm_kmeans <- function(...) {
+    calls$legacy <- calls$legacy + 1L
+    result
+  }
+  factory$algorithm_kmeans_batched <- function(
+      x, centers, iter_max, tolerance, batch_size) {
+    calls$batched <- calls$batched + 1L
+    expect_identical(x, values)
+    expect_identical(centers, initial)
+    expect_identical(iter_max, 10L)
+    expect_identical(tolerance, 1e-8)
+    expect_identical(batch_size, 2L)
+    result
+  }
+  cudaverse:::.backend_register(factory, replace = TRUE)
+  on.exit(rm(
+    list = "kmeans-batched-contract-test",
+    envir = cudaverse:::.cudaverse_backends
+  ), add = TRUE)
+  testthat::local_mocked_bindings(
+    .learn_device = function(device) list(
+      requested_device = "cuda",
+      device = "cuda",
+      backend = "kmeans-batched-contract-test",
+      selection_reason = "contract_test",
+      fallback = FALSE
+    )
+  )
+
+  fit <- cuda_kmeans(
+    values, centers = initial, iter.max = 10L, tolerance = 1e-8,
+    batch_size = 2L, device = "cuda"
+  )
+
+  expect_identical(calls$batched, 1L)
+  expect_identical(calls$legacy, 0L)
+  expect_identical(fit$parameters$batch_size, 2L)
+  expect_identical(fit$parameters$batches, 2L)
+})
+
 test_that("sparse transpose dispatches by backend operation", {
   calls <- new.env(parent = emptyenv())
   calls$transpose <- 0L

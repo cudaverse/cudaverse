@@ -530,6 +530,42 @@ test_that("k-means returns coherent clusters", {
   expect_true(all(fit$cluster %in% 1:2))
 })
 
+test_that("CPU k-means is invariant to distance batch size", {
+  values <- rbind(
+    c(0, 0), c(0, 1), c(1, 0),
+    c(10, 10), c(10, 11), c(11, 10)
+  )
+  centers <- values[c(1L, 4L), , drop = FALSE]
+  reference <- cuda_kmeans(
+    values, centers, iter.max = 10L, tolerance = 1e-10,
+    batch_size = nrow(values), device = "cpu"
+  )
+
+  for (batch_size in c(1L, 2L, 4L, 100L)) {
+    actual <- cuda_kmeans(
+      values, centers, iter.max = 10L, tolerance = 1e-10,
+      batch_size = batch_size, device = "cpu"
+    )
+    expect_identical(actual$cluster, reference$cluster)
+    expect_equal(actual$centers, reference$centers, tolerance = 0)
+    expect_equal(actual$withinss, reference$withinss, tolerance = 1e-12)
+    expect_identical(actual$iter, reference$iter)
+    expect_identical(actual$converged, reference$converged)
+  }
+})
+
+test_that("k-means validates batch size", {
+  values <- test_matrix()
+  for (batch_size in list(0, -1, 1.5, Inf, NA_real_, c(1, 2))) {
+    expect_error(
+      cuda_kmeans(
+        values, centers = 2L, batch_size = batch_size, device = "cpu"
+      ),
+      "batch_size"
+    )
+  }
+})
+
 test_that("CPU k-means separates close groups on a large offset", {
   x <- matrix(1e8 + c(0, 0.1, 0.9, 1), ncol = 1)
   initial <- matrix(1e8 + c(0, 1), ncol = 1)
