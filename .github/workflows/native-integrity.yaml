@@ -42,6 +42,8 @@ jobs:
         run: Rscript tools/test-benchmark-checkpoint-io.R
       - name: Validate benchmark timing collection
         run: Rscript tools/test-benchmark-timing.R
+      - name: Validate benchmark memory collection
+        run: Rscript tools/test-benchmark-memory.R
       - name: Validate final RTX candidate report composition
         run: Rscript tools/test-native-candidate-report.R
       - name: Validate consolidation advisory and release gates

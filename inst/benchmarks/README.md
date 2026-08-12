@@ -15,6 +15,9 @@ the first workload time, warm median/p95 and raw observations, synchronized
 stage times, host-boundary and resident timings where the public API makes that
 separation possible, backend allocator and whole-device memory observations,
 installed size, numerical error, and `cudaverse-stage/1` provenance.
+Memory observations use the same public `cuda_memory_info()` contract shown to
+users; native peak reset remains a measurement-only maintainer action outside
+retained timing samples.
 Pipeline stage observations are captured from the same ten timed host-boundary
 runs rather than executing a second ten-run stage pass. Sparse resident timing
 still has its own five warmups and ten timed runs because it measures a distinct
