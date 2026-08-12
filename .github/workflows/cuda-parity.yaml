@@ -1,9 +1,9 @@
 on:
   workflow_dispatch:
   push:
-    branches: [main, develop/native-cuda]
+    branches: [main, develop/native-cuda, develop/0.4]
   pull_request:
-    branches: [main, develop/native-cuda]
+    branches: [main, develop/native-cuda, develop/0.4]
     types: [opened, synchronize, reopened, ready_for_review]
 
 name: cuda-parity

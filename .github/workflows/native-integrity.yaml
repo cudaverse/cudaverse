@@ -3,7 +3,7 @@ name: native-integrity
 on:
   pull_request:
   push:
-    branches: [develop/native-cuda]
+    branches: [develop/native-cuda, develop/0.4]
   workflow_dispatch:
 
 permissions:
@@ -32,7 +32,7 @@ jobs:
         run: Rscript tools/check-consolidation-report.R
       - name: Validate the exported API backend capability matrix
         run: Rscript tools/check-capability-matrix.R
-      - name: Validate the 0.3 benchmark definition
+      - name: Validate the benchmark definition
         run: Rscript tools/check-benchmark-definition.R
       - name: Validate benchmark-summary generation and rejection gates
         run: Rscript tools/test-benchmark-summary.R

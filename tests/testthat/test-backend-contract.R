@@ -29,11 +29,78 @@ test_that("diagnostics extend rather than replace legacy fields", {
   expect_type(diagnostics$selected_backend, "character")
   expect_length(diagnostics$selected_backend, 1L)
   expect_named(diagnostics$backend_diagnostics, c("torch", "native"))
+  expect_identical(
+    diagnostics$status,
+    if (diagnostics$cuda_available) "cuda_ready" else "cpu_only"
+  )
+  expect_type(diagnostics$summary, "character")
+  expect_length(diagnostics$summary, 1L)
+  expect_type(diagnostics$next_steps, "character")
+  expect_s3_class(diagnostics$backend_status, "data.frame")
+  expect_named(
+    diagnostics$backend_status,
+    c(
+      "backend", "device", "installed", "available", "auto_eligible",
+      "selected", "reason", "error"
+    )
+  )
+  expect_identical(
+    diagnostics$backend_status$backend,
+    c("base", "torch", "native")
+  )
+  expect_identical(
+    diagnostics$backend_status$device,
+    c("cpu", "cuda", "cuda")
+  )
+  expect_false(diagnostics$backend_status$auto_eligible[[1L]])
+  expect_identical(sum(diagnostics$backend_status$selected), 1L)
+  expect_identical(
+    diagnostics$backend_status$backend[diagnostics$backend_status$selected],
+    diagnostics$selected_backend
+  )
   expect_true(all(c(
     "capabilities", "operations"
   ) %in% names(diagnostics$backend_diagnostics$torch)))
   expect_true("algorithm_pca_predict" %in%
                 diagnostics$backend_diagnostics$torch$operations)
+})
+
+test_that("diagnostic guidance maps stable runtime reasons to actions", {
+  expect_match(
+    cudaverse:::.cuda_diagnostic_next_steps("driver_unavailable"),
+    "NVIDIA display driver",
+    fixed = TRUE
+  )
+  expect_match(
+    cudaverse:::.cuda_diagnostic_next_steps("native_runtime_incomplete"),
+    "CUDAVERSE_CUBLAS_PATH",
+    fixed = TRUE
+  )
+  expect_match(
+    cudaverse:::.cuda_diagnostic_next_steps("native_self_test_failed"),
+    "self_test$error",
+    fixed = TRUE
+  )
+})
+
+test_that("strict CUDA conditions retain actionable diagnostics", {
+  unavailable <- structure(
+    list(
+      cuda_available = FALSE,
+      auto_selection_reason = "driver_unavailable",
+      reason = "torch_not_installed",
+      selected_backend = "base",
+      next_steps = "Install or update the NVIDIA display driver."
+    ),
+    class = "cuda_diagnostics"
+  )
+  testthat::local_mocked_bindings(cuda_diagnostics = function() unavailable)
+
+  condition <- tryCatch(cuda_select_device("cuda"), error = identity)
+  expect_s3_class(condition, "cudaverse_cuda_unavailable")
+  expect_identical(condition$reason, "driver_unavailable")
+  expect_identical(condition$next_steps, unavailable$next_steps)
+  expect_match(conditionMessage(condition), "Next:", fixed = TRUE)
 })
 
 test_that("capabilities and callable operations have distinct contracts", {
