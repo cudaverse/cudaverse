@@ -979,6 +979,7 @@ gates.
 
 Review:
 
+- draft PR: <https://github.com/cudaverse/cudaverse/pull/43>;
 - target: `develop/0.4` (not `main`);
 - no tag, release, CRAN submission, or Pages deployment; and
 - the retained smoke report is a runner and regression gate, not a universal
@@ -1023,4 +1024,14 @@ Initial RTX 2000 evidence:
   7,367,799,444 bytes for optional torch, while cudaverse bundles zero CUDA
   runtime bytes; and
 - the exact smoke source tarball has SHA-256
-  `7916F317991F9C526ADA5DBBF27F3B6636C547D5DE890A0B0893B54BFD9C87F3`.
+  `7916F317991F9C526ADA5DBBF27F3B6636C547D5DE890A0B0893B54BFD9C87F3`;
+- the complete ordinary suite and complete explicitly enabled RTX 2000 suite
+  pass, with no hardware skips in the latter;
+- the exact full-vignette checkpoint-follow-up source tarball has SHA-256
+  `0A4B1A5F4425A650C48EEB26F87AA78045CE13EB0E1647E9A1CEED7D993DADE9`;
+- Windows `R CMD check --as-cran --no-manual` reports 0 errors, 0 warnings,
+  and only the expected development-version incoming NOTE;
+- redistribution, SBOM, release-boundary, capability, benchmark, candidate,
+  session-report, and rejection gates pass; and
+- installed pkgdown and the public documentation boundary pass from a
+  temporary clone without deploying Pages.
