@@ -506,3 +506,67 @@ Remote evidence at the implementation commit:
 - supply-chain and repository workflow-boundary checks pass;
 - Linux and Windows no-CUDA artifact builds pass; and
 - CUDA 12.8.1 ABI and PTX checks pass.
+
+## CP-03D: device-resident native SVD and PCA input
+
+Status: complete at implementation commit
+`d921edec0edc293105239df73a6b66f1532620c7`; the checkpoint-record-only
+follow-up must pass the same PR gates before merge.
+
+Review:
+
+- draft PR: <https://github.com/cudaverse/cudaverse/pull/35>;
+- target: `develop/0.4` (not `main`);
+- no tag, release, CRAN submission, or Pages deployment; and
+- GitHub Pages deploy job skipped as required.
+
+Scope:
+
+- let a native CUDA `cudatensor` enter `cuda_svd()` and `cuda_pca()` through
+  its existing shared device storage rather than a full host round trip;
+- validate non-finite values and constant columns on the device, returning
+  only two small validation flags to R;
+- cast integer and float32 inputs to float64 on the device while sharing an
+  existing float64 allocation;
+- preserve public results, errors, dimnames, backend selection, and the
+  `cudaverse-stage/1` provenance schema; and
+- keep CPU, torch, third-party, cross-backend, and cross-device paths on the
+  established materialization contract.
+
+Required gate:
+
+- integer, float32, and float64 resident SVD/PCA match the CPU reference under
+  the float64 heavy-operation tolerance;
+- the first computation stage records backend `native` and reason
+  `device_resident_input` without downloading the input matrix;
+- non-finite and constant-column inputs retain their established public
+  errors;
+- 1,000 native device-validation cycles return to the exact tracked-memory
+  baseline; and
+- ordinary, RTX, no-CUDA, cross-platform, source, supply-chain, and
+  documentation gates stay green.
+
+Local evidence:
+
+- the complete ordinary suite and complete explicitly enabled RTX 2000 suite
+  pass;
+- resident SVD/PCA parity passes for integer, float32, and float64 inputs,
+  while row and feature labels remain intact;
+- device validation detects `NA`, `NaN`, positive/negative infinity, and
+  constant columns without materializing the input matrix on the host;
+- 1,000 device-validation cycles return to the exact tracked-memory baseline;
+- source PTX rebuilt under CUDA 12.8.1 has SHA-256
+  `08227D30A0C253B37BF11D55F93919CF556374FCD1EA19F9315C19A77F6BB327`;
+- exact full-vignette source tarball SHA-256 is
+  `7A9B8A98FEAA15A4DF6D5B37DAF9DABEB2CB97BB41F808BDEC550726E4A16E9C`;
+- Windows `R CMD check --as-cran --no-manual` reports 0 errors, 0 warnings,
+  and only the expected development-version incoming NOTE; and
+- capability, redistribution, SBOM, release-boundary, benchmark, candidate,
+  rejection, pkgdown, and public-documentation gates pass without deployment.
+
+Remote evidence at the implementation commit:
+
+- CPU integration passes;
+- supply-chain and repository workflow-boundary checks pass;
+- Linux and Windows no-CUDA artifact builds pass; and
+- CUDA 12.8.1 ABI and regenerated PTX reproducibility checks pass.
