@@ -353,7 +353,10 @@ cuda_available <- function() {
 #' Floating dtypes accept IEEE `Inf`, `-Inf`, `NaN`, and R's floating `NA`;
 #' torch backends may normalize `NA` to `NaN`. Integer dtype rejects
 #' non-finite or fractional values because they have no exact integer
-#' representation.
+#' representation. When `x` is already a tensor on the selected device,
+#' compatible floating dtype changes use its current backend without
+#' materializing the tensor on the host. Conversion to integer still validates
+#' exact representability on the host.
 #'
 #' @return A `cudatensor` object.
 #' @export
@@ -370,8 +373,11 @@ cuda_tensor <- function(x, device = c("auto", "cuda", "cpu"),
     if (is.null(dtype)) {
       dtype <- x$dtype
     }
-    if (identical(device, x$device) && identical(dtype, x$dtype)) {
-      return(x)
+    if (identical(device, x$device)) {
+      if (identical(dtype, x$dtype)) {
+        return(x)
+      }
+      return(.cast_tensor(x, dtype))
     }
     x <- to_cpu(x)
   }

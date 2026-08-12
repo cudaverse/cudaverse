@@ -210,6 +210,30 @@ test_that("native replacement casts compatible tensor values on device", {
   }
 })
 
+test_that("native tensor reconstruction casts on the existing device", {
+  skip_if_not(identical(Sys.getenv("CUDAVERSE_NATIVE_TESTS"), "true"))
+  skip_if_not(isTRUE(cudaverse:::.native_diagnostics()$available))
+  old <- options(cudaverse.cuda_backends = "native")
+  on.exit(options(old), add = TRUE)
+
+  source <- matrix(
+    seq_len(12) / 7, 3, 4,
+    dimnames = list(paste0("r", 1:3), paste0("c", 1:4))
+  )
+  x <- cudaverse::cuda_tensor(source, device = "cuda", dtype = "float64")
+  cast <- cudaverse::cuda_tensor(x, device = "cuda", dtype = "float32")
+
+  expect_equal(cudaverse::to_cpu(cast), source, tolerance = 1e-6)
+  expect_identical(
+    cudaverse::tensor_device(cast),
+    c(device = "cuda", backend = "native")
+  )
+  expect_identical(cast$dtype, "float32")
+  expect_identical(dimnames(cast), dimnames(source))
+  expect_identical(cudaverse::cuda_provenance(cast)$stage, "cast")
+  expect_identical(cudaverse::cuda_provenance(cast)$output_device, "cuda")
+})
+
 test_that("repeated native replacement casts release all temporaries", {
   skip_if_not(identical(Sys.getenv("CUDAVERSE_NATIVE_TESTS"), "true"))
   skip_if_not(isTRUE(cudaverse:::.native_diagnostics()$available))

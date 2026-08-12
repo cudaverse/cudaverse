@@ -11,6 +11,8 @@
   after their sources are released and free the allocation exactly once.
 - Kept same-backend CUDA tensor replacement device-resident when the replacement
   needs a compatible floating dtype cast, with the cast recorded in provenance.
+- Made `cuda_tensor()` cast an existing tensor through its current backend when
+  the requested device is unchanged, avoiding a download/upload round trip.
 
 # cudaverse 0.3.0.9000
 
