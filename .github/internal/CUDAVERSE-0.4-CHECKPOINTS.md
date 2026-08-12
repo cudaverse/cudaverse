@@ -143,7 +143,16 @@ Remote evidence at the implementation commit:
 
 ## CP-03A: explicit batched dense distance
 
-Status: implementation and local gates complete; remote PR gates pending.
+Status: complete at implementation commit
+`76325b9b783e39ef3523b9ddfd020cf3039135b6`; the checkpoint-record-only
+follow-up must pass the same PR gates before merge.
+
+Review:
+
+- draft PR: <https://github.com/cudaverse/cudaverse/pull/32>;
+- target: `develop/0.4` (not `main`);
+- no tag, release, CRAN submission, or Pages deployment; and
+- GitHub Pages deploy job skipped as required.
 
 Scope:
 
@@ -200,6 +209,14 @@ Environment boundary:
   runtime, so torch hardware parity remains assigned to the protected runner;
   its built-in adapter implements the same explicit block loop and is covered
   by no-CUDA loading, contract, and cross-platform checks.
+
+Remote evidence at the implementation commit:
+
+- Windows, macOS, Ubuntu, and R-devel package checks pass;
+- CPU integration and pkgdown pass;
+- supply-chain and repository workflow-boundary checks pass;
+- Linux and Windows no-CUDA artifact builds pass; and
+- CUDA 12.8.1 ABI and unchanged PTX checks pass.
 
 ## CP-02D: allocation-free contiguous subset views
 
