@@ -219,6 +219,17 @@ test_that("older torch APIs retain the explicit compatibility path", {
   expect_false("stable-topk" %in% factory$capabilities())
 })
 
+test_that("stable top-k discovery is safe when torch is absent", {
+  testthat::local_mocked_bindings(
+    .cuda_torch_installed = function() FALSE
+  )
+
+  expect_false(cudaverse:::.torch_stable_sort_available())
+  factory <- cudaverse:::.torch_backend_factory()
+  expect_false(is.function(factory$algorithm_knn_select))
+  expect_false("stable-topk" %in% factory$capabilities())
+})
+
 test_that("invalid capability declarations fail registration", {
   factory <- cudaverse:::.base_backend_factory()
   factory$name <- "invalid-capabilities"

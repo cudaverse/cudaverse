@@ -360,7 +360,8 @@
 }
 
 .torch_stable_sort_available <- function() {
-  "stable" %in% names(formals(torch::torch_sort))
+  .cuda_torch_installed() &&
+    "stable" %in% names(formals(torch::torch_sort))
 }
 
 .torch_algorithm_knn_select <- function(storage, values, k, metric,
