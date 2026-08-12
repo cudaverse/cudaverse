@@ -16,6 +16,10 @@ sys.source(
   file.path("tools", "benchmark-timing.R"),
   envir = environment()
 )
+sys.source(
+  file.path("tools", "benchmark-memory.R"),
+  envir = environment()
+)
 
 truthy <- function(name, default = "false") {
   tolower(Sys.getenv(name, unset = default)) %in% c("1", "true", "yes")
@@ -164,74 +168,21 @@ synchronize <- function(backend) {
   invisible(TRUE)
 }
 
-native_memory <- function() {
-  if (is.null(native_factory)) return(list(used = NA_real_, total = NA_real_))
-  tryCatch(
-    cudaverse:::.native_memory_info(),
-    error = function(error) list(used = NA_real_, total = NA_real_)
-  )
-}
-
-torch_peak <- function() {
-  if (!requireNamespace("torch", quietly = TRUE)) return(NA_real_)
-  stats <- tryCatch(torch::cuda_memory_stats(), error = function(error) NULL)
-  if (is.null(stats) || is.null(stats$allocated_bytes$all$peak)) {
-    return(NA_real_)
-  }
-  as.numeric(stats$allocated_bytes$all$peak)
-}
-
 measure_memory <- function(backend, run) {
-  synchronize(backend)
-  invisible(gc())
-  before_device <- native_memory()
-  tracker_before <- if (identical(backend, "native")) {
-    cudaverse:::.native_memory_tracker(reset = TRUE)
-  } else {
-    list(current = NA_real_, peak = NA_real_)
-  }
-
-  value <- run()
-  synchronize(backend)
-  during_device <- native_memory()
-  tracker_during <- if (identical(backend, "native")) {
-    cudaverse:::.native_memory_tracker()
-  } else {
-    list(current = NA_real_, peak = NA_real_)
-  }
-  torch_peak_bytes <- if (identical(backend, "torch")) torch_peak() else NA_real_
-  value <- NULL
-  invisible(gc())
-  synchronize(backend)
-  after_device <- native_memory()
-  tracker_after <- if (identical(backend, "native")) {
-    cudaverse:::.native_memory_tracker()
-  } else {
-    list(current = NA_real_, peak = NA_real_)
-  }
-
-  list(
-    backend_allocator_peak_bytes = if (identical(backend, "native")) {
-      tracker_during$peak - tracker_before$current
-    } else if (identical(backend, "torch")) {
-      torch_peak_bytes
-    } else {
-      0
+  benchmark_measure_memory(
+    backend,
+    run,
+    synchronize = synchronize,
+    memory_query = function(selected_backend) {
+      with_backend(
+        selected_backend,
+        cudaverse::cuda_memory_info(backend_device(selected_backend))
+      )
     },
-    backend_allocator_peak_source = if (identical(backend, "native")) {
-      "cudaverse native operation-owned allocation tracker"
-    } else if (identical(backend, "torch")) {
-      "torch CUDA allocator session high-water mark"
-    } else {
-      "not applicable (CPU)"
-    },
-    tracked_current_post_cleanup_difference_bytes =
-      tracker_after$current - tracker_before$current,
-    whole_device_used_before_bytes = before_device$used,
-    whole_device_used_with_result_bytes = during_device$used,
-    whole_device_used_after_cleanup_bytes = after_device$used,
-    whole_device_post_cleanup_absolute_difference_bytes =
-      abs(after_device$used - before_device$used)
+    reset_native_peak = function() {
+      cudaverse:::.native_memory_tracker(reset = TRUE)
+      invisible(TRUE)
+    }
   )
 }
 

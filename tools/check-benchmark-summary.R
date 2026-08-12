@@ -47,6 +47,11 @@ if (grepl("DRAFT", summary, fixed = TRUE)) {
 }
 commit <- as.character(scalar(report$source$commit, ""))
 sha256 <- sha256_after_read
+profile <- as.character(scalar(report$profile, ""))
+require_text(
+  paste0("# cudaverse ", profile, " benchmark evidence"),
+  "summary title does not match the benchmark profile"
+)
 require_text(
   paste0("Source commit: `", commit, "`"),
   "summary does not identify the report source commit"

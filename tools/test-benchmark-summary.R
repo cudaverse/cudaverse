@@ -123,8 +123,12 @@ Sys.setenv(
 Sys.unsetenv("CUDAVERSE_BENCHMARK_ALLOW_INCOMPLETE")
 run_script(file.path("tools", "summarize-benchmark-report.R"))
 run_script(file.path("tools", "check-benchmark-summary.R"))
-
 summary_lines <- readLines(summary_path, warn = FALSE)
+if (!identical(summary_lines[[1L]], "# cudaverse full benchmark evidence")) {
+  stop("Benchmark summary title does not reflect the report profile.",
+       call. = FALSE)
+}
+
 writeLines(
   summary_lines[!grepl(
     "Ratios compare ten-run sample medians descriptively.",

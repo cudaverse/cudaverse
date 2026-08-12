@@ -1,5 +1,8 @@
 # cudaverse 0.4.0.9000
 
+- Unified benchmark memory collection with the public `cuda_memory_info()`
+  contract while retaining native peak reset as an untimed maintainer-only
+  measurement action.
 - Added a maintainer native-session contract that installs the exact source in
   an isolated library, runs two fresh R processes through dense, sparse,
   PCA/kNN, injected-error recovery, exact allocator cleanup, backend reuse,

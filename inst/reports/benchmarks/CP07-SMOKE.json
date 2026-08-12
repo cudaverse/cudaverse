@@ -1,0 +1,1461 @@
+{
+  "schema": "cudaverse-benchmark/1",
+  "generated_at_utc": "2026-08-12 07:52:20 UTC",
+  "profile": "smoke",
+  "source": {
+    "commit": "d1d4e83686d71431dc0c6a46998ca48a9e926f30",
+    "tracked_dirty": false
+  },
+  "hardware": {
+    "nvidia_smi": "NVIDIA RTX 2000 Ada Generation, 595.97, 16380, 8.9"
+  },
+  "software": {
+    "R": "R version 4.6.0 (2026-04-24 ucrt)",
+    "cudaverse": "0.4.0.9000",
+    "torch": "0.17.0.9000",
+    "diagnostics": {
+      "torch_installed": true,
+      "torch_version": "0.17.0.9000",
+      "cuda_available": true,
+      "cuda_device_count": 1,
+      "reason": "cuda_available",
+      "detection_error": null,
+      "available_backends": ["base", "torch", "native"],
+      "auto_eligible_backends": ["torch", "native"],
+      "auto_selection_reason": "native_auto_eligible",
+      "selected_backend": "native",
+      "backend_diagnostics": {
+        "torch": {
+          "installed": true,
+          "available": true,
+          "device_count": 1,
+          "version": "0.17.0.9000",
+          "reason": "cuda_available",
+          "detection_error": null,
+          "capabilities": ["transfer", "cast", "arithmetic", "matmul", "reduce", "reshape", "broadcast", "transpose", "svd", "pca", "distance", "distance-batched", "pca-predict", "knn", "sparse"],
+          "operations": ["algorithm_distance", "algorithm_distance_batched", "algorithm_knn_block", "algorithm_knn_prepare", "algorithm_pca", "algorithm_pca_predict", "algorithm_svd", "binary", "broadcast", "cast", "from_host", "matmul", "memory_info", "reduce", "release", "reshape", "sparse_from_coo", "sparse_matmul_dense", "synchronize", "to_host", "transpose"],
+          "contract_schema": null,
+          "missing_auto_capabilities": [],
+          "capability_compatible": true,
+          "self_test_passed": null,
+          "auto_eligible": true,
+          "auto_selection_reason": "cuda_available"
+        },
+        "native": {
+          "installed": true,
+          "available": true,
+          "device_count": 1,
+          "version": "13020",
+          "reason": "cuda_available",
+          "detection_error": null,
+          "driver_version": 13020,
+          "cublas_loaded": true,
+          "cusolver_loaded": true,
+          "cusolver_error": null,
+          "kernels_loaded": true,
+          "runtime_complete": true,
+          "self_test": {
+            "passed": true,
+            "reason": "self_test_passed",
+            "error": null,
+            "checks": ["float64-transfer-matmul-reduce", "float32-transfer-matmul-reduce", "arithmetic-reshape-broadcast-transpose", "device-indexing", "resident-matrix-validation-svd-pca", "resident-batched-distance", "resident-kmeans", "sparse-transpose", "sparse-transfer-normalize"],
+            "duration_ms": 49.999999999999822
+          },
+          "auto_eligible": true,
+          "capabilities": ["driver-detection", "allocation", "transfer", "cast", "matmul", "reduce", "arithmetic", "reshape", "broadcast", "transpose", "subset", "replacement", "matrix-validation", "svd", "svd-resident", "pca", "pca-resident", "pca-predict", "distance", "distance-batched", "kmeans", "kmeans-batched", "knn", "stable-topk", "sparse", "sparse-coo", "sparse-csr", "sparse-transpose", "sparse-normalize", "sparse-matmul", "sparse-reduce", "sparse-pca", "sparse-knn", "synchronize", "shared-ownership", "memory-observability", "dtype-float32", "dtype-float64", "runtime-self-test"],
+          "operations": ["algorithm_distance", "algorithm_distance_batched", "algorithm_kmeans", "algorithm_kmeans_batched", "algorithm_knn_block", "algorithm_knn_prepare", "algorithm_knn_select", "algorithm_matrix_validate", "algorithm_pca", "algorithm_pca_predict", "algorithm_pca_storage", "algorithm_sparse_knn_prepare", "algorithm_sparse_pca", "algorithm_svd", "algorithm_svd_storage", "binary", "broadcast", "cast", "from_host", "matmul", "memory_info", "reduce", "release", "replace", "reshape", "sparse_from_coo", "sparse_matmul_dense", "sparse_normalize", "sparse_reduce", "sparse_release", "sparse_share", "sparse_to_dense", "sparse_to_host", "sparse_transpose", "subset", "synchronize", "test_inject_cuda_error", "to_host", "transpose"],
+          "contract_schema": "cudaverse-backend/1",
+          "missing_auto_capabilities": [],
+          "capability_compatible": true,
+          "self_test_passed": true,
+          "auto_selection_reason": "native_auto_eligible"
+        }
+      },
+      "status": "cuda_ready",
+      "summary": "CUDA is ready through the native backend (1 device).",
+      "next_steps": [],
+      "backend_status": [
+        {
+          "backend": "base",
+          "device": "cpu",
+          "installed": true,
+          "available": true,
+          "auto_eligible": false,
+          "selected": false,
+          "reason": "cpu_available",
+          "error": null,
+          "_row": "base"
+        },
+        {
+          "backend": "torch",
+          "device": "cuda",
+          "installed": true,
+          "available": true,
+          "auto_eligible": true,
+          "selected": false,
+          "reason": "cuda_available",
+          "error": null,
+          "_row": "torch"
+        },
+        {
+          "backend": "native",
+          "device": "cuda",
+          "installed": true,
+          "available": true,
+          "auto_eligible": true,
+          "selected": true,
+          "reason": "native_auto_eligible",
+          "error": null,
+          "_row": "native"
+        }
+      ]
+    }
+  },
+  "contract": {
+    "path": "inst/benchmarks/contract.csv",
+    "backends": ["base", "native", "torch"],
+    "cases": [
+      {
+        "profile": "smoke",
+        "family": "matmul",
+        "case_id": "matmul-float32-64",
+        "rows": 64,
+        "columns": 64,
+        "density": null,
+        "dtype": "float32",
+        "k": null,
+        "components": null,
+        "warmups": 1,
+        "timed_runs": 2,
+        "transfer_contract": "resident_and_host_boundary"
+      },
+      {
+        "profile": "smoke",
+        "family": "matmul",
+        "case_id": "matmul-float64-64",
+        "rows": 64,
+        "columns": 64,
+        "density": null,
+        "dtype": "float64",
+        "k": null,
+        "components": null,
+        "warmups": 1,
+        "timed_runs": 2,
+        "transfer_contract": "resident_and_host_boundary"
+      },
+      {
+        "profile": "smoke",
+        "family": "dense_pca_knn",
+        "case_id": "dense-128x16",
+        "rows": 128,
+        "columns": 16,
+        "density": null,
+        "dtype": "float64",
+        "k": 5,
+        "components": 5,
+        "warmups": 1,
+        "timed_runs": 2,
+        "transfer_contract": "host_boundary_and_stage_times"
+      },
+      {
+        "profile": "smoke",
+        "family": "sparse_pca_knn",
+        "case_id": "sparse-128x16@0.10",
+        "rows": 128,
+        "columns": 16,
+        "density": 0.10000000000000001,
+        "dtype": "float64",
+        "k": 5,
+        "components": 5,
+        "warmups": 1,
+        "timed_runs": 2,
+        "transfer_contract": "explicit_upload_and_resident_continuation"
+      }
+    ],
+    "timing_clock": "wall clock with backend synchronization",
+    "stage_sampling": "pipeline stages are collected from the same synchronized timed host-boundary runs",
+    "memory_sampling": "one separate instrumented execution after timing; allocator tracking is excluded from retained timing samples",
+    "cold_runtime_diagnostics_seconds": 1.7662360668182373,
+    "cold_scope": "Cold case time is the first workload execution after package loading and the required diagnostics/self-test. Runtime diagnostics are reported separately; R process startup and package installation are outside the benchmark boundary.",
+    "execution_order": "cold host boundary, warmups/timed host boundary, cold resident continuation when separable, warmups/timed resident continuation",
+    "tolerances": {
+      "float32": {
+        "rtol": 1.0000000000000001e-05,
+        "atol": 9.9999999999999995e-07
+      },
+      "float64": {
+        "rtol": 1e-10,
+        "heavy_rtol": 1e-08
+      },
+      "pca": "projector and reconstruction, heavy rtol 1e-8",
+      "knn": "exact indices; distance rtol 1e-8; ties by original row"
+    }
+  },
+  "installed_size_bytes": {
+    "cudaverse": 1384393,
+    "torch": 7367799444,
+    "bundled_cuda_runtime": 0
+  },
+  "cases": {
+    "matmul-float32-64": {
+      "definition": {
+        "profile": "smoke",
+        "family": "matmul",
+        "case_id": "matmul-float32-64",
+        "rows": 64,
+        "columns": 64,
+        "density": null,
+        "dtype": "float32",
+        "k": null,
+        "components": null,
+        "warmups": 1,
+        "timed_runs": 2,
+        "transfer_contract": "resident_and_host_boundary"
+      },
+      "backends": {
+        "base": {
+          "status": "complete",
+          "cold_seconds": {
+            "host_boundary": 0.0026941299438476562,
+            "resident_compute": 0.00144195556640625
+          },
+          "warm": {
+            "host_boundary": {
+              "median_seconds": 0.0028049945831298828,
+              "p95_seconds": 0.0037779808044433594,
+              "runs_seconds": [0.0018320083618164062, 0.0037779808044433594]
+            },
+            "resident_compute": {
+              "median_seconds": 0.00043749809265136719,
+              "p95_seconds": 0.00060486793518066406,
+              "runs_seconds": [0.00060486793518066406, 0.00027012825012207031]
+            }
+          },
+          "transfer": {
+            "included_boundary": "host matrices -> tensors -> matmul -> host matrix",
+            "excluded_boundary": "resident tensors -> resident tensor",
+            "separately_measured": true
+          },
+          "validation": {
+            "max_absolute_error": 1.2747607458507559e-06,
+            "max_relative_error": 4.0758955349182977e-08,
+            "rtol": 1.0000000000000001e-05,
+            "atol": 9.9999999999999995e-07,
+            "passed": true
+          },
+          "provenance": {
+            "schema": "cudaverse-stage/1",
+            "compute_device": "cpu",
+            "stages": [
+              {
+                "stage": "matrix_multiply",
+                "requested_device": "inherited",
+                "device": "cpu",
+                "backend": "base",
+                "selection_reason": "inherited_device",
+                "fallback": false,
+                "output_device": "cpu"
+              }
+            ]
+          },
+          "memory": {
+            "backend_allocator_peak_bytes": 0,
+            "backend_allocator_peak_source": "not applicable (CPU)",
+            "tracked_current_post_cleanup_difference_bytes": null,
+            "whole_device_used_before_bytes": null,
+            "whole_device_used_with_result_bytes": null,
+            "whole_device_used_after_cleanup_bytes": null,
+            "whole_device_post_cleanup_absolute_difference_bytes": null
+          }
+        },
+        "native": {
+          "status": "complete",
+          "cold_seconds": {
+            "host_boundary": 0.0087320804595947266,
+            "resident_compute": 0.00025796890258789062
+          },
+          "warm": {
+            "host_boundary": {
+              "median_seconds": 0.0059846639633178711,
+              "p95_seconds": 0.0084481239318847656,
+              "runs_seconds": [0.0035212039947509766, 0.0084481239318847656]
+            },
+            "resident_compute": {
+              "median_seconds": 0.00038957595825195312,
+              "p95_seconds": 0.0004520416259765625,
+              "runs_seconds": [0.0004520416259765625, 0.00032711029052734375]
+            }
+          },
+          "transfer": {
+            "included_boundary": "host matrices -> tensors -> matmul -> host matrix",
+            "excluded_boundary": "resident tensors -> resident tensor",
+            "separately_measured": true
+          },
+          "validation": {
+            "max_absolute_error": 4.4024576091317158e-06,
+            "max_relative_error": 1.4076333437575e-07,
+            "rtol": 1.0000000000000001e-05,
+            "atol": 9.9999999999999995e-07,
+            "passed": true
+          },
+          "provenance": {
+            "schema": "cudaverse-stage/1",
+            "compute_device": "cuda",
+            "stages": [
+              {
+                "stage": "matrix_multiply",
+                "requested_device": "inherited",
+                "device": "cuda",
+                "backend": "native",
+                "selection_reason": "inherited_device",
+                "fallback": false,
+                "output_device": "cuda"
+              }
+            ]
+          },
+          "memory": {
+            "backend_allocator_peak_bytes": 49152,
+            "backend_allocator_peak_source": "cuda_memory_info native cudaverse-owned allocation tracker",
+            "tracked_current_post_cleanup_difference_bytes": 0,
+            "whole_device_used_before_bytes": 1209401344,
+            "whole_device_used_with_result_bytes": 1209401344,
+            "whole_device_used_after_cleanup_bytes": 1209401344,
+            "whole_device_post_cleanup_absolute_difference_bytes": 0
+          }
+        },
+        "torch": {
+          "status": "complete",
+          "cold_seconds": {
+            "host_boundary": 0.012460947036743164,
+            "resident_compute": 0.00021696090698242188
+          },
+          "warm": {
+            "host_boundary": {
+              "median_seconds": 0.0043009519577026367,
+              "p95_seconds": 0.0045778751373291016,
+              "runs_seconds": [0.0040240287780761719, 0.0045778751373291016]
+            },
+            "resident_compute": {
+              "median_seconds": 0.00049650669097900391,
+              "p95_seconds": 0.00060200691223144531,
+              "runs_seconds": [0.00060200691223144531, 0.0003910064697265625]
+            }
+          },
+          "transfer": {
+            "included_boundary": "host matrices -> tensors -> matmul -> host matrix",
+            "excluded_boundary": "resident tensors -> resident tensor",
+            "separately_measured": true
+          },
+          "validation": {
+            "max_absolute_error": 4.4024576091317158e-06,
+            "max_relative_error": 1.4076333437575e-07,
+            "rtol": 1.0000000000000001e-05,
+            "atol": 9.9999999999999995e-07,
+            "passed": true
+          },
+          "provenance": {
+            "schema": "cudaverse-stage/1",
+            "compute_device": "cuda",
+            "stages": [
+              {
+                "stage": "matrix_multiply",
+                "requested_device": "inherited",
+                "device": "cuda",
+                "backend": "torch",
+                "selection_reason": "inherited_device",
+                "fallback": false,
+                "output_device": "cuda"
+              }
+            ]
+          },
+          "memory": {
+            "backend_allocator_peak_bytes": 49664,
+            "backend_allocator_peak_source": "cuda_memory_info torch allocator session high-water mark",
+            "tracked_current_post_cleanup_difference_bytes": null,
+            "whole_device_used_before_bytes": null,
+            "whole_device_used_with_result_bytes": null,
+            "whole_device_used_after_cleanup_bytes": null,
+            "whole_device_post_cleanup_absolute_difference_bytes": null
+          }
+        }
+      }
+    },
+    "matmul-float64-64": {
+      "definition": {
+        "profile": "smoke",
+        "family": "matmul",
+        "case_id": "matmul-float64-64",
+        "rows": 64,
+        "columns": 64,
+        "density": null,
+        "dtype": "float64",
+        "k": null,
+        "components": null,
+        "warmups": 1,
+        "timed_runs": 2,
+        "transfer_contract": "resident_and_host_boundary"
+      },
+      "backends": {
+        "base": {
+          "status": "complete",
+          "cold_seconds": {
+            "host_boundary": 0.00039219856262207031,
+            "resident_compute": 0.00018596649169921875
+          },
+          "warm": {
+            "host_boundary": {
+              "median_seconds": 0.00050449371337890625,
+              "p95_seconds": 0.00052309036254882812,
+              "runs_seconds": [0.00052309036254882812, 0.00048589706420898438]
+            },
+            "resident_compute": {
+              "median_seconds": 0.00038492679595947266,
+              "p95_seconds": 0.00045990943908691406,
+              "runs_seconds": [0.00045990943908691406, 0.00030994415283203125]
+            }
+          },
+          "transfer": {
+            "included_boundary": "host matrices -> tensors -> matmul -> host matrix",
+            "excluded_boundary": "resident tensors -> resident tensor",
+            "separately_measured": true
+          },
+          "validation": {
+            "max_absolute_error": 0,
+            "max_relative_error": 0,
+            "rtol": 1e-08,
+            "atol": 1e-10,
+            "passed": true
+          },
+          "provenance": {
+            "schema": "cudaverse-stage/1",
+            "compute_device": "cpu",
+            "stages": [
+              {
+                "stage": "matrix_multiply",
+                "requested_device": "inherited",
+                "device": "cpu",
+                "backend": "base",
+                "selection_reason": "inherited_device",
+                "fallback": false,
+                "output_device": "cpu"
+              }
+            ]
+          },
+          "memory": {
+            "backend_allocator_peak_bytes": 0,
+            "backend_allocator_peak_source": "not applicable (CPU)",
+            "tracked_current_post_cleanup_difference_bytes": null,
+            "whole_device_used_before_bytes": null,
+            "whole_device_used_with_result_bytes": null,
+            "whole_device_used_after_cleanup_bytes": null,
+            "whole_device_post_cleanup_absolute_difference_bytes": null
+          }
+        },
+        "native": {
+          "status": "complete",
+          "cold_seconds": {
+            "host_boundary": 0.0052869319915771484,
+            "resident_compute": 0.0001430511474609375
+          },
+          "warm": {
+            "host_boundary": {
+              "median_seconds": 0.0032553672790527344,
+              "p95_seconds": 0.0032958984375,
+              "runs_seconds": [0.0032958984375, 0.0032148361206054688]
+            },
+            "resident_compute": {
+              "median_seconds": 0.00032353401184082031,
+              "p95_seconds": 0.00034308433532714844,
+              "runs_seconds": [0.00034308433532714844, 0.00030398368835449219]
+            }
+          },
+          "transfer": {
+            "included_boundary": "host matrices -> tensors -> matmul -> host matrix",
+            "excluded_boundary": "resident tensors -> resident tensor",
+            "separately_measured": true
+          },
+          "validation": {
+            "max_absolute_error": 7.9936057773011271e-15,
+            "max_relative_error": 2.3093387215326864e-16,
+            "rtol": 1e-08,
+            "atol": 1e-10,
+            "passed": true
+          },
+          "provenance": {
+            "schema": "cudaverse-stage/1",
+            "compute_device": "cuda",
+            "stages": [
+              {
+                "stage": "matrix_multiply",
+                "requested_device": "inherited",
+                "device": "cuda",
+                "backend": "native",
+                "selection_reason": "inherited_device",
+                "fallback": false,
+                "output_device": "cuda"
+              }
+            ]
+          },
+          "memory": {
+            "backend_allocator_peak_bytes": 98304,
+            "backend_allocator_peak_source": "cuda_memory_info native cudaverse-owned allocation tracker",
+            "tracked_current_post_cleanup_difference_bytes": 0,
+            "whole_device_used_before_bytes": 1240858624,
+            "whole_device_used_with_result_bytes": 1240858624,
+            "whole_device_used_after_cleanup_bytes": 1240858624,
+            "whole_device_post_cleanup_absolute_difference_bytes": 0
+          }
+        },
+        "torch": {
+          "status": "complete",
+          "cold_seconds": {
+            "host_boundary": 0.0032789707183837891,
+            "resident_compute": 0.00016498565673828125
+          },
+          "warm": {
+            "host_boundary": {
+              "median_seconds": 0.0037214756011962891,
+              "p95_seconds": 0.0038008689880371094,
+              "runs_seconds": [0.0038008689880371094, 0.0036420822143554688]
+            },
+            "resident_compute": {
+              "median_seconds": 0.00076997280120849609,
+              "p95_seconds": 0.0011899471282958984,
+              "runs_seconds": [0.00034999847412109375, 0.0011899471282958984]
+            }
+          },
+          "transfer": {
+            "included_boundary": "host matrices -> tensors -> matmul -> host matrix",
+            "excluded_boundary": "resident tensors -> resident tensor",
+            "separately_measured": true
+          },
+          "validation": {
+            "max_absolute_error": 7.9936057773011271e-15,
+            "max_relative_error": 2.3093387215326864e-16,
+            "rtol": 1e-08,
+            "atol": 1e-10,
+            "passed": true
+          },
+          "provenance": {
+            "schema": "cudaverse-stage/1",
+            "compute_device": "cuda",
+            "stages": [
+              {
+                "stage": "matrix_multiply",
+                "requested_device": "inherited",
+                "device": "cuda",
+                "backend": "torch",
+                "selection_reason": "inherited_device",
+                "fallback": false,
+                "output_device": "cuda"
+              }
+            ]
+          },
+          "memory": {
+            "backend_allocator_peak_bytes": 98816,
+            "backend_allocator_peak_source": "cuda_memory_info torch allocator session high-water mark",
+            "tracked_current_post_cleanup_difference_bytes": null,
+            "whole_device_used_before_bytes": null,
+            "whole_device_used_with_result_bytes": null,
+            "whole_device_used_after_cleanup_bytes": null,
+            "whole_device_post_cleanup_absolute_difference_bytes": null
+          }
+        }
+      }
+    },
+    "dense-128x16": {
+      "definition": {
+        "profile": "smoke",
+        "family": "dense_pca_knn",
+        "case_id": "dense-128x16",
+        "rows": 128,
+        "columns": 16,
+        "density": null,
+        "dtype": "float64",
+        "k": 5,
+        "components": 5,
+        "warmups": 1,
+        "timed_runs": 2,
+        "transfer_contract": "host_boundary_and_stage_times"
+      },
+      "backends": {
+        "base": {
+          "status": "complete",
+          "cold_seconds": {
+            "host_boundary": 0.010766029357910156,
+            "resident_continuation": null
+          },
+          "warm": {
+            "host_boundary": {
+              "median_seconds": 0.0047949552536010742,
+              "p95_seconds": 0.0062708854675292969,
+              "runs_seconds": [0.0062708854675292969, 0.0033190250396728516]
+            },
+            "resident_continuation": {
+              "status": "not_separable",
+              "reason": "Dense PCA accepts host data at the public boundary; its backend upload is included in PCA stage timing."
+            },
+            "stages": {
+              "explicit_transfer": {
+                "median_seconds": 0,
+                "p95_seconds": 0,
+                "runs_seconds": [0, 0]
+              },
+              "normalization": {
+                "median_seconds": 0,
+                "p95_seconds": 0,
+                "runs_seconds": [0, 0]
+              },
+              "pca": {
+                "median_seconds": 0.0012710094451904297,
+                "p95_seconds": 0.0017440319061279297,
+                "runs_seconds": [0.0017440319061279297, 0.00079798698425292969]
+              },
+              "knn": {
+                "median_seconds": 0.0034965276718139648,
+                "p95_seconds": 0.0044929981231689453,
+                "runs_seconds": [0.0044929981231689453, 0.0025000572204589844]
+              },
+              "full_pipeline": {
+                "median_seconds": 0.0047675371170043945,
+                "p95_seconds": 0.006237030029296875,
+                "runs_seconds": [0.006237030029296875, 0.0032980442047119141]
+              }
+            }
+          },
+          "transfer": {
+            "contract": "host_boundary_and_stage_times",
+            "explicit_transfer_separately_measured": false,
+            "note": "Dense input upload is internal to the selected PCA backend and is not presented as a separately measured public-API duration."
+          },
+          "validation": {
+            "passed": true,
+            "reference_backend": "self"
+          },
+          "provenance": {
+            "pca": {
+              "schema": "cudaverse-stage/1",
+              "compute_device": "cpu",
+              "stages": [
+                {
+                  "stage": "preprocessing",
+                  "requested_device": "cpu",
+                  "device": "cpu",
+                  "backend": "stats",
+                  "selection_reason": "explicit_cpu",
+                  "fallback": false,
+                  "output_device": "cpu"
+                },
+                {
+                  "stage": "decomposition",
+                  "requested_device": "cpu",
+                  "device": "cpu",
+                  "backend": "stats",
+                  "selection_reason": "explicit_cpu",
+                  "fallback": false,
+                  "output_device": "cpu"
+                }
+              ]
+            },
+            "knn": {
+              "schema": "cudaverse-stage/1",
+              "compute_device": "cpu",
+              "stages": [
+                {
+                  "stage": "distance",
+                  "requested_device": "cpu",
+                  "device": "cpu",
+                  "backend": "base",
+                  "selection_reason": "explicit_cpu",
+                  "fallback": false,
+                  "output_device": "cpu"
+                },
+                {
+                  "stage": "neighbor_selection",
+                  "requested_device": "fixed-cpu",
+                  "device": "cpu",
+                  "backend": "base",
+                  "selection_reason": "algorithm_cpu_only",
+                  "fallback": false,
+                  "output_device": "cpu"
+                }
+              ]
+            },
+            "normalized": null
+          },
+          "memory": {
+            "backend_allocator_peak_bytes": 0,
+            "backend_allocator_peak_source": "not applicable (CPU)",
+            "tracked_current_post_cleanup_difference_bytes": null,
+            "whole_device_used_before_bytes": null,
+            "whole_device_used_with_result_bytes": null,
+            "whole_device_used_after_cleanup_bytes": null,
+            "whole_device_post_cleanup_absolute_difference_bytes": null
+          }
+        },
+        "native": {
+          "status": "complete",
+          "cold_seconds": {
+            "host_boundary": 0.020002126693725586,
+            "resident_continuation": null
+          },
+          "warm": {
+            "host_boundary": {
+              "median_seconds": 0.015499472618103027,
+              "p95_seconds": 0.015784025192260742,
+              "runs_seconds": [0.015784025192260742, 0.015214920043945312]
+            },
+            "resident_continuation": {
+              "status": "not_separable",
+              "reason": "Dense PCA accepts host data at the public boundary; its backend upload is included in PCA stage timing."
+            },
+            "stages": {
+              "explicit_transfer": {
+                "median_seconds": 0,
+                "p95_seconds": 0,
+                "runs_seconds": [0, 0]
+              },
+              "normalization": {
+                "median_seconds": 0,
+                "p95_seconds": 0,
+                "runs_seconds": [0, 0]
+              },
+              "pca": {
+                "median_seconds": 0.011966109275817871,
+                "p95_seconds": 0.01250004768371582,
+                "runs_seconds": [0.01250004768371582, 0.011432170867919922]
+              },
+              "knn": {
+                "median_seconds": 0.0035009384155273438,
+                "p95_seconds": 0.0037579536437988281,
+                "runs_seconds": [0.0032439231872558594, 0.0037579536437988281]
+              },
+              "full_pipeline": {
+                "median_seconds": 0.015467047691345215,
+                "p95_seconds": 0.01574397087097168,
+                "runs_seconds": [0.01574397087097168, 0.01519012451171875]
+              }
+            }
+          },
+          "transfer": {
+            "contract": "host_boundary_and_stage_times",
+            "explicit_transfer_separately_measured": false,
+            "note": "Dense input upload is internal to the selected PCA backend and is not presented as a separately measured public-API duration."
+          },
+          "validation": {
+            "normalized_max_relative_error": 0,
+            "pca_effective_rank": 5,
+            "pca_projector_max_absolute_error": 1.9428902930940239e-15,
+            "pca_reconstruction_max_relative_error": 1.0706750897237246e-14,
+            "knn_indices_identical": true,
+            "knn_distance_max_relative_error": 6.1096432886466916e-15,
+            "passed": true
+          },
+          "provenance": {
+            "pca": {
+              "schema": "cudaverse-stage/1",
+              "compute_device": "cuda",
+              "stages": [
+                {
+                  "stage": "preprocessing",
+                  "requested_device": "cuda",
+                  "device": "cuda",
+                  "backend": "native",
+                  "selection_reason": "explicit_cuda",
+                  "fallback": false,
+                  "output_device": "cuda"
+                },
+                {
+                  "stage": "decomposition",
+                  "requested_device": "cuda",
+                  "device": "cuda",
+                  "backend": "native",
+                  "selection_reason": "explicit_cuda",
+                  "fallback": false,
+                  "output_device": "cpu"
+                },
+                {
+                  "stage": "scores_resident",
+                  "requested_device": "cuda",
+                  "device": "cuda",
+                  "backend": "native",
+                  "selection_reason": "device_resident_output",
+                  "fallback": false,
+                  "output_device": "cuda"
+                }
+              ]
+            },
+            "knn": {
+              "schema": "cudaverse-stage/1",
+              "compute_device": "cuda",
+              "stages": [
+                {
+                  "stage": "input_materialization",
+                  "requested_device": "inherited",
+                  "device": "cuda",
+                  "backend": "native",
+                  "selection_reason": "device_resident_input",
+                  "fallback": false,
+                  "output_device": "cuda"
+                },
+                {
+                  "stage": "distance",
+                  "requested_device": "cuda",
+                  "device": "cuda",
+                  "backend": "native",
+                  "selection_reason": "explicit_cuda",
+                  "fallback": false,
+                  "output_device": "cuda"
+                },
+                {
+                  "stage": "neighbor_selection",
+                  "requested_device": "cuda",
+                  "device": "cuda",
+                  "backend": "native",
+                  "selection_reason": "explicit_cuda",
+                  "fallback": false,
+                  "output_device": "cpu"
+                }
+              ]
+            },
+            "normalized": null
+          },
+          "memory": {
+            "backend_allocator_peak_bytes": 6663164,
+            "backend_allocator_peak_source": "cuda_memory_info native cudaverse-owned allocation tracker",
+            "tracked_current_post_cleanup_difference_bytes": 0,
+            "whole_device_used_before_bytes": 1240858624,
+            "whole_device_used_with_result_bytes": 1240858624,
+            "whole_device_used_after_cleanup_bytes": 1240858624,
+            "whole_device_post_cleanup_absolute_difference_bytes": 0
+          }
+        },
+        "torch": {
+          "status": "complete",
+          "cold_seconds": {
+            "host_boundary": 0.17953014373779297,
+            "resident_continuation": null
+          },
+          "warm": {
+            "host_boundary": {
+              "median_seconds": 0.024230480194091797,
+              "p95_seconds": 0.026148080825805664,
+              "runs_seconds": [0.02231287956237793, 0.026148080825805664]
+            },
+            "resident_continuation": {
+              "status": "not_separable",
+              "reason": "Dense PCA accepts host data at the public boundary; its backend upload is included in PCA stage timing."
+            },
+            "stages": {
+              "explicit_transfer": {
+                "median_seconds": 0,
+                "p95_seconds": 0,
+                "runs_seconds": [0, 0]
+              },
+              "normalization": {
+                "median_seconds": 0,
+                "p95_seconds": 0,
+                "runs_seconds": [0, 0]
+              },
+              "pca": {
+                "median_seconds": 0.017566561698913574,
+                "p95_seconds": 0.018224954605102539,
+                "runs_seconds": [0.016908168792724609, 0.018224954605102539]
+              },
+              "knn": {
+                "median_seconds": 0.006636500358581543,
+                "p95_seconds": 0.0078911781311035156,
+                "runs_seconds": [0.0053818225860595703, 0.0078911781311035156]
+              },
+              "full_pipeline": {
+                "median_seconds": 0.024203062057495117,
+                "p95_seconds": 0.026116132736206055,
+                "runs_seconds": [0.02228999137878418, 0.026116132736206055]
+              }
+            }
+          },
+          "transfer": {
+            "contract": "host_boundary_and_stage_times",
+            "explicit_transfer_separately_measured": false,
+            "note": "Dense input upload is internal to the selected PCA backend and is not presented as a separately measured public-API duration."
+          },
+          "validation": {
+            "normalized_max_relative_error": 0,
+            "pca_effective_rank": 5,
+            "pca_projector_max_absolute_error": 9.7699626167013776e-15,
+            "pca_reconstruction_max_relative_error": 1.636877541484115e-14,
+            "knn_indices_identical": true,
+            "knn_distance_max_relative_error": 1.48686009236977e-14,
+            "passed": true
+          },
+          "provenance": {
+            "pca": {
+              "schema": "cudaverse-stage/1",
+              "compute_device": "cuda",
+              "stages": [
+                {
+                  "stage": "preprocessing",
+                  "requested_device": "cuda",
+                  "device": "cuda",
+                  "backend": "torch",
+                  "selection_reason": "explicit_cuda",
+                  "fallback": false,
+                  "output_device": "cuda"
+                },
+                {
+                  "stage": "decomposition",
+                  "requested_device": "cuda",
+                  "device": "cuda",
+                  "backend": "torch",
+                  "selection_reason": "explicit_cuda",
+                  "fallback": false,
+                  "output_device": "cpu"
+                }
+              ]
+            },
+            "knn": {
+              "schema": "cudaverse-stage/1",
+              "compute_device": "hybrid",
+              "stages": [
+                {
+                  "stage": "distance",
+                  "requested_device": "cuda",
+                  "device": "cuda",
+                  "backend": "torch",
+                  "selection_reason": "explicit_cuda",
+                  "fallback": false,
+                  "output_device": "cpu"
+                },
+                {
+                  "stage": "neighbor_selection",
+                  "requested_device": "fixed-cpu",
+                  "device": "cpu",
+                  "backend": "base",
+                  "selection_reason": "algorithm_cpu_only",
+                  "fallback": false,
+                  "output_device": "cpu"
+                }
+              ]
+            },
+            "normalized": null
+          },
+          "memory": {
+            "backend_allocator_peak_bytes": 6377984,
+            "backend_allocator_peak_source": "cuda_memory_info torch allocator session high-water mark",
+            "tracked_current_post_cleanup_difference_bytes": null,
+            "whole_device_used_before_bytes": null,
+            "whole_device_used_with_result_bytes": null,
+            "whole_device_used_after_cleanup_bytes": null,
+            "whole_device_post_cleanup_absolute_difference_bytes": null
+          }
+        }
+      }
+    },
+    "sparse-128x16@0.10": {
+      "definition": {
+        "profile": "smoke",
+        "family": "sparse_pca_knn",
+        "case_id": "sparse-128x16@0.10",
+        "rows": 128,
+        "columns": 16,
+        "density": 0.10000000000000001,
+        "dtype": "float64",
+        "k": 5,
+        "components": 5,
+        "warmups": 1,
+        "timed_runs": 2,
+        "transfer_contract": "explicit_upload_and_resident_continuation"
+      },
+      "backends": {
+        "base": {
+          "status": "complete",
+          "cold_seconds": {
+            "host_boundary": 0.0075311660766601562,
+            "resident_continuation": 0.0045840740203857422
+          },
+          "warm": {
+            "host_boundary": {
+              "median_seconds": 0.0051070451736450195,
+              "p95_seconds": 0.0053150653839111328,
+              "runs_seconds": [0.0053150653839111328, 0.0048990249633789062]
+            },
+            "resident_continuation": {
+              "median_seconds": 0.0045084953308105469,
+              "p95_seconds": 0.0045599937438964844,
+              "runs_seconds": [0.0044569969177246094, 0.0045599937438964844]
+            },
+            "stages": {
+              "explicit_transfer": {
+                "median_seconds": 0.00091803073883056641,
+                "p95_seconds": 0.00092601776123046875,
+                "runs_seconds": [0.00092601776123046875, 0.00091004371643066406]
+              },
+              "normalization": {
+                "median_seconds": 0.0003910064697265625,
+                "p95_seconds": 0.000392913818359375,
+                "runs_seconds": [0.00038909912109375, 0.000392913818359375]
+              },
+              "pca": {
+                "median_seconds": 0.0012030601501464844,
+                "p95_seconds": 0.0012800693511962891,
+                "runs_seconds": [0.0012800693511962891, 0.0011260509490966797]
+              },
+              "knn": {
+                "median_seconds": 0.0025724172592163086,
+                "p95_seconds": 0.0026948451995849609,
+                "runs_seconds": [0.0026948451995849609, 0.0024499893188476562]
+              },
+              "full_pipeline": {
+                "median_seconds": 0.0050845146179199219,
+                "p95_seconds": 0.0052900314331054688,
+                "runs_seconds": [0.0052900314331054688, 0.004878997802734375]
+              }
+            }
+          },
+          "transfer": {
+            "contract": "explicit_upload_and_resident_continuation",
+            "explicit_transfer_separately_measured": true,
+            "note": "Host-to-sparse upload is timed separately; resident continuation begins from the preloaded cudasparse object."
+          },
+          "validation": {
+            "passed": true,
+            "reference_backend": "self"
+          },
+          "provenance": {
+            "pca": {
+              "schema": "cudaverse-stage/1",
+              "compute_device": "cpu",
+              "stages": [
+                {
+                  "stage": "normalization",
+                  "requested_device": "inherited",
+                  "device": "cpu",
+                  "backend": "Matrix",
+                  "selection_reason": "algorithm_cpu_only",
+                  "fallback": false,
+                  "output_device": "cpu"
+                },
+                {
+                  "stage": "sparse_to_dense",
+                  "requested_device": "fixed-cpu",
+                  "device": "cpu",
+                  "backend": "Matrix",
+                  "selection_reason": "algorithm_materialization",
+                  "fallback": false,
+                  "output_device": "cpu"
+                },
+                {
+                  "stage": "preprocessing",
+                  "requested_device": "cpu",
+                  "device": "cpu",
+                  "backend": "stats",
+                  "selection_reason": "explicit_cpu",
+                  "fallback": false,
+                  "output_device": "cpu"
+                },
+                {
+                  "stage": "decomposition",
+                  "requested_device": "cpu",
+                  "device": "cpu",
+                  "backend": "stats",
+                  "selection_reason": "explicit_cpu",
+                  "fallback": false,
+                  "output_device": "cpu"
+                }
+              ]
+            },
+            "knn": {
+              "schema": "cudaverse-stage/1",
+              "compute_device": "cpu",
+              "stages": [
+                {
+                  "stage": "distance",
+                  "requested_device": "cpu",
+                  "device": "cpu",
+                  "backend": "base",
+                  "selection_reason": "explicit_cpu",
+                  "fallback": false,
+                  "output_device": "cpu"
+                },
+                {
+                  "stage": "neighbor_selection",
+                  "requested_device": "fixed-cpu",
+                  "device": "cpu",
+                  "backend": "base",
+                  "selection_reason": "algorithm_cpu_only",
+                  "fallback": false,
+                  "output_device": "cpu"
+                }
+              ]
+            },
+            "normalized": {
+              "schema": "cudaverse-stage/1",
+              "compute_device": "cpu",
+              "stages": [
+                {
+                  "stage": "normalization",
+                  "requested_device": "inherited",
+                  "device": "cpu",
+                  "backend": "Matrix",
+                  "selection_reason": "algorithm_cpu_only",
+                  "fallback": false,
+                  "output_device": "cpu"
+                }
+              ]
+            }
+          },
+          "memory": {
+            "backend_allocator_peak_bytes": 0,
+            "backend_allocator_peak_source": "not applicable (CPU)",
+            "tracked_current_post_cleanup_difference_bytes": null,
+            "whole_device_used_before_bytes": null,
+            "whole_device_used_with_result_bytes": null,
+            "whole_device_used_after_cleanup_bytes": null,
+            "whole_device_post_cleanup_absolute_difference_bytes": null
+          }
+        },
+        "native": {
+          "status": "complete",
+          "cold_seconds": {
+            "host_boundary": 0.03711700439453125,
+            "resident_continuation": 0.017447948455810547
+          },
+          "warm": {
+            "host_boundary": {
+              "median_seconds": 0.023424983024597168,
+              "p95_seconds": 0.024654865264892578,
+              "runs_seconds": [0.022195100784301758, 0.024654865264892578]
+            },
+            "resident_continuation": {
+              "median_seconds": 0.046920061111450195,
+              "p95_seconds": 0.071871042251586914,
+              "runs_seconds": [0.021969079971313477, 0.071871042251586914]
+            },
+            "stages": {
+              "explicit_transfer": {
+                "median_seconds": 0.0032761096954345703,
+                "p95_seconds": 0.0033180713653564453,
+                "runs_seconds": [0.0032341480255126953, 0.0033180713653564453]
+              },
+              "normalization": {
+                "median_seconds": 0.0010623931884765625,
+                "p95_seconds": 0.001071929931640625,
+                "runs_seconds": [0.0010528564453125, 0.001071929931640625]
+              },
+              "pca": {
+                "median_seconds": 0.014454007148742676,
+                "p95_seconds": 0.015615940093994141,
+                "runs_seconds": [0.013292074203491211, 0.015615940093994141]
+              },
+              "knn": {
+                "median_seconds": 0.0046039819717407227,
+                "p95_seconds": 0.0046200752258300781,
+                "runs_seconds": [0.0045878887176513672, 0.0046200752258300781]
+              },
+              "full_pipeline": {
+                "median_seconds": 0.023396492004394531,
+                "p95_seconds": 0.024626016616821289,
+                "runs_seconds": [0.022166967391967773, 0.024626016616821289]
+              }
+            }
+          },
+          "transfer": {
+            "contract": "explicit_upload_and_resident_continuation",
+            "explicit_transfer_separately_measured": true,
+            "note": "Host-to-sparse upload is timed separately; resident continuation begins from the preloaded cudasparse object."
+          },
+          "validation": {
+            "normalized_max_relative_error": 0,
+            "pca_effective_rank": 5,
+            "pca_projector_max_absolute_error": 1.7291723608536813e-14,
+            "pca_reconstruction_max_relative_error": 2.7931916674809888e-14,
+            "knn_indices_identical": true,
+            "knn_distance_max_relative_error": 6.1125418016282672e-13,
+            "passed": true
+          },
+          "provenance": {
+            "pca": {
+              "schema": "cudaverse-stage/1",
+              "compute_device": "cuda",
+              "stages": [
+                {
+                  "stage": "normalization",
+                  "requested_device": "inherited",
+                  "device": "cuda",
+                  "backend": "native",
+                  "selection_reason": "inherited_device",
+                  "fallback": false,
+                  "output_device": "cuda"
+                },
+                {
+                  "stage": "sparse_to_dense",
+                  "requested_device": "cuda",
+                  "device": "cuda",
+                  "backend": "native",
+                  "selection_reason": "device_resident_conversion",
+                  "fallback": false,
+                  "output_device": "cuda"
+                },
+                {
+                  "stage": "preprocessing",
+                  "requested_device": "cuda",
+                  "device": "cuda",
+                  "backend": "native",
+                  "selection_reason": "explicit_cuda",
+                  "fallback": false,
+                  "output_device": "cuda"
+                },
+                {
+                  "stage": "decomposition",
+                  "requested_device": "cuda",
+                  "device": "cuda",
+                  "backend": "native",
+                  "selection_reason": "explicit_cuda",
+                  "fallback": false,
+                  "output_device": "cpu"
+                },
+                {
+                  "stage": "scores_resident",
+                  "requested_device": "cuda",
+                  "device": "cuda",
+                  "backend": "native",
+                  "selection_reason": "device_resident_output",
+                  "fallback": false,
+                  "output_device": "cuda"
+                }
+              ]
+            },
+            "knn": {
+              "schema": "cudaverse-stage/1",
+              "compute_device": "cuda",
+              "stages": [
+                {
+                  "stage": "input_materialization",
+                  "requested_device": "inherited",
+                  "device": "cuda",
+                  "backend": "native",
+                  "selection_reason": "device_resident_input",
+                  "fallback": false,
+                  "output_device": "cuda"
+                },
+                {
+                  "stage": "distance",
+                  "requested_device": "cuda",
+                  "device": "cuda",
+                  "backend": "native",
+                  "selection_reason": "explicit_cuda",
+                  "fallback": false,
+                  "output_device": "cuda"
+                },
+                {
+                  "stage": "neighbor_selection",
+                  "requested_device": "cuda",
+                  "device": "cuda",
+                  "backend": "native",
+                  "selection_reason": "explicit_cuda",
+                  "fallback": false,
+                  "output_device": "cpu"
+                }
+              ]
+            },
+            "normalized": {
+              "schema": "cudaverse-stage/1",
+              "compute_device": "cuda",
+              "stages": [
+                {
+                  "stage": "normalization",
+                  "requested_device": "inherited",
+                  "device": "cuda",
+                  "backend": "native",
+                  "selection_reason": "inherited_device",
+                  "fallback": false,
+                  "output_device": "cuda"
+                }
+              ]
+            }
+          },
+          "memory": {
+            "backend_allocator_peak_bytes": 6670184,
+            "backend_allocator_peak_source": "cuda_memory_info native cudaverse-owned allocation tracker",
+            "tracked_current_post_cleanup_difference_bytes": 0,
+            "whole_device_used_before_bytes": 1289093120,
+            "whole_device_used_with_result_bytes": 1289093120,
+            "whole_device_used_after_cleanup_bytes": 1289093120,
+            "whole_device_post_cleanup_absolute_difference_bytes": 0
+          }
+        },
+        "torch": {
+          "status": "complete",
+          "cold_seconds": {
+            "host_boundary": 0.052673101425170898,
+            "resident_continuation": 0.028223037719726562
+          },
+          "warm": {
+            "host_boundary": {
+              "median_seconds": 0.031266450881958008,
+              "p95_seconds": 0.032439947128295898,
+              "runs_seconds": [0.032439947128295898, 0.030092954635620117]
+            },
+            "resident_continuation": {
+              "median_seconds": 0.046892523765563965,
+              "p95_seconds": 0.063207864761352539,
+              "runs_seconds": [0.030577182769775391, 0.063207864761352539]
+            },
+            "stages": {
+              "explicit_transfer": {
+                "median_seconds": 0.0041024684906005859,
+                "p95_seconds": 0.0042889118194580078,
+                "runs_seconds": [0.0039160251617431641, 0.0042889118194580078]
+              },
+              "normalization": {
+                "median_seconds": 0.0017964839935302734,
+                "p95_seconds": 0.0019989013671875,
+                "runs_seconds": [0.0019989013671875, 0.0015940666198730469]
+              },
+              "pca": {
+                "median_seconds": 0.020211577415466309,
+                "p95_seconds": 0.021089076995849609,
+                "runs_seconds": [0.021089076995849609, 0.019334077835083008]
+              },
+              "knn": {
+                "median_seconds": 0.0051325559616088867,
+                "p95_seconds": 0.0054121017456054688,
+                "runs_seconds": [0.0054121017456054688, 0.0048530101776123047]
+              },
+              "full_pipeline": {
+                "median_seconds": 0.031243085861206055,
+                "p95_seconds": 0.032416105270385742,
+                "runs_seconds": [0.032416105270385742, 0.030070066452026367]
+              }
+            }
+          },
+          "transfer": {
+            "contract": "explicit_upload_and_resident_continuation",
+            "explicit_transfer_separately_measured": true,
+            "note": "Host-to-sparse upload is timed separately; resident continuation begins from the preloaded cudasparse object."
+          },
+          "validation": {
+            "normalized_max_relative_error": 0,
+            "pca_effective_rank": 5,
+            "pca_projector_max_absolute_error": 1.3676559884601147e-14,
+            "pca_reconstruction_max_relative_error": 2.3268809809393315e-14,
+            "knn_indices_identical": true,
+            "knn_distance_max_relative_error": 1.0329961603875947e-13,
+            "passed": true
+          },
+          "provenance": {
+            "pca": {
+              "schema": "cudaverse-stage/1",
+              "compute_device": "hybrid",
+              "stages": [
+                {
+                  "stage": "normalization",
+                  "requested_device": "inherited",
+                  "device": "cpu",
+                  "backend": "Matrix",
+                  "selection_reason": "algorithm_cpu_only",
+                  "fallback": false,
+                  "output_device": "cpu"
+                },
+                {
+                  "stage": "normalization_upload",
+                  "requested_device": "inherited",
+                  "device": "cuda",
+                  "backend": "torch",
+                  "selection_reason": "sparse_result_upload",
+                  "fallback": false,
+                  "output_device": "cuda"
+                },
+                {
+                  "stage": "sparse_to_dense",
+                  "requested_device": "fixed-cpu",
+                  "device": "cpu",
+                  "backend": "Matrix",
+                  "selection_reason": "algorithm_materialization",
+                  "fallback": false,
+                  "output_device": "cpu"
+                },
+                {
+                  "stage": "preprocessing",
+                  "requested_device": "cuda",
+                  "device": "cuda",
+                  "backend": "torch",
+                  "selection_reason": "explicit_cuda",
+                  "fallback": false,
+                  "output_device": "cuda"
+                },
+                {
+                  "stage": "decomposition",
+                  "requested_device": "cuda",
+                  "device": "cuda",
+                  "backend": "torch",
+                  "selection_reason": "explicit_cuda",
+                  "fallback": false,
+                  "output_device": "cpu"
+                }
+              ]
+            },
+            "knn": {
+              "schema": "cudaverse-stage/1",
+              "compute_device": "hybrid",
+              "stages": [
+                {
+                  "stage": "distance",
+                  "requested_device": "cuda",
+                  "device": "cuda",
+                  "backend": "torch",
+                  "selection_reason": "explicit_cuda",
+                  "fallback": false,
+                  "output_device": "cpu"
+                },
+                {
+                  "stage": "neighbor_selection",
+                  "requested_device": "fixed-cpu",
+                  "device": "cpu",
+                  "backend": "base",
+                  "selection_reason": "algorithm_cpu_only",
+                  "fallback": false,
+                  "output_device": "cpu"
+                }
+              ]
+            },
+            "normalized": {
+              "schema": "cudaverse-stage/1",
+              "compute_device": "hybrid",
+              "stages": [
+                {
+                  "stage": "normalization",
+                  "requested_device": "inherited",
+                  "device": "cpu",
+                  "backend": "Matrix",
+                  "selection_reason": "algorithm_cpu_only",
+                  "fallback": false,
+                  "output_device": "cpu"
+                },
+                {
+                  "stage": "normalization_upload",
+                  "requested_device": "inherited",
+                  "device": "cuda",
+                  "backend": "torch",
+                  "selection_reason": "sparse_result_upload",
+                  "fallback": false,
+                  "output_device": "cuda"
+                }
+              ]
+            }
+          },
+          "memory": {
+            "backend_allocator_peak_bytes": 6636032,
+            "backend_allocator_peak_source": "cuda_memory_info torch allocator session high-water mark",
+            "tracked_current_post_cleanup_difference_bytes": null,
+            "whole_device_used_before_bytes": null,
+            "whole_device_used_with_result_bytes": null,
+            "whole_device_used_after_cleanup_bytes": null,
+            "whole_device_post_cleanup_absolute_difference_bytes": null
+          }
+        }
+      }
+    }
+  },
+  "complete": true
+}

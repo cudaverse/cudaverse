@@ -969,3 +969,69 @@ Local evidence:
 - session-report, capability, redistribution, SBOM, release-boundary,
   benchmark, candidate, rejection, installed-pkgdown, and public-documentation
   gates pass without deployment.
+
+## CP-07A: public benchmark memory contract
+
+Status: complete at implementation commit
+`d1d4e83686d71431dc0c6a46998ca48a9e926f30`; the exact RTX smoke report is
+committed in the checkpoint follow-up and both commits must pass the same PR
+gates.
+
+Review:
+
+- draft PR: <https://github.com/cudaverse/cudaverse/pull/43>;
+- target: `develop/0.4` (not `main`);
+- no tag, release, CRAN submission, or Pages deployment; and
+- the retained smoke report is a runner and regression gate, not a universal
+  performance claim.
+
+Scope:
+
+- make the benchmark runner obtain native and torch allocator observations
+  from the public `cuda_memory_info()` contract;
+- keep native peak reset as a measurement-only maintainer action outside all
+  retained timing samples;
+- retain backend allocator peak, post-cleanup current allocation, whole-device
+  observations, and their explicit measurement sources in the report schema;
+- run the memory instrumentation as a separate execution after all timed
+  samples so tracking cannot perturb retained medians; and
+- make generated summary titles reflect the actual smoke or full profile
+  instead of one historical checkpoint name.
+
+Required gate:
+
+- synthetic native, torch, base, malformed, and error memory reports pass
+  positive and rejection self-tests;
+- the exact installed source commit completes all smoke cases on base, native,
+  and torch with numerical parity;
+- every native workload returns current tracked allocation to its pre-run
+  baseline;
+- raw JSON and human summary identify the same source commit, report hash,
+  hardware, profile, and complete state; and
+- ordinary, RTX, no-CUDA, cross-platform, source, supply-chain, and
+  documentation gates stay green.
+
+Initial RTX 2000 evidence:
+
+- report `inst/reports/benchmarks/CP07-SMOKE.json` is complete, records a clean
+  source at `d1d4e83686d71431dc0c6a46998ca48a9e926f30`, and has SHA-256
+  `D79BB27942994E6469D51EB0E346BCB1BE6305D83CF562643F70DCB5E6BDBA87`;
+- all four smoke workloads pass base/native/torch parity, including exact kNN
+  indices and heavy-operation numerical tolerances;
+- native resident 64-square matmul medians are 0.000390 seconds for float32
+  and 0.000324 seconds for float64 on this run;
+- the isolated installed footprint is 1,384,393 bytes for cudaverse versus
+  7,367,799,444 bytes for optional torch, while cudaverse bundles zero CUDA
+  runtime bytes; and
+- the exact smoke source tarball has SHA-256
+  `7916F317991F9C526ADA5DBBF27F3B6636C547D5DE890A0B0893B54BFD9C87F3`;
+- the complete ordinary suite and complete explicitly enabled RTX 2000 suite
+  pass, with no hardware skips in the latter;
+- the exact full-vignette checkpoint-follow-up source tarball has SHA-256
+  `0A4B1A5F4425A650C48EEB26F87AA78045CE13EB0E1647E9A1CEED7D993DADE9`;
+- Windows `R CMD check --as-cran --no-manual` reports 0 errors, 0 warnings,
+  and only the expected development-version incoming NOTE;
+- redistribution, SBOM, release-boundary, capability, benchmark, candidate,
+  session-report, and rejection gates pass; and
+- installed pkgdown and the public documentation boundary pass from a
+  temporary clone without deploying Pages.
