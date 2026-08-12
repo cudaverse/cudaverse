@@ -31,6 +31,11 @@ directly.
 \description{
 Create a GPU-aware sparse matrix
 }
+\details{
+Existing \code{cudasparse} inputs use their stable sorted COO mirror
+directly. Same-device format changes share backend storage; transfers and
+zero filtering do not construct an intermediate Matrix object.
+}
 \examples{
 library(Matrix)
 x <- rsparsematrix(5, 4, density = 0.25)

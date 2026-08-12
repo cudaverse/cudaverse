@@ -1783,6 +1783,32 @@ test_that("resident normalization shares sparse pattern ownership", {
   expect_identical(cudaverse:::.native_memory_tracker()$current, baseline)
 })
 
+test_that("same-device native sparse reformat shares storage safely", {
+  skip_if_not(identical(Sys.getenv("CUDAVERSE_NATIVE_TESTS"), "true"))
+  skip_if_not(isTRUE(cudaverse:::.native_diagnostics()$available))
+  old <- options(cudaverse.cuda_backends = "native")
+  on.exit(options(old), add = TRUE)
+  factory <- cudaverse:::.native_backend_factory()
+  factory$synchronize()
+  gc()
+  baseline <- cudaverse:::.native_memory_tracker(reset = TRUE)$current
+  values <- matrix(c(1, 0, 2, 0, 3, 4), 2L, 3L)
+  source <- cudaverse::cuda_sparse(values, format = "csr", device = "cuda")
+  current <- cudaverse:::.native_memory_tracker(reset = TRUE)$current
+  result <- cudaverse::cuda_sparse(
+    source, format = "coo", device = "cuda"
+  )
+
+  expect_identical(result$format, "coo")
+  expect_identical(cudaverse:::.native_memory_tracker()$current, current)
+  factory$sparse_release(source$storage)
+  expect_equal(
+    as.matrix(cudaverse::to_dgCMatrix(result)), values, tolerance = 0
+  )
+  factory$sparse_release(result$storage)
+  expect_identical(cudaverse:::.native_memory_tracker()$current, baseline)
+})
+
 test_that("R time-limit interruption leaves sparse native state reusable", {
   skip_if_not(identical(Sys.getenv("CUDAVERSE_NATIVE_TESTS"), "true"))
   skip_if_not(isTRUE(cudaverse:::.native_diagnostics()$available))

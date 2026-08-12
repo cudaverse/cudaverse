@@ -697,3 +697,60 @@ Remote evidence at the implementation commit:
 - supply-chain and repository workflow-boundary checks pass;
 - Linux and Windows no-CUDA artifact builds pass; and
 - CUDA 12.8.1 ABI and unchanged PTX reproducibility checks pass.
+
+## CP-04C: direct sparse rematerialization from COO mirrors
+
+Status: complete at implementation commit
+`f65c470ddd65519e1fb4fb93ad391d670e4f3076`; the checkpoint-record-only
+follow-up must pass the same PR gates before merge.
+
+Review:
+
+- draft PR: <https://github.com/cudaverse/cudaverse/pull/38>;
+- target: `develop/0.4` (not `main`);
+- no tag, release, CRAN submission, or Pages deployment; and
+- GitHub Pages deploy job skipped as required.
+
+Scope:
+
+- rematerialize an existing `cudasparse` input directly from its stable,
+  sorted public COO mirror;
+- avoid constructing a temporary Matrix object, running `summary()`, and
+  sorting coordinates again during cross-device/backend transfer;
+- filter explicit zeros directly from the mirror when requested;
+- make same-device format-only changes reuse or share backend storage; and
+- preserve shape, dimnames, public metadata, backend selection, strict CUDA
+  semantics, and provenance.
+
+Required gate:
+
+- a backend contract errors on any attempted `.triplet_matrix()` conversion
+  while direct cross-backend rematerialization succeeds;
+- uploaded coordinates, values, shape, format, and labels remain exact;
+- native same-device CSR-to-COO reformat adds zero tracked VRAM;
+- releasing the source first leaves the shared result readable, and final
+  cleanup returns to the exact tracked-memory baseline; and
+- ordinary, RTX, no-CUDA, cross-platform, source, supply-chain, and
+  documentation gates stay green.
+
+Local evidence:
+
+- the complete ordinary suite and complete explicitly enabled RTX 2000 suite
+  pass with explicit zero exit status;
+- the synthetic cross-backend contract completes while `.triplet_matrix()` is
+  bound to an immediate error, and preserves all stable COO metadata;
+- native CSR-to-COO reformat adds exactly zero tracked device bytes;
+- after source storage is explicitly released, the reformatted result still
+  materializes exactly, and final release returns to the tracked baseline;
+- exact full-vignette source tarball SHA-256 is
+  `B662EE52DF98172A5D45847D27554DA366A8C2FA1F34F303AEEDD47DB591388D`;
+- Windows `R CMD check --as-cran --no-manual` reports 0 errors, 0 warnings,
+  and only the expected development-version incoming NOTE; and
+- capability, redistribution, SBOM, release-boundary, benchmark, candidate,
+  rejection, pkgdown, and public-documentation gates pass without deployment.
+
+Remote evidence at the implementation commit:
+
+- supply-chain and repository workflow-boundary checks pass;
+- Linux and Windows no-CUDA artifact builds pass; and
+- CUDA 12.8.1 ABI and unchanged PTX reproducibility checks pass.

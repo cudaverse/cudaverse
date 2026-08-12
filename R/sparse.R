@@ -159,6 +159,9 @@
 #' @param format Logical storage format, `"csr"` or `"coo"`.
 #' @param device One of `"auto"`, `"cuda"`, or `"cpu"`.
 #' @param drop_zeros Whether to remove explicitly stored zeros.
+#' @details Existing `cudasparse` inputs use their stable sorted COO mirror
+#'   directly. Same-device format changes share backend storage; transfers and
+#'   zero filtering do not construct an intermediate Matrix object.
 #'
 #' @return A `cudasparse` list. Stable public metadata include one-based COO
 #'   `i` and `j`, numeric `values`, zero-based CSR `row_ptr` and `col_index`,
@@ -181,62 +184,74 @@ cuda_sparse <- function(x, format = c("csr", "coo"),
       is.na(drop_zeros)) {
     stop("`drop_zeros` must be TRUE or FALSE.", call. = FALSE)
   }
+  sparse_source <- inherits(x, "cudasparse")
   if (inherits(x, "cudasparse")) {
+    .check_sparse(x)
     input_dimnames <- .sparse_dimnames(x)
-    can_reuse <- identical(x$format, format) &&
-      identical(x$device, device) &&
+    can_reuse <- identical(x$device, device) &&
       (!isTRUE(drop_zeros) || !any(x$values == 0))
     if (can_reuse) {
-      return(x)
+      return(.sparse_reformat(x, format))
     }
-    x <- .triplet_matrix(x)
+    shape <- as.integer(x$shape)
+    i <- as.integer(x$i)
+    j <- as.integer(x$j)
+    values <- as.numeric(x$values)
+    if (isTRUE(drop_zeros) && any(values == 0)) {
+      retained <- values != 0
+      i <- i[retained]
+      j <- j[retained]
+      values <- values[retained]
+    }
   } else {
     input_dimnames <- NULL
   }
-  if (!(is.matrix(x) || methods::is(x, "Matrix"))) {
+  if (!sparse_source && !(is.matrix(x) || methods::is(x, "Matrix"))) {
     stop("`x` must be a numeric matrix or a `Matrix` sparse matrix.",
          call. = FALSE)
   }
-  if (is.matrix(x) && !is.numeric(x)) {
+  if (!sparse_source && is.matrix(x) && !is.numeric(x)) {
     stop("`x` must contain numeric values.", call. = FALSE)
   }
-  if (is.null(input_dimnames)) {
+  if (!sparse_source && is.null(input_dimnames)) {
     input_dimnames <- .validate_sparse_dimnames(
       dimnames(x),
       dim(x),
       "dimnames(x)"
     )
   }
-  sparse <- if (methods::is(x, "Matrix")) {
-    converted <- tryCatch(
-      methods::as(x, "dMatrix"),
-      error = function(...) NULL
-    )
-    if (is.null(converted)) {
-      stop("`x` must contain numeric values.", call. = FALSE)
+  if (!sparse_source) {
+    sparse <- if (methods::is(x, "Matrix")) {
+      converted <- tryCatch(
+        methods::as(x, "dMatrix"),
+        error = function(...) NULL
+      )
+      if (is.null(converted)) {
+        stop("`x` must contain numeric values.", call. = FALSE)
+      }
+      methods::as(converted, "generalMatrix")
+    } else {
+      Matrix::Matrix(x, sparse = TRUE)
     }
-    methods::as(converted, "generalMatrix")
-  } else {
-    Matrix::Matrix(x, sparse = TRUE)
-  }
-  sparse <- methods::as(methods::as(sparse, "dMatrix"), "generalMatrix")
-  if (isTRUE(drop_zeros)) {
-    sparse <- Matrix::drop0(sparse)
-  }
-  entries <- Matrix::summary(sparse)
-  if (NROW(entries) == 0L) {
-    i <- j <- integer()
-    values <- numeric()
-  } else {
-    order_index <- order(entries$i, entries$j)
-    i <- as.integer(entries$i[order_index])
-    j <- as.integer(entries$j[order_index])
-    values <- as.numeric(entries$x[order_index])
+    sparse <- methods::as(methods::as(sparse, "dMatrix"), "generalMatrix")
+    if (isTRUE(drop_zeros)) {
+      sparse <- Matrix::drop0(sparse)
+    }
+    entries <- Matrix::summary(sparse)
+    if (NROW(entries) == 0L) {
+      i <- j <- integer()
+      values <- numeric()
+    } else {
+      order_index <- order(entries$i, entries$j)
+      i <- as.integer(entries$i[order_index])
+      j <- as.integer(entries$j[order_index])
+      values <- as.numeric(entries$x[order_index])
+    }
+    shape <- as.integer(dim(sparse))
   }
   if (anyNA(values) || any(!is.finite(values))) {
     stop("`x` must contain finite, non-missing values.", call. = FALSE)
   }
-  shape <- as.integer(dim(sparse))
   input_dimnames <- .validate_sparse_dimnames(
     input_dimnames,
     shape,
