@@ -1084,3 +1084,54 @@ Evidence at the implementation head:
 - integration run `31602965792` passes the CPU and identifier contract; and
 - native-integrity run `31602965261` passes supply chain, Windows/Linux
   artifacts, CUDA 12.8.1 ABI, and byte-reproducible PTX gates.
+
+## CP-09A: higher-level workflow boundary audit
+
+Status: complete at implementation commit
+`d63cde9ec108f78a9ca6a4182b7c531933127175`; this checkpoint-record-only
+follow-up must pass the same PR gates before merge.
+
+Review:
+
+- draft PR: <https://github.com/cudaverse/cudaverse/pull/45>;
+- target: `develop/0.4` (not `main`);
+- no tag, release, CRAN/Bioconductor submission, or Pages deployment; and
+- the implementation changes documentation and boundary validation without
+  changing a numerical algorithm or public function signature.
+
+Scope:
+
+- audit graph assembly, Louvain, Leiden, UMAP, t-SNE, diffusion, optional
+  SingleCellExperiment reduced dimensions, and the unsupported Seurat input
+  boundary against their actual implementations;
+- retain graph/community, UMAP, and t-SNE as explicit CPU stages;
+- retain the resident native PCA-to-diffusion-distance stage while recording
+  CPU kernel construction and eigendecomposition;
+- document that SingleCellExperiment reduced dimensions materialize at a host
+  boundary while retaining cell identity and compatible provenance;
+- remove public guidance to install a separate user package and strengthen the
+  pkgdown boundary against obsolete split-package messaging; and
+- define parity, determinism, provenance, memory, lifecycle, cross-platform,
+  and supply-chain re-entry gates before any higher-level native stage is
+  added.
+
+Required gate:
+
+- graph, embedding, provenance, and real SingleCellExperiment tests pass;
+- all 39 exports retain valid capability-matrix coverage;
+- roxygen output is synchronized with the revised UMAP/t-SNE contract;
+- the rendered public site contains no obsolete separate-package message;
+- cross-platform source, CPU, no-CUDA artifact, supply-chain, ABI/PTX, and
+  public-documentation checks stay green; and
+- development PR deployment remains skipped.
+
+Evidence at the implementation commit:
+
+- targeted graph/embedding/provenance/SingleCellExperiment tests pass locally;
+- the capability-matrix unit and standalone checks cover all 39 exports;
+- R-CMD-check run `31604756238` passes Windows, macOS, Ubuntu, and R-devel;
+- pkgdown run `31604755975` builds and passes the strengthened public boundary
+  while its deployment job is skipped;
+- integration run `31604757080` passes the CPU and identifier contract; and
+- native-integrity run `31604755982` passes supply chain, Windows/Linux
+  artifacts, CUDA 12.8.1 ABI, and byte-reproducible PTX gates.

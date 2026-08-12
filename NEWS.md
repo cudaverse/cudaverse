@@ -113,7 +113,9 @@
 - Adds dense tensor and sparse matrix functionality.
 - Adds numerical algorithms, graph workflows, and embedding workflows.
 - Preserves the canonical `cuda_provenance()` protocol across all modules.
-- Keeps single-cell-specific workflows in the separate `cudacellr` package.
+- Keeps SingleCellExperiment support optional and accepts its reduced
+  dimensions at the embedding boundary without making Bioconductor or Seurat
+  required dependencies.
 - Fixes CUDA indexing, R column-major reshape semantics, and exact
   self-distance diagonals for compatibility with R torch 0.17.
 - Documents the measured, benchmark-gated roadmap toward a lightweight native
