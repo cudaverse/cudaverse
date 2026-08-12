@@ -1,10 +1,10 @@
-#include <R.h>
-#include <Rinternals.h>
-
 #include <cmath>
 #include <new>
 #include <queue>
 #include <vector>
+
+#include <R.h>
+#include <Rinternals.h>
 
 namespace {
 
