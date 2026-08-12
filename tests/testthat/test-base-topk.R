@@ -118,6 +118,28 @@ test_that("CPU stable top-k matches radix order across bounded random cases", {
   }
 })
 
+test_that("CPU stable top-k preserves indices on the 50k candidate axis", {
+  candidate_count <- 50000L
+  rows <- c(1L, candidate_count)
+  columns <- seq_len(candidate_count)
+  distance <- rbind(
+    abs(columns - 25000L),
+    abs(columns - 25001L)
+  )
+  storage.mode(distance) <- "double"
+  expected <- stable_topk_reference(distance, rows, 15L)
+
+  result <- .Call(
+    cudaverse:::C_cudaverse_cpu_stable_topk,
+    distance,
+    rows,
+    15L
+  )
+
+  expect_identical(result$index, expected$index)
+  expect_identical(result$distance, expected$distance)
+})
+
 test_that("base kNN stable top-k matches the full exact reference", {
   set.seed(1801)
   values <- matrix(rnorm(180), 30L, 6L)
