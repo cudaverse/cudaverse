@@ -140,3 +140,55 @@ Remote evidence at the implementation commit:
 - supply-chain and repository workflow-boundary checks pass;
 - Linux and Windows no-CUDA artifact builds pass; and
 - CUDA 12.8.1 ABI and PTX checks pass.
+
+## CP-02B: device-resident replacement dtype conversion
+
+Status: complete at implementation commit
+`cd6e573d8c6edd54fbf76d2d151bcfa353d6cac1`; the checkpoint-record-only
+follow-up must pass the same PR gates before merge.
+
+Review:
+
+- draft PR: <https://github.com/cudaverse/cudaverse/pull/29>;
+- target: `develop/0.4` (not `main`);
+- no tag, release, CRAN submission, or Pages deployment; and
+- GitHub Pages deploy job skipped as required.
+
+Scope:
+
+- cast replacement tensors on the same CUDA backend/device to the target
+  floating dtype without materializing either tensor on the host;
+- retain exact host validation for integer targets;
+- record the conversion and scatter as separate provenance stages; and
+- prove cast/scatter temporaries release cleanly across 1,000 cycles.
+
+Required gate:
+
+- base adapter contract detects any accidental host transfer;
+- native integer-to-float64 and float64-to-float32 replacement parity passes;
+- output dtype, device, backend, and provenance remain explicit; and
+- repeated native cast/scatter returns to the exact tracked-memory baseline.
+
+Local evidence:
+
+- a synthetic CUDA adapter whose `to_host` always errors completes the
+  same-backend replacement contract through one backend cast and scatter;
+- native integer-to-float64 and float64-to-float32 replacement parity passes on
+  the RTX 2000 with separate `replacement_cast` and `replacement` provenance;
+- 1,000 native cast/scatter cycles return to the exact tracked-memory baseline;
+- the complete ordinary and explicitly enabled RTX 2000 suites pass, with no
+  hardware skips in the latter;
+- source tarball SHA-256 is
+  `72C65EEEBD28B0AE82D354F863BC9FF5028BD4E6745ED90F729DFE23F87FD656`;
+- Windows `R CMD check --as-cran` reports 0 errors, 0 warnings, and only the
+  expected development-version NOTE; and
+- capability, redistribution, SBOM, release-boundary, benchmark, candidate,
+  rejection, pkgdown, and public-documentation gates pass without deployment.
+
+Remote evidence at the implementation commit:
+
+- Windows, macOS, Ubuntu, and R-devel package checks pass;
+- CPU integration and pkgdown pass;
+- supply-chain and repository workflow-boundary checks pass;
+- Linux and Windows no-CUDA artifact builds pass; and
+- CUDA 12.8.1 ABI and PTX checks pass.

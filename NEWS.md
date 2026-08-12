@@ -9,6 +9,8 @@
 - Made native CUDA reshape allocation-free by separating dense view metadata
   from shared device-allocation ownership. Nested reshape views remain valid
   after their sources are released and free the allocation exactly once.
+- Kept same-backend CUDA tensor replacement device-resident when the replacement
+  needs a compatible floating dtype cast, with the cast recorded in provenance.
 
 # cudaverse 0.3.0.9000
 

@@ -861,7 +861,9 @@ Ops.cudatensor <- function(e1, e2) {
 #' CUDA backend evaluates only R index metadata on the host and keeps tensor
 #' values on the device. Compatibility backends without indexing operations
 #' use a recorded CPU round trip. Subscripts containing `NA` currently use the
-#' compatibility path.
+#' compatibility path. A replacement tensor on the same device and backend is
+#' cast to the target floating dtype on that device before replacement. Integer
+#' targets retain exact host validation for non-integer replacement values.
 #'
 #' @param x A `cudatensor`.
 #' @param ... One-based R array indices.
@@ -1033,10 +1035,20 @@ NULL
   subscripts <- .tensor_subscripts(...)
   caller <- parent.frame()
   plan <- .tensor_index_plan(x, subscripts, caller, drop = FALSE)
+  can_device_replace <- !is.null(plan) && !anyNA(plan$indices) &&
+    .backend_has_operation(x$backend, "replace")
+  same_backend_device <- tensor_value && identical(value$backend, x$backend) &&
+    identical(value$device, x$device)
+  owned_cast <- FALSE
+  if (can_device_replace && same_backend_device &&
+      !identical(value$dtype, x$dtype)) {
+    value <- .cast_tensor(value, x$dtype)
+    owned_cast <- TRUE
+    on.exit(.backend_call(x$backend, "release", value$storage), add = TRUE)
+  }
   compatible_tensor <- tensor_value && identical(value$backend, x$backend) &&
     identical(value$device, x$device) && identical(value$dtype, x$dtype)
-  direct <- !is.null(plan) && !anyNA(plan$indices) &&
-    .backend_has_operation(x$backend, "replace") &&
+  direct <- can_device_replace &&
     (!tensor_value || compatible_tensor)
   if (!direct) {
     if (tensor_value) value <- to_cpu(value)
@@ -1080,7 +1092,18 @@ NULL
     output_storage, x$device, x$backend, x$dtype, x$shape,
     dimnames = .tensor_dimnames(x)
   )
-  .tensor_result_stage(output, "replacement")
+  if (!owned_cast) {
+    return(.tensor_result_stage(output, "replacement"))
+  }
+  .with_tensor_stages(
+    output,
+    list(
+      replacement_cast = .tensor_stage(
+        x$device, x$backend, reason = "replacement_dtype_conversion"
+      ),
+      replacement = .tensor_stage(x$device, x$backend)
+    )
+  )
 }
 
 #' @export
