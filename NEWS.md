@@ -35,6 +35,10 @@
   with its source through independent reference counting. Normalized results
   allocate only new values, remain valid after either release order, and free
   shared pattern storage exactly once.
+- Made `cuda_sparse()` rematerialize an existing `cudasparse` object directly
+  from its stable COO mirror. Same-device format changes share storage, while
+  cross-device transfers and zero filtering avoid a temporary Matrix object,
+  summary pass, and redundant coordinate sort.
 
 # cudaverse 0.3.0.9000
 

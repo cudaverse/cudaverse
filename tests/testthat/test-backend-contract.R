@@ -829,3 +829,96 @@ test_that("sparse normalization accepts storage-only backend results", {
   )
   expect_identical(result$compute_stages$normalization$device, "cuda")
 })
+
+test_that("existing sparse objects rematerialize without Matrix conversion", {
+  calls <- new.env(parent = emptyenv())
+  calls$from_coo <- 0L
+  factory <- cudaverse:::.base_backend_factory()
+  factory$name <- "sparse-rematerialize-contract"
+  factory$device <- "cuda"
+  factory$sparse_from_coo <- function(i, j, values, shape, format) {
+    calls$from_coo <- calls$from_coo + 1L
+    expect_identical(i, c(1L, 2L, 2L))
+    expect_identical(j, c(1L, 1L, 3L))
+    expect_identical(values, c(1, 2, 3))
+    expect_identical(shape, c(2L, 3L))
+    expect_identical(format, "coo")
+    list(marker = "uploaded")
+  }
+  cudaverse:::.backend_register(factory, replace = TRUE)
+  on.exit(
+    rm(
+      list = "sparse-rematerialize-contract",
+      envir = cudaverse:::.cudaverse_backends
+    ),
+    add = TRUE
+  )
+  source_matrix <- matrix(
+    c(1, 2, 0, 0, 0, 3), 2L, 3L,
+    dimnames = list(c("a", "b"), c("x", "y", "z"))
+  )
+  source <- cuda_sparse(source_matrix, device = "cpu")
+  testthat::local_mocked_bindings(
+    cuda_select_device = function(device) list(
+      requested_device = device,
+      device = "cuda",
+      backend = "sparse-rematerialize-contract",
+      selection_reason = "contract_test",
+      fallback = FALSE
+    ),
+    .triplet_matrix = function(...) {
+      stop("unexpected Matrix conversion", call. = FALSE)
+    }
+  )
+
+  result <- cuda_sparse(source, format = "coo", device = "cuda")
+
+  expect_identical(calls$from_coo, 1L)
+  expect_identical(result$storage, list(marker = "uploaded"))
+  expect_identical(result$i, source$i)
+  expect_identical(result$j, source$j)
+  expect_identical(result$values, source$values)
+  expect_identical(dimnames(result), dimnames(source))
+  expect_identical(result$device, "cuda")
+  expect_identical(result$backend_id, "sparse-rematerialize-contract")
+})
+
+test_that("same-device sparse reformat reuses backend storage contract", {
+  factory <- cudaverse:::.base_backend_factory()
+  factory$name <- "sparse-reformat-share-contract"
+  factory$device <- "cuda"
+  factory$sparse_from_coo <- function(...) {
+    stop("unexpected sparse reconstruction", call. = FALSE)
+  }
+  factory$sparse_share <- function(storage) {
+    expect_identical(storage, list(marker = "source"))
+    list(marker = "shared")
+  }
+  cudaverse:::.backend_register(factory, replace = TRUE)
+  on.exit(
+    rm(
+      list = "sparse-reformat-share-contract",
+      envir = cudaverse:::.cudaverse_backends
+    ),
+    add = TRUE
+  )
+  source <- cuda_sparse(diag(2), device = "cpu")
+  source$device <- "cuda"
+  source$backend <- "sparse-reformat-share-contract"
+  source$backend_id <- "sparse-reformat-share-contract"
+  source$storage <- list(marker = "source")
+  testthat::local_mocked_bindings(
+    cuda_select_device = function(device) list(
+      requested_device = device,
+      device = "cuda",
+      backend = "sparse-reformat-share-contract",
+      selection_reason = "contract_test",
+      fallback = FALSE
+    )
+  )
+
+  result <- cuda_sparse(source, format = "coo", device = "cuda")
+
+  expect_identical(result$format, "coo")
+  expect_identical(result$storage, list(marker = "source"))
+})
