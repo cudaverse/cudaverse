@@ -7,6 +7,10 @@ sys.source(
   file.path("tools", "candidate-evidence-io.R"),
   envir = environment()
 )
+sys.source(
+  file.path("tools", "candidate-policy.R"),
+  envir = environment()
+)
 
 run_checker <- function() {
   sys.source(
@@ -24,6 +28,19 @@ expect_error_message <- function(code, pattern) {
     stop("Expected an error containing: ", pattern, call. = FALSE)
   }
 }
+
+stopifnot(
+  identical(
+    candidate_release_policy("0.3.0.9000", "develop/native-cuda")$line,
+    "0.3"
+  ),
+  identical(
+    candidate_release_policy("0.4.0.9000", "develop/0.4")$line,
+    "0.4"
+  ),
+  is.null(candidate_release_policy("0.4.0.9000", "develop/native-cuda")),
+  is.null(candidate_release_policy("0.5.0.9000", "develop/0.4"))
+)
 
 commit <- paste(rep("a", 40L), collapse = "")
 version <- "0.3.0.9000"
@@ -364,10 +381,44 @@ write_manifest <- function() {
     manifest, path, auto_unbox = TRUE, pretty = TRUE, null = "null"
   )
 }
+refresh_versioned_evidence <- function(candidate_version, candidate_branch) {
+  version <<- candidate_version
+  evidence_files[["tarball"]] <<- paste0(
+    "cudaverse_", candidate_version, ".tar.gz"
+  )
+  manifest$candidate$version <<- candidate_version
+  manifest$candidate$branch <<- candidate_branch
+  manifest$source_tarball$file <<- evidence_files[["tarball"]]
+  write_tarball()
+  manifest$source_tarball$sha256 <<- sha_for("tarball")
+  write_sbom()
+  manifest$supply_chain$sbom_sha256 <<- sha_for("sbom")
+  write_consolidation()
+  manifest$rtx$consolidation_report_sha256 <<- sha_for("consolidation")
+  write_package_tests()
+  manifest$rtx$package_test_report_sha256 <<- sha_for("package_tests")
+  write_rtx()
+  manifest$rtx$report_sha256 <<- sha_for("rtx")
+  write_benchmark()
+  manifest$benchmark$report_sha256 <<- sha_for("benchmark")
+  write_decision()
+  manifest$decision$report_sha256 <<- sha_for("decision")
+}
 Sys.setenv(CUDAVERSE_CANDIDATE_MANIFEST = path)
 
 write_manifest()
 run_checker()
+
+refresh_versioned_evidence("0.4.0.9000", "develop/0.4")
+write_manifest()
+run_checker()
+
+manifest$candidate$branch <- "develop/native-cuda"
+write_manifest()
+expect_error_message(
+  run_checker(), "candidate branch/version is not a supported release line"
+)
+refresh_versioned_evidence("0.3.0.9000", "develop/native-cuda")
 
 write_tarball("0.2.0.9000")
 manifest$source_tarball$sha256 <- sha_for("tarball")

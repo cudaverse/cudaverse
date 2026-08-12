@@ -1,3 +1,8 @@
+sys.source(
+  file.path("tools", "candidate-policy.R"),
+  envir = environment()
+)
+
 native_candidate_scalar <- function(x, default = NA) {
   value <- unlist(x, recursive = TRUE, use.names = FALSE)
   if (!length(value) || is.na(value[[1L]])) default else value[[1L]]
@@ -211,8 +216,12 @@ validate_native_candidate_report <- function(report, expected_commit = NULL,
   require_gate(!native_candidate_logical(
     report$source$cudaverse$tracked_dirty
   ), "native candidate source is dirty")
-  require_gate(grepl("^0\\.3\\.0(\\.9000)?$", version),
-               "native candidate version is invalid")
+  supported_version <- any(vapply(
+    candidate_release_policies(),
+    function(policy) grepl(policy$version_pattern, version),
+    logical(1L)
+  ))
+  require_gate(supported_version, "native candidate version is invalid")
   if (!is.null(expected_commit)) {
     require_gate(identical(commit, expected_commit),
                  "native candidate commit does not match")

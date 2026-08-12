@@ -88,6 +88,11 @@ report <- build()
 stopifnot(!length(validate_native_candidate_report(
   report, expected_commit = commit, expected_version = version
 )))
+report_0_4 <- report
+report_0_4$software$cudaverse <- "0.4.0.9000"
+stopifnot(!length(validate_native_candidate_report(
+  report_0_4, expected_commit = commit, expected_version = "0.4.0.9000"
+)))
 
 changed <- package_tests
 changed$source$cudaverse$commit <- paste(rep("d", 40L), collapse = "")

@@ -8,6 +8,10 @@ sys.source(
   envir = environment()
 )
 sys.source(
+  file.path("tools", "candidate-policy.R"),
+  envir = environment()
+)
+sys.source(
   file.path("tools", "check-redistributables.R"),
   envir = environment()
 )
@@ -106,14 +110,10 @@ require_gate(
 commit <- text_value(manifest$candidate$source_commit)
 require_gate(is_commit(commit), "candidate source commit is invalid")
 version <- text_value(manifest$candidate$version)
-require_gate(
-  grepl("^0\\.3\\.0(\\.9000)?$", version),
-  "candidate version is not a 0.3.0 candidate"
-)
-require_gate(
-  identical(text_value(manifest$candidate$branch), "develop/native-cuda"),
-  "candidate branch is not develop/native-cuda"
-)
+branch <- text_value(manifest$candidate$branch)
+policy <- candidate_release_policy(version, branch)
+require_gate(!is.null(policy),
+             "candidate branch/version is not a supported release line")
 require_gate(logical_value(manifest$candidate$clean),
              "candidate source tree is not recorded as clean")
 require_gate(
