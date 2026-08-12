@@ -118,10 +118,9 @@
 }
 
 .learn_sparse_constant_columns <- function(x) {
-  sparse <- .triplet_matrix(x)
   rows <- x$shape[[1L]]
-  sums <- as.numeric(Matrix::colSums(sparse))
-  sum_squares <- as.numeric(Matrix::colSums(sparse * sparse))
+  sums <- .sparse_margin_sums(x, 1L)
+  sum_squares <- .sparse_margin_sums(x, 1L, x$values * x$values)
   centered <- pmax(sum_squares - sums * sums / rows, 0)
   centered <= .Machine$double.eps * pmax(sum_squares, 1)
 }
@@ -699,6 +698,9 @@ cuda_svd <- function(x, nu = min(nrow(x), ncol(x)),
 #'   downloading its input matrix. Float32 and integer tensors are converted to
 #'   float64 on the device. PCA scores retain shared native storage for direct
 #'   composition with native distance and kNN operations.
+#'   Sparse inputs transfer directly from their stable COO mirror. Constant
+#'   features are scanned from that mirror only when `scale. = TRUE`; unscaled
+#'   sparse PCA does not build or scan an intermediate Matrix object.
 #' @export
 #' @examples
 #' fit <- cuda_pca(iris[, 1:4], n_components = 2, device = "cpu")
@@ -760,15 +762,17 @@ cuda_pca <- function(x, n_components = 2L, center = TRUE, scale. = FALSE,
       call. = FALSE
     )
   }
-  constant_features <- if (!is.null(resident)) {
-    resident$constant
-  } else if (sparse_input) {
-    .learn_sparse_constant_columns(x)
-  } else {
-    apply(x, 2L, stats::sd) == 0
-  }
-  if (scale. && any(constant_features)) {
-    stop("Cannot scale constant features.", call. = FALSE)
+  if (scale.) {
+    constant_features <- if (!is.null(resident)) {
+      resident$constant
+    } else if (sparse_input) {
+      .learn_sparse_constant_columns(x)
+    } else {
+      apply(x, 2L, stats::sd) == 0
+    }
+    if (any(constant_features)) {
+      stop("Cannot scale constant features.", call. = FALSE)
+    }
   }
   n_components <- as.integer(n_components)
 
@@ -781,9 +785,7 @@ cuda_pca <- function(x, n_components = 2L, center = TRUE, scale. = FALSE,
     if (!identical(x$device, "cuda") ||
         !identical(source_backend, compute_backend)) {
       sparse_compute <- cuda_sparse(
-        .triplet_matrix(x),
-        format = x$format,
-        device = "cuda"
+        x, format = x$format, device = "cuda"
       )
       sparse_transferred <- TRUE
     }
@@ -1360,9 +1362,7 @@ cuda_knn <- function(x, k = 15L, metric = c("euclidean", "cosine"),
     if (!identical(sparse_source$device, "cuda") ||
         !identical(source_backend, compute_backend)) {
       sparse_compute <- cuda_sparse(
-        .triplet_matrix(sparse_source),
-        format = sparse_source$format,
-        device = "cuda"
+        sparse_source, format = sparse_source$format, device = "cuda"
       )
       sparse_transferred <- TRUE
     }

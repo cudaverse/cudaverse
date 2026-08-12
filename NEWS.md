@@ -39,6 +39,9 @@
   from its stable COO mirror. Same-device format changes share storage, while
   cross-device transfers and zero filtering avoid a temporary Matrix object,
   summary pass, and redundant coordinate sort.
+- Removed Matrix construction from sparse PCA preprocessing and sparse
+  algorithm transfers. Constant-column checks run directly on the COO mirror
+  only when scaling is requested; unscaled PCA skips that scan entirely.
 
 # cudaverse 0.3.0.9000
 
