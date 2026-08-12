@@ -861,3 +861,61 @@ Remote evidence at the implementation commit:
 - supply-chain and repository workflow-boundary checks pass;
 - Linux and Windows no-CUDA artifact builds pass; and
 - CUDA 12.8.1 ABI and unchanged PTX reproducibility checks pass.
+
+## CP-06A: backend-aware memory observability
+
+Status: complete at implementation commit
+`35e60d977f207a39c0960dca3e4520b1d4cf36e0`; the checkpoint-record-only
+follow-up must pass the same PR gates before merge.
+
+Review:
+
+- draft PR: <https://github.com/cudaverse/cudaverse/pull/41>;
+- target: `develop/0.4` (not `main`);
+- no tag, release, CRAN submission, or Pages deployment; and
+- the backend contract gains only an optional memory operation, so existing
+  third-party or compatibility factories remain valid.
+
+Scope:
+
+- add `cuda_memory_info()` with stable selection, physical-memory, allocator,
+  reason, and error fields;
+- report CUDA-driver total/free/used bytes and cudaverse-owned current/peak
+  allocations for native;
+- report torch allocated/reserved current/peak bytes without estimating
+  unsupported physical totals;
+- keep CPU fallback, unsupported telemetry, invalid reports, and query errors
+  explicit and structured; and
+- document first-session self-test peak behavior and memory interpretation.
+
+Required gate:
+
+- native physical totals satisfy `total - free == used`;
+- a 128-double allocation adds exactly 1,024 cudaverse-owned bytes and release
+  returns current allocation to the exact baseline;
+- an injected CUDA OOM raises the established structured condition, retains
+  its temporary-allocation high-water mark, and leaves memory telemetry usable;
+- ordinary CPU, automatic fallback, torch allocator, malformed-report, and
+  query-error contracts pass; and
+- complete ordinary, RTX, no-CUDA, source, supply-chain, and documentation
+  gates remain green.
+
+Local evidence:
+
+- the live RTX report exposes 16.00 GiB physical total and distinct native
+  current/peak ownership counters without retaining a user tensor;
+- the injected-error recovery and exact 1,024-byte ownership contracts pass;
+- the complete ordinary and explicitly enabled RTX 2000 suites pass;
+- exact full-vignette source tarball SHA-256 is
+  `9DA5A8D3202E819028FBF6E4562CEBE31B58F54D65B586380DC7FC2731FA6DF5`;
+- Windows `R CMD check --as-cran --no-manual` reports 0 errors, 0 warnings,
+  and only the expected development-version incoming NOTE; and
+- all 39 exports pass capability coverage, while redistribution, SBOM,
+  release-boundary, benchmark, candidate, rejection, installed-pkgdown, and
+  public-documentation gates pass without deployment.
+
+Remote evidence at the implementation commit:
+
+- supply-chain and repository workflow-boundary checks pass;
+- Linux and Windows no-CUDA artifact builds pass; and
+- CUDA 12.8.1 ABI and unchanged PTX reproducibility checks pass.
