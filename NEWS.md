@@ -21,6 +21,9 @@
 - Added explicit k-means batching with a backward-compatible backend contract.
   Native Lloyd iterations now keep data, centres, assignments, and updates on
   the GPU while bounding temporary distance storage by observation batch.
+- Kept native PCA prediction scores in shared device storage after returning
+  their compatible R matrix, allowing following distance and kNN stages to
+  reuse the scores without an upload.
 
 # cudaverse 0.3.0.9000
 

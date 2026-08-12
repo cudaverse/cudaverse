@@ -22,7 +22,9 @@ usual cudaverse device-selection rules.}
 \value{
 A numeric matrix of component scores. New observation names and
 stable component names are retained. A recomputed prediction includes
-stage-level provenance and is materialized as an R matrix on the CPU.
+stage-level provenance and is materialized as an R matrix on the CPU. The
+native backend also retains shared device storage so a subsequent native
+distance or kNN operation can reuse the scores without uploading them.
 Omitting \code{newdata} returns the validated stored training scores unchanged;
 that retrieval does not create a prediction stage.
 }

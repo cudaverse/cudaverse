@@ -1000,9 +1000,81 @@ test_that("native PCA prediction remains compatible with automatic selection", {
 
   expect_equal(as.vector(scores), as.vector(reference), tolerance = 1e-8)
   expect_identical(attr(scores, "device", exact = TRUE), "cuda")
+  state <- attr(scores, "cudaverse_native_state", exact = TRUE)
+  expect_type(state$storage, "externalptr")
+  expect_identical(state$shape, as.integer(dim(scores)))
+  expect_identical(state$dtype, "float64")
   expect_true(all(
     cudaverse::cuda_provenance(scores)$backend == "native"
   ))
+  expect_true("scores_resident" %in%
+                cudaverse::cuda_provenance(scores)$stage)
+
+  factory <- cudaverse:::.native_backend_factory()
+  factory$synchronize()
+  before_prepare <- cudaverse:::.native_memory_tracker(reset = TRUE)$current
+  prepared <- factory$algorithm_knn_prepare(scores, "euclidean", scores)
+  after_prepare <- cudaverse:::.native_memory_tracker()
+  expect_identical(
+    after_prepare$current - before_prepare,
+    as.numeric(nrow(scores) * 8L)
+  )
+  factory$release(prepared$norms)
+  factory$release(prepared$storage)
+  expect_identical(
+    cudaverse:::.native_memory_tracker()$current,
+    before_prepare
+  )
+
+  native_neighbors <- cudaverse::cuda_knn(
+    scores, k = 1L, batch_size = 2L, device = "cuda"
+  )
+  cpu_neighbors <- cudaverse::cuda_knn(
+    unclass(scores), k = 1L, batch_size = 2L, device = "cpu"
+  )
+  expect_identical(native_neighbors$index, cpu_neighbors$index)
+  expect_equal(
+    native_neighbors$distance, cpu_neighbors$distance,
+    tolerance = 1e-10
+  )
+  neighbor_stages <- cudaverse::cuda_provenance(native_neighbors)
+  expect_identical(neighbor_stages$stage[[1L]], "input_materialization")
+  expect_identical(
+    neighbor_stages$selection_reason[[1L]], "device_resident_input"
+  )
+  expect_identical(neighbor_stages$backend[[1L]], "native")
+})
+
+test_that("one thousand resident PCA predictions release exactly", {
+  skip_if_not(identical(Sys.getenv("CUDAVERSE_NATIVE_TESTS"), "true"))
+  skip_if_not(nzchar(Sys.getenv("CUDAVERSE_CUSOLVER_PATH")))
+  skip_if_not(isTRUE(cudaverse:::.native_diagnostics()$available))
+  old <- options(cudaverse.cuda_backends = "native")
+  on.exit(options(old), add = TRUE)
+  factory <- cudaverse:::.native_backend_factory()
+  training <- matrix(seq_len(80) / 13, 20L, 4L)
+  prediction <- training[1:5, , drop = FALSE]
+  fit <- cudaverse::cuda_pca(
+    training, n_components = 3L, center = TRUE, scale. = TRUE,
+    device = "cuda"
+  )
+  factory$synchronize()
+  gc()
+  baseline <- cudaverse:::.native_memory_tracker(reset = TRUE)$current
+
+  for (iteration in seq_len(1000L)) {
+    scores <- predict(fit, prediction, device = "cuda")
+    expect_type(
+      attr(scores, "cudaverse_native_state", exact = TRUE)$storage,
+      "externalptr"
+    )
+  }
+  rm(scores)
+  gc()
+  factory$synchronize()
+  final <- cudaverse:::.native_memory_tracker()
+  expect_identical(final$current, baseline)
+  expect_gte(final$peak - baseline, length(prediction[, 1L]) * 3L * 8L)
 })
 
 test_that("shared native ownership frees an allocation exactly once", {

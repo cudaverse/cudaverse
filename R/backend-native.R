@@ -511,12 +511,23 @@
   )
   on.exit(.native_release(rotation_storage), add = TRUE)
   scores_storage <- .native_matmul(values_storage, rotation_storage)
-  on.exit(.native_release(scores_storage), add = TRUE)
-  matrix(
+  release_scores <- TRUE
+  on.exit({
+    if (release_scores) .native_release(scores_storage)
+  }, add = TRUE)
+  scores <- matrix(
     .native_to_host(scores_storage),
     nrow = nrow(values),
     ncol = ncol(rotation)
   )
+  attr(scores, "cudaverse_native_state") <- list(
+    storage = scores_storage,
+    shape = as.integer(dim(scores)),
+    dtype = "float64",
+    backend = "native"
+  )
+  release_scores <- FALSE
+  scores
 }
 
 .native_algorithm_sparse_pca <- function(storage, shape, n_components,
