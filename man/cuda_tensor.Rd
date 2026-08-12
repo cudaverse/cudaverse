@@ -19,7 +19,10 @@ retained as R metadata on both CPU and CUDA tensors.
 Floating dtypes accept IEEE \code{Inf}, \code{-Inf}, \code{NaN}, and R's floating \code{NA};
 torch backends may normalize \code{NA} to \code{NaN}. Integer dtype rejects
 non-finite or fractional values because they have no exact integer
-representation.}
+representation. When \code{x} is already a tensor on the selected device,
+compatible floating dtype changes use its current backend without
+materializing the tensor on the host. Conversion to integer still validates
+exact representability on the host.}
 }
 \value{
 A \code{cudatensor} object.

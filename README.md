@@ -120,6 +120,10 @@ floating dtype on-device before scatter, avoiding a host round trip and
 recording the conversion as a separate provenance stage. Integer targets still
 validate exact representability before any cast.
 
+Likewise, calling `cuda_tensor(existing_tensor, dtype = ...)` with the same
+device performs the conversion through the existing backend. A host transfer is
+reserved for an actual device change or an exact integer-validation boundary.
+
 ## One workflow, one package
 
 ```r

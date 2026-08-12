@@ -141,6 +141,58 @@ Remote evidence at the implementation commit:
 - Linux and Windows no-CUDA artifact builds pass; and
 - CUDA 12.8.1 ABI and PTX checks pass.
 
+## CP-02C: same-device tensor reconstruction casts
+
+Status: complete at implementation commit
+`49971401036f12a0bc3325fb429df6b277f7b9f2`; the checkpoint-record-only
+follow-up must pass the same PR gates before merge.
+
+Review:
+
+- draft PR: <https://github.com/cudaverse/cudaverse/pull/30>;
+- target: `develop/0.4` (not `main`);
+- no tag, release, CRAN submission, or Pages deployment; and
+- GitHub Pages deploy job skipped as required.
+
+Scope:
+
+- make `cuda_tensor(existing_tensor, dtype = ...)` use the existing backend
+  cast when its selected device is unchanged;
+- avoid a complete device-to-host-to-device round trip;
+- retain cross-device transfer behavior and exact integer validation; and
+- preserve dtype, device, backend, shape, dimnames, and cast provenance.
+
+Required gate:
+
+- a no-host-transfer adapter contract completes same-device reconstruction;
+- native float64-to-float32 parity passes on the RTX 2000; and
+- complete backend conformance remains green.
+
+Local evidence:
+
+- a synthetic CUDA adapter whose `to_host` always errors completes the
+  same-device reconstruction through exactly one backend cast;
+- native float64-to-float32 parity passes on the RTX 2000 while preserving
+  device, backend, shape, dimnames, dtype, and cast provenance;
+- the complete ordinary suite passes, and the explicitly enabled RTX 2000
+  suite passes with no hardware skips;
+- source tarball SHA-256 is
+  `D126ACD14AFDA0D52C312627A131BBD912C18B2D1B81ED64BB6092F5DF7E01F8`;
+- Windows `R CMD check --as-cran` reports 0 errors, 0 warnings, and only the
+  expected development-version NOTE;
+- capability, redistribution, SBOM, release-boundary, benchmark, candidate,
+  report, and rejection self-tests pass; and
+- pkgdown and the public documentation boundary pass from a temporary source
+  copy without deploying Pages.
+
+Remote evidence at the implementation commit:
+
+- Windows, macOS, Ubuntu, and R-devel package checks pass;
+- CPU integration and pkgdown pass;
+- supply-chain and repository workflow-boundary checks pass;
+- Linux and Windows no-CUDA artifact builds pass; and
+- CUDA 12.8.1 ABI and PTX checks pass.
+
 ## CP-02B: device-resident replacement dtype conversion
 
 Status: complete at implementation commit

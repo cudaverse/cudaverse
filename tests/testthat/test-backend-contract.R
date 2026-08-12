@@ -213,6 +213,55 @@ test_that("same-backend replacement casts remain device-resident", {
   )
 })
 
+test_that("same-device tensor reconstruction casts without host transfer", {
+  factory <- cudaverse:::.base_backend_factory()
+  factory$name <- "resident-construction-cast-test"
+  factory$device <- "cuda"
+  original_cast <- factory$cast
+  cast_calls <- 0L
+  factory$cast <- function(storage, dtype) {
+    cast_calls <<- cast_calls + 1L
+    original_cast(storage, dtype)
+  }
+  factory$to_host <- function(storage) {
+    stop("unexpected host transfer", call. = FALSE)
+  }
+  cudaverse:::.backend_register(factory, replace = TRUE)
+  on.exit(
+    rm(list = factory$name, envir = cudaverse:::.cudaverse_backends),
+    add = TRUE
+  )
+  testthat::local_mocked_bindings(
+    cuda_select_device = function(device) {
+      list(
+        requested_device = device,
+        device = "cuda",
+        backend = factory$name,
+        selection_reason = "contract_test",
+        fallback = FALSE
+      )
+    }
+  )
+
+  x <- cudaverse:::.new_cudatensor(
+    array(c(1, 2, 3, 4), dim = c(2L, 2L)),
+    "cuda", factory$name, "float64", c(2L, 2L),
+    dimnames = list(c("r1", "r2"), c("c1", "c2"))
+  )
+  result <- cuda_tensor(x, device = "cuda", dtype = "float32")
+
+  expect_identical(cast_calls, 1L)
+  expect_identical(result$dtype, "float32")
+  expect_identical(result$storage, array(c(1, 2, 3, 4), c(2L, 2L)))
+  expect_identical(tensor_device(result), c(
+    device = "cuda", backend = factory$name
+  ))
+  expect_identical(cuda_provenance(result)$stage, "cast")
+  expect_identical(
+    dimnames(result), list(c("r1", "r2"), c("c1", "c2"))
+  )
+})
+
 test_that("missing backend capabilities return structured conditions", {
   factory <- list(
     name = "contract-test",
