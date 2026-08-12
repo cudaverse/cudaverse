@@ -7,6 +7,10 @@ sys.source(
   file.path("tools", "candidate-evidence-io.R"),
   envir = environment()
 )
+sys.source(
+  file.path("tools", "candidate-policy.R"),
+  envir = environment()
+)
 
 input <- Sys.getenv("CUDAVERSE_CANDIDATE_INPUT", unset = "")
 output <- Sys.getenv("CUDAVERSE_CANDIDATE_MANIFEST", unset = "")
@@ -42,17 +46,17 @@ commit <- git_line(c("rev-parse", "HEAD"))[[1L]]
 branch <- git_line(c("branch", "--show-current"))[[1L]]
 changes <- git_line(c("status", "--porcelain", "--untracked-files=all"))
 version <- unname(read.dcf("DESCRIPTION", fields = "Version")[[1L]])
-if (!identical(branch, "develop/native-cuda")) {
-  stop("Final candidate evidence must be built on develop/native-cuda.",
-       call. = FALSE)
-}
 if (length(changes)) {
   stop("Final candidate evidence requires a clean source tree.",
        call. = FALSE)
 }
-if (!grepl("^0\\.3\\.0(\\.9000)?$", version)) {
-  stop("Final candidate evidence requires a 0.3.0 candidate version.",
-       call. = FALSE)
+policy <- candidate_release_policy(version, branch)
+if (is.null(policy)) {
+  stop(
+    "Final candidate branch/version is not a supported release line. ",
+    "Expected one of: ", candidate_release_policy_description(), ".",
+    call. = FALSE
+  )
 }
 
 frozen_commit <- "59e15c8c5a56d26e09a594886c875b1b8249f6f9"

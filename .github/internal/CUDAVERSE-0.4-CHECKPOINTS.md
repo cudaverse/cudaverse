@@ -1035,3 +1035,52 @@ Initial RTX 2000 evidence:
   session-report, and rejection gates pass; and
 - installed pkgdown and the public documentation boundary pass from a
   temporary clone without deploying Pages.
+
+## CP-08A: exact 0.4 candidate evidence contract
+
+Status: complete at implementation head
+`db0935376aebd0a258f7b83760b9fdf470ca745c`; this checkpoint-record-only
+follow-up must pass the same PR gates before merge.
+
+Review:
+
+- draft PR: <https://github.com/cudaverse/cudaverse/pull/44>;
+- target: `develop/0.4` (not `main`);
+- no tag, release, CRAN/Bioconductor submission, or Pages deployment; and
+- the change is restricted to maintainer evidence policy, validation,
+  rejection tests, and internal candidate-review documents.
+
+Scope:
+
+- centralize supported candidate branch/version pairs without weakening the
+  exact frozen-ref or clean-source gates;
+- accept the historical `0.3.0[.9000]` plus `develop/native-cuda` pair and the
+  current `0.4.0[.9000]` plus `develop/0.4` pair;
+- reject unsupported versions and every cross-line branch/version mismatch;
+- make native-candidate validation follow the same supported release lines;
+- define the requirement-by-requirement 0.4 completion audit and candidate
+  decision boundary; and
+- prevent those maintainer-only audit documents from entering public pkgdown.
+
+Required gate:
+
+- positive and rejection self-tests pass for historical 0.3 and current 0.4
+  manifests and native-candidate reports;
+- the retained real 0.3 manifest still validates exact source
+  `b0ab90f8547d42a5244963bc6b15d0ba223382ff`;
+- directly resolved remote `main` and `release/cran-0.1.0` remain frozen at
+  `59e15c8c5a56d26e09a594886c875b1b8249f6f9`;
+- Windows, macOS, Ubuntu, R-devel, CPU contract, pkgdown, supply-chain,
+  no-CUDA artifact, ABI, and PTX checks pass; and
+- pkgdown deployment stays disabled for the development PR.
+
+Evidence at the implementation head:
+
+- candidate/native positive and rejection self-tests pass locally;
+- the external 0.3 candidate manifest revalidates its exact clean source;
+- R-CMD-check run `31602965245` passes Windows, macOS, Ubuntu, and R-devel;
+- pkgdown run `31602965300` builds and validates the public boundary while its
+  deployment job is skipped;
+- integration run `31602965792` passes the CPU and identifier contract; and
+- native-integrity run `31602965261` passes supply chain, Windows/Linux
+  artifacts, CUDA 12.8.1 ABI, and byte-reproducible PTX gates.
