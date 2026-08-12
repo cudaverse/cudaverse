@@ -185,6 +185,53 @@ test_that("distance supports Euclidean and cosine metrics", {
   expect_equal(diag(cosine), rep(0, nrow(x)), tolerance = 1e-10)
 })
 
+test_that("distance batching preserves self and cross-distance results", {
+  set.seed(481)
+  x <- matrix(rnorm(36), 9, 4)
+  y <- matrix(rnorm(20), 5, 4)
+  rownames(x) <- paste0("x", seq_len(nrow(x)))
+  rownames(y) <- paste0("y", seq_len(nrow(y)))
+
+  for (metric in c("euclidean", "cosine")) {
+    self_reference <- cuda_distance(
+      x, metric = metric, device = "cpu", batch_size = nrow(x)
+    )
+    cross_reference <- cuda_distance(
+      x, y, metric = metric, device = "cpu", batch_size = nrow(x)
+    )
+    for (batch_size in c(1L, 3L, 100L)) {
+      self <- cuda_distance(
+        x, metric = metric, device = "cpu", batch_size = batch_size
+      )
+      cross <- cuda_distance(
+        x, y, metric = metric, device = "cpu", batch_size = batch_size
+      )
+      expect_equal(self, self_reference, tolerance = 1e-10,
+                   ignore_attr = TRUE)
+      expect_equal(cross, cross_reference, tolerance = 1e-10,
+                   ignore_attr = TRUE)
+      expect_identical(dimnames(self), list(rownames(x), rownames(x)))
+      expect_identical(dimnames(cross), list(rownames(x), rownames(y)))
+      expected_batch <- min(batch_size, nrow(x))
+      expect_identical(attr(cross, "parameters")$batch_size, expected_batch)
+      expect_identical(
+        attr(cross, "parameters")$batches,
+        as.integer(ceiling(nrow(x) / expected_batch))
+      )
+    }
+  }
+})
+
+test_that("distance validates batch sizes before backend dispatch", {
+  x <- test_matrix()
+  for (batch_size in list(0, -1, 1.5, Inf, NA_real_, numeric())) {
+    expect_error(
+      cuda_distance(x, batch_size = batch_size, device = "cpu"),
+      "positive whole number"
+    )
+  }
+})
+
 test_that("CUDA self-distance diagonals are exactly zero", {
   skip_if_not(cuda_available())
   x <- matrix(seq(0.1, 3, length.out = 35), nrow = 7)

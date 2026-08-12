@@ -128,6 +128,12 @@ Likewise, calling `cuda_tensor(existing_tensor, dtype = ...)` with the same
 device performs the conversion through the existing backend. A host transfer is
 reserved for an actual device change or an exact integer-validation boundary.
 
+`cuda_distance()` uses an explicit query `batch_size` (256 rows by default).
+The native backend uploads each input once, caches reference norms, and returns
+completed distance blocks to R. The final dense distance matrix still requires
+`nrow(x) * nrow(y)` values in host memory; batching bounds temporary device
+memory rather than hiding that output cost.
+
 ## One workflow, one package
 
 ```r

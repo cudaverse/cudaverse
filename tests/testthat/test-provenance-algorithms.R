@@ -45,6 +45,8 @@ test_that("all numerical result types expose one provenance schema", {
   expect_identical(distance_provenance$output_device, "cpu")
   expect_identical(attr(distance, "compute_device"), "cpu")
   expect_identical(attr(distance, "requested_device"), "cpu")
+  expect_identical(attr(distance, "parameters")$batch_size, nrow(x))
+  expect_identical(attr(distance, "parameters")$batches, 1L)
 
   knn <- cuda_knn(x, k = 2, batch_size = 3, device = "cpu")
   expect_identical(
