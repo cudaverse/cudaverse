@@ -574,7 +574,9 @@ test_that("resident cudatensors enter native SVD and PCA without host copies", {
     cpu_svd <- base::svd(reference, nu = 3L, nv = 3L)
     cpu_reconstruction <- cpu_svd$u %*%
       diag(cpu_svd$d[1:3], nrow = 3L) %*% t(cpu_svd$v)
-    expect_equal(reconstruction, cpu_reconstruction, tolerance = 1e-8)
+    expect_equal(
+      unname(reconstruction), unname(cpu_reconstruction), tolerance = 1e-8
+    )
     expect_identical(rownames(decomposition$u), rownames(values))
     expect_identical(rownames(decomposition$v), colnames(values))
     expect_identical(
