@@ -928,7 +928,7 @@ the checkpoint follow-up and both commits must pass the same PR gates.
 
 Review:
 
-- draft PR: pending creation on branch `agent/14-native-session-contract`;
+- draft PR: <https://github.com/cudaverse/cudaverse/pull/42>;
 - target: `develop/0.4` (not `main`);
 - no tag, release, CRAN submission, or Pages deployment; and
 - the hardware runner remains the only environment that executes this strict
