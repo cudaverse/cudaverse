@@ -636,3 +636,64 @@ Remote evidence at the implementation commit:
 - supply-chain and repository workflow-boundary checks pass;
 - Linux and Windows no-CUDA artifact builds pass; and
 - CUDA 12.8.1 ABI and regenerated PTX reproducibility checks pass.
+
+## CP-04B: shared native sparse-pattern ownership
+
+Status: complete at implementation commit
+`9ee6860a54f2d56a7860375d6566a95c177772da`; the checkpoint-record-only
+follow-up must pass the same PR gates before merge.
+
+Review:
+
+- draft PR: <https://github.com/cudaverse/cudaverse/pull/37>;
+- target: `develop/0.4` (not `main`);
+- no tag, release, CRAN submission, or Pages deployment; and
+- GitHub Pages deploy job skipped as required.
+
+Scope:
+
+- split native sparse storage ownership into independently reference-counted
+  row-index, row-pointer, column-index, and value allocations;
+- let normalization results share the immutable sparse pattern with their
+  source while retaining independent normalized values;
+- eliminate device-to-device copies of all three unchanged index arrays;
+- preserve source and result validity when either object is released first;
+  and
+- release every shared allocation exactly once under explicit release and R
+  finalization.
+
+Required gate:
+
+- a normalization result adds exactly `nnz * 8` resident bytes for float64
+  values rather than another complete sparse allocation;
+- operation peak above the live source is exactly normalized values plus one
+  margin-sum vector and one four-byte validation flag;
+- source-first and result-first release orders remain readable and return to
+  the exact tracked-memory baseline;
+- 1,000 normalization cycles and the complete RTX suite remain leak-free; and
+- ordinary, no-CUDA, cross-platform, source, supply-chain, and documentation
+  gates stay green.
+
+Local evidence:
+
+- the complete ordinary suite and complete explicitly enabled RTX 2000 suite
+  pass;
+- a 48-nnz normalization adds exactly 384 resident bytes, and its measured
+  operation peak above the source is exactly
+  `48 * 8 + 16 * 8 + 4 = 516` bytes;
+- both source-first and result-first release paths preserve the live object,
+  then return to the exact tracked-memory baseline;
+- the existing 1,000-cycle resident-normalization and whole-device 1 MiB gates
+  pass;
+- exact full-vignette source tarball SHA-256 is
+  `3E7CBA420B377091E37A892353CDC48F5B0F8865625F8735F353A639674766AE`;
+- Windows `R CMD check --as-cran --no-manual` reports 0 errors, 0 warnings,
+  and only the expected development-version incoming NOTE; and
+- capability, redistribution, SBOM, release-boundary, benchmark, candidate,
+  rejection, pkgdown, and public-documentation gates pass without deployment.
+
+Remote evidence at the implementation commit:
+
+- supply-chain and repository workflow-boundary checks pass;
+- Linux and Windows no-CUDA artifact builds pass; and
+- CUDA 12.8.1 ABI and unchanged PTX reproducibility checks pass.
