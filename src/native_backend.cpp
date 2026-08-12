@@ -2736,7 +2736,13 @@ extern "C" SEXP C_cudaverse_cuda_memory_tracker(SEXP reset_sexp) {
   return result;
 }
 
+extern "C" SEXP C_cudaverse_cpu_stable_topk(SEXP distance_sexp,
+                                              SEXP rows_sexp,
+                                              SEXP k_sexp);
+
 static const R_CallMethodDef call_methods[] = {
+    {"C_cudaverse_cpu_stable_topk",
+     reinterpret_cast<DL_FUNC>(&C_cudaverse_cpu_stable_topk), 3},
     {"C_cudaverse_cuda_load_kernels",
      reinterpret_cast<DL_FUNC>(&C_cudaverse_cuda_load_kernels), 1},
     {"C_cudaverse_cuda_diagnostics",

@@ -188,6 +188,34 @@
   )
 }
 
+.base_algorithm_knn_select <- function(storage, values, k, metric,
+                                       batch_size) {
+  n_observations <- nrow(storage)
+  index <- matrix(NA_integer_, n_observations, k)
+  distance <- matrix(NA_real_, n_observations, k)
+  starts <- seq.int(1L, n_observations, by = batch_size)
+  for (start in starts) {
+    rows <- seq.int(
+      start,
+      length.out = min(batch_size, n_observations - start + 1L)
+    )
+    block <- if (identical(metric, "euclidean")) {
+      .euclidean_distance_cpu(storage[rows, , drop = FALSE], storage)
+    } else {
+      pmin(pmax(1 - tcrossprod(storage[rows, , drop = FALSE], storage), 0), 2)
+    }
+    selected <- .Call(
+      C_cudaverse_cpu_stable_topk,
+      block,
+      as.integer(rows),
+      as.integer(k)
+    )
+    index[rows, ] <- selected$index
+    distance[rows, ] <- selected$distance
+  }
+  list(index = index, distance = distance)
+}
+
 .base_backend_factory <- function() {
   list(
     name = "base",
@@ -203,7 +231,8 @@
       "transfer", "cast", "arithmetic", "matmul", "reduce",
       "reshape", "broadcast", "transpose", "subset", "replacement",
       "svd", "pca",
-      "pca-predict", "distance", "distance-batched", "knn", "sparse"
+      "pca-predict", "distance", "distance-batched", "knn", "stable-topk",
+      "sparse"
     ),
     from_host = function(x, dtype, shape, dimnames = NULL) {
       values <- switch(
@@ -335,6 +364,7 @@
         1 - tcrossprod(values[rows, , drop = FALSE], values)
       }
     },
+    algorithm_knn_select = .base_algorithm_knn_select,
     memory_info = function() .backend_empty_memory_info(
       "cpu_backend_selected"
     ),

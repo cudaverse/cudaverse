@@ -1496,7 +1496,7 @@ cuda_knn <- function(x, k = 15L, metric = c("euclidean", "cosine"),
   stages$distance <- .learn_stage(
     selection,
     backend = state$backend,
-    output_device = if (device_topk) "cuda" else "cpu"
+    output_device = if (device_topk) state$device else "cpu"
   )
   stages$neighbor_selection <- if (device_topk) {
     .learn_stage(selection, backend = state$backend, output_device = "cpu")
