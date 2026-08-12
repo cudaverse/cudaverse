@@ -919,3 +919,53 @@ Remote evidence at the implementation commit:
 - supply-chain and repository workflow-boundary checks pass;
 - Linux and Windows no-CUDA artifact builds pass; and
 - CUDA 12.8.1 ABI and unchanged PTX reproducibility checks pass.
+
+## CP-06B: isolated native R-session lifecycle contract
+
+Status: complete at implementation commit
+`be1b3252dfb16817655a4882926ab8e71c97c180`; the RTX report is committed in
+the checkpoint follow-up and both commits must pass the same PR gates.
+
+Review:
+
+- draft PR: <https://github.com/cudaverse/cudaverse/pull/42>;
+- target: `develop/0.4` (not `main`);
+- no tag, release, CRAN submission, or Pages deployment; and
+- the hardware runner remains the only environment that executes this strict
+  contract; ordinary source installation and checks do not require CUDA.
+
+Scope:
+
+- install the exact source into a new temporary R library;
+- launch two distinct `Rscript --vanilla` processes against that installation;
+- in each process require native selection and self-test, then run dense shared
+  views, sparse normalization, resident PCA/kNN, public memory telemetry,
+  injected CUDA OOM recovery, post-error matmul, and exact allocator cleanup;
+- exit normally without running workspace save hooks; and
+- after exit, verify both process IDs are absent from the NVIDIA compute table.
+
+Required gate:
+
+- both fresh processes use the exact source version and commit;
+- both begin and end at zero tracked cudaverse allocation;
+- injected OOM remains a structured native condition and the backend is
+  reusable in the same session afterward;
+- process IDs are distinct and absent from `nvidia-smi` after exit; and
+- machine-readable evidence is validated on Windows and Linux no-CUDA jobs
+  without rerunning the hardware workload.
+
+Local evidence:
+
+- session PID 7076 reports `baseline=0` and `final=0`;
+- session PID 34052 reports `baseline=0` and `final=0`;
+- both sessions used source commit
+  `be1b3252dfb16817655a4882926ab8e71c97c180`, completed every workflow stage,
+  exited successfully, and disappeared from the NVIDIA process table;
+- the complete ordinary and explicitly enabled RTX 2000 suites pass;
+- exact full-vignette source tarball SHA-256 is
+  `273FF92D5ABBA83CECD655F145EAA672E66B31C2990D169663AF86562A3D1DB9`;
+- Windows `R CMD check --as-cran --no-manual` reports 0 errors, 0 warnings,
+  and only the expected development-version incoming NOTE; and
+- session-report, capability, redistribution, SBOM, release-boundary,
+  benchmark, candidate, rejection, installed-pkgdown, and public-documentation
+  gates pass without deployment.

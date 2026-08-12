@@ -1,0 +1,44 @@
+{
+  "schema": "cudaverse-native-session/1",
+  "generated_at_utc": "2026-08-12 07:33:11 UTC",
+  "source": {
+    "commit": "be1b3252dfb16817655a4882926ab8e71c97c180",
+    "tracked_dirty": false,
+    "version": "0.4.0.9000"
+  },
+  "hardware": {
+    "nvidia_smi": "NVIDIA RTX 2000 Ada Generation, 595.97, 16380, 8.9"
+  },
+  "contract": {
+    "isolated_install": true,
+    "vanilla_sessions": 2,
+    "distinct_processes": true,
+    "native_backend_required": true,
+    "injected_error": "CUDA_ERROR_OUT_OF_MEMORY",
+    "exact_allocator_cleanup": true,
+    "exited_process_check": true
+  },
+  "sessions": [
+    {
+      "session": 1,
+      "pid": 7076,
+      "version": "0.4.0.9000",
+      "commit": "be1b3252dfb16817655a4882926ab8e71c97c180",
+      "baseline_bytes": 0,
+      "final_bytes": 0,
+      "process_absent_after_exit": true,
+      "workflow": ["native-self-test", "dense-shared-view", "sparse-normalize", "resident-pca-knn", "memory-telemetry", "injected-oom", "post-error-matmul", "allocator-cleanup", "clean-exit"]
+    },
+    {
+      "session": 2,
+      "pid": 34052,
+      "version": "0.4.0.9000",
+      "commit": "be1b3252dfb16817655a4882926ab8e71c97c180",
+      "baseline_bytes": 0,
+      "final_bytes": 0,
+      "process_absent_after_exit": true,
+      "workflow": ["native-self-test", "dense-shared-view", "sparse-normalize", "resident-pca-knn", "memory-telemetry", "injected-oom", "post-error-matmul", "allocator-cleanup", "clean-exit"]
+    }
+  ],
+  "passed": true
+}
