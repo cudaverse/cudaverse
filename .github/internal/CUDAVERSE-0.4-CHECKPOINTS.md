@@ -143,7 +143,16 @@ Remote evidence at the implementation commit:
 
 ## CP-02B: device-resident replacement dtype conversion
 
-Status: implementation and local gates complete; remote PR checks pending.
+Status: complete at implementation commit
+`cd6e573d8c6edd54fbf76d2d151bcfa353d6cac1`; the checkpoint-record-only
+follow-up must pass the same PR gates before merge.
+
+Review:
+
+- draft PR: <https://github.com/cudaverse/cudaverse/pull/29>;
+- target: `develop/0.4` (not `main`);
+- no tag, release, CRAN submission, or Pages deployment; and
+- GitHub Pages deploy job skipped as required.
 
 Scope:
 
@@ -175,3 +184,11 @@ Local evidence:
   expected development-version NOTE; and
 - capability, redistribution, SBOM, release-boundary, benchmark, candidate,
   rejection, pkgdown, and public-documentation gates pass without deployment.
+
+Remote evidence at the implementation commit:
+
+- Windows, macOS, Ubuntu, and R-devel package checks pass;
+- CPU integration and pkgdown pass;
+- supply-chain and repository workflow-boundary checks pass;
+- Linux and Windows no-CUDA artifact builds pass; and
+- CUDA 12.8.1 ABI and PTX checks pass.
