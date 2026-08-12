@@ -143,7 +143,16 @@ Remote evidence at the implementation commit:
 
 ## CP-02C: same-device tensor reconstruction casts
 
-Status: implementation and local gates complete; remote PR gates pending.
+Status: complete at implementation commit
+`49971401036f12a0bc3325fb429df6b277f7b9f2`; the checkpoint-record-only
+follow-up must pass the same PR gates before merge.
+
+Review:
+
+- draft PR: <https://github.com/cudaverse/cudaverse/pull/30>;
+- target: `develop/0.4` (not `main`);
+- no tag, release, CRAN submission, or Pages deployment; and
+- GitHub Pages deploy job skipped as required.
 
 Scope:
 
@@ -175,6 +184,14 @@ Local evidence:
   report, and rejection self-tests pass; and
 - pkgdown and the public documentation boundary pass from a temporary source
   copy without deploying Pages.
+
+Remote evidence at the implementation commit:
+
+- Windows, macOS, Ubuntu, and R-devel package checks pass;
+- CPU integration and pkgdown pass;
+- supply-chain and repository workflow-boundary checks pass;
+- Linux and Windows no-CUDA artifact builds pass; and
+- CUDA 12.8.1 ABI and PTX checks pass.
 
 ## CP-02B: device-resident replacement dtype conversion
 
