@@ -84,7 +84,16 @@ Remote evidence at the implementation commit:
 
 ## CP-02A: allocation-free native reshape views
 
-Status: implementation and local gates complete; remote PR checks pending.
+Status: complete at implementation commit
+`ab971eecead4a7b04b535fe5d4d569300c9ad0a8`; the checkpoint-record-only
+follow-up must pass the same PR gates before merge.
+
+Review:
+
+- draft PR: <https://github.com/cudaverse/cudaverse/pull/28>;
+- target: `develop/0.4` (not `main`);
+- no tag, release, CRAN submission, or Pages deployment; and
+- GitHub Pages deploy job skipped as required.
 
 Scope:
 
@@ -123,3 +132,11 @@ Local evidence:
   report, and rejection self-tests pass; and
 - pkgdown and the public documentation boundary pass from a temporary source
   copy outside the Dropbox synchronization lock, without deploying Pages.
+
+Remote evidence at the implementation commit:
+
+- Windows, macOS, Ubuntu, and R-devel package checks pass;
+- CPU integration and pkgdown pass;
+- supply-chain and repository workflow-boundary checks pass;
+- Linux and Windows no-CUDA artifact builds pass; and
+- CUDA 12.8.1 ABI and PTX checks pass.
