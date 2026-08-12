@@ -29,8 +29,9 @@ or a \code{SingleCellExperiment} with a reduced dimension.}
 \item{...}{Additional arguments passed to \code{Rtsne::Rtsne()}.}
 
 \item{reduced_dim}{For a \code{SingleCellExperiment}, the reduced-dimension name
-to embed. When \code{NULL}, a cudacellr metadata choice is used first, followed
-by a uniquely named \code{"PCA"}. Other names must be selected explicitly.}
+to embed. When \code{NULL}, a compatible recorded metadata choice is used
+first, followed by a uniquely named \code{"PCA"}. Other names must be selected
+explicitly.}
 }
 \value{
 A \code{cuda_embedding}; see \code{\link[=cuda_umap]{cuda_umap()}} for the stable result fields.

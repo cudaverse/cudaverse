@@ -57,7 +57,8 @@ content <- paste(
 )
 forbidden <- c(
   "cudatensr", "cudasparsr", "cudalearnr", "cudagraphR", "cudaembedr",
-  "cudaverseCUDA", "former packages", "combined packages"
+  "cudaverseCUDA", "cudacellr", "former packages", "combined packages",
+  "separate extension", "installs two packages"
 )
 for (term in forbidden) {
   require_gate(

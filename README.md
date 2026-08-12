@@ -164,5 +164,8 @@ pca <- cuda_pca(normalized, n_components = 20, device = "cuda")
 neighbors <- cuda_knn(pca$x, k = 15, device = "cuda")
 ```
 
-Single-cell-specific workflows live in the separate `cudacellr` extension so
-general users do not need the SingleCellExperiment or Seurat ecosystems.
+`SingleCellExperiment` is optional. Embedding functions can consume one of its
+reduced dimensions directly when that package is installed, while ordinary
+matrix and cudaverse workflows do not install Bioconductor or Seurat. Seurat
+objects are not currently a public input type; pass a finite matrix or a
+`SingleCellExperiment` reduced dimension instead.

@@ -466,8 +466,9 @@
 #' @param seed Optional random seed.
 #' @param ... Additional arguments passed to `uwot::umap()`.
 #' @param reduced_dim For a `SingleCellExperiment`, the reduced-dimension name
-#'   to embed. When `NULL`, a cudacellr metadata choice is used first, followed
-#'   by a uniquely named `"PCA"`. Other names must be selected explicitly.
+#'   to embed. When `NULL`, a compatible recorded metadata choice is used
+#'   first, followed by a uniquely named `"PCA"`. Other names must be selected
+#'   explicitly.
 #' @return A `cuda_embedding` list containing `coordinates`, `method`,
 #'   `backend`, `compute_device`, per-stage `compute_stages`, source metadata,
 #'   and algorithm `parameters`.

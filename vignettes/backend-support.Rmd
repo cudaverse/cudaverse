@@ -81,6 +81,13 @@ packages:
 - diffusion maps may calculate distance on CUDA, but construct the kernel and
   eigendecomposition on CPU.
 
+`SingleCellExperiment` support is optional. Embedding entry points materialize
+the selected reduced dimension as a host matrix and retain its cell names and
+compatible source provenance. UMAP and t-SNE remain CPU operations. Diffusion
+maps can move that matrix through the documented CUDA distance stage, followed
+by the intentional CPU kernel and eigendecomposition stages. Seurat objects are
+not currently a public input type.
+
 Use `cuda_provenance()` on a result to inspect each actual compute and transfer
 stage. A hybrid result is not presented as fully GPU-resident.
 
