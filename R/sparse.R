@@ -137,14 +137,14 @@
   )
 }
 
-.sparse_margin_sums <- function(x, margin) {
+.sparse_margin_sums <- function(x, margin, values = x$values) {
   groups <- if (margin == 0L) x$i else x$j
   group_count <- x$shape[[margin + 1L]]
   result <- numeric(group_count)
-  if (!length(x$values)) return(result)
+  if (!length(values)) return(result)
 
   grouped <- rowsum(
-    matrix(x$values, ncol = 1L),
+    matrix(values, ncol = 1L),
     group = groups,
     reorder = FALSE
   )

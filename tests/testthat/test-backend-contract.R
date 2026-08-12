@@ -639,6 +639,69 @@ test_that("sparse algorithms dispatch by operation rather than backend name", {
   expect_identical(knn$device, "cuda")
 })
 
+test_that("sparse PCA preprocessing and transfer avoid Matrix construction", {
+  dense <- matrix(c(1, 0, 2, 1, 3, 0, 4, 2), nrow = 4L, byrow = TRUE)
+  source <- cuda_sparse(dense, device = "cpu")
+  constant <- cuda_sparse(cbind(1:4, rep(0, 4)), device = "cpu")
+  calls <- new.env(parent = emptyenv())
+  calls$uploads <- 0L
+  calls$pca <- 0L
+  factory <- cudaverse:::.base_backend_factory()
+  factory$name <- "sparse-pca-preprocess-contract"
+  factory$device <- "cuda"
+  factory$sparse_from_coo <- function(i, j, values, shape, format) {
+    calls$uploads <- calls$uploads + 1L
+    list(i = i, j = j, values = values, shape = shape, format = format)
+  }
+  factory$algorithm_sparse_pca <- function(storage, shape, n_components,
+                                           center, scale) {
+    calls$pca <- calls$pca + 1L
+    cudaverse:::.base_backend_factory()$algorithm_pca(
+      dense, n_components, center, scale
+    )
+  }
+  cudaverse:::.backend_register(factory, replace = TRUE)
+  on.exit(
+    rm(
+      list = "sparse-pca-preprocess-contract",
+      envir = cudaverse:::.cudaverse_backends
+    ),
+    add = TRUE
+  )
+  selection <- function(device) list(
+    requested_device = "cuda",
+    device = "cuda",
+    backend = "sparse-pca-preprocess-contract",
+    selection_reason = "contract_test",
+    fallback = FALSE
+  )
+  testthat::local_mocked_bindings(
+    .learn_device = selection,
+    cuda_select_device = selection,
+    .triplet_matrix = function(...) {
+      stop("unexpected Matrix construction", call. = FALSE)
+    }
+  )
+
+  unscaled <- cuda_pca(
+    source, n_components = 1L, scale. = FALSE, device = "cuda"
+  )
+  scaled <- cuda_pca(
+    source, n_components = 1L, scale. = TRUE, device = "cuda"
+  )
+  expect_s3_class(unscaled, "cuda_pca")
+  expect_s3_class(scaled, "cuda_pca")
+  expect_identical(calls$uploads, 2L)
+  expect_identical(calls$pca, 2L)
+  expect_error(
+    cuda_pca(
+      constant, n_components = 1L, scale. = TRUE, device = "cuda"
+    ),
+    "Cannot scale constant features"
+  )
+  expect_identical(calls$uploads, 2L)
+})
+
 test_that("k-means dispatches resident updates by backend operation", {
   values <- rbind(c(0, 0), c(0, 1), c(10, 10), c(10, 11))
   initial <- values[c(1L, 3L), , drop = FALSE]
