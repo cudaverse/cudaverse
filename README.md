@@ -110,6 +110,10 @@ values on the GPU. Only index metadata is evaluated in R. Missing subscripts
 and compatibility backends without indexing operations use an explicit,
 provenance-visible host path.
 
+Contiguous native selections, such as a consecutive block of matrix columns,
+are allocation-free shared views. Non-contiguous selections continue to use a
+device gather; both paths retain ordinary R indexing, dimnames, and provenance.
+
 Native `tensor_reshape()` is an allocation-free metadata view: reshaped tensors
 share the same device allocation while keeping independent lifetimes. This
 avoids a device-to-device copy and keeps downstream kernels aware of the view's

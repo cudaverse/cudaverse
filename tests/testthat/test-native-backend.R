@@ -151,6 +151,20 @@ test_that("native subsetting and replacement keep tensor values on device", {
     )
     expect_identical(cudaverse::cuda_provenance(selected)$device, "cuda")
 
+    contiguous <- x[, 2:4, drop = FALSE]
+    expect_equal(
+      cudaverse::to_cpu(contiguous),
+      source[, 2:4, drop = FALSE],
+      tolerance = tolerance
+    )
+    expect_identical(
+      dimnames(contiguous), dimnames(source[, 2:4, drop = FALSE])
+    )
+    expect_identical(
+      cudaverse::cuda_provenance(contiguous)$stage,
+      "subset"
+    )
+
     x[c(1L, 1L, 4L), 3L] <- c(101, 202, 303)
     source[c(1L, 1L, 4L), 3L] <- c(101, 202, 303)
     expect_equal(cudaverse::to_cpu(x), source, tolerance = tolerance)
@@ -839,6 +853,69 @@ test_that("shared native ownership frees an allocation exactly once", {
   expect_equal(factory$to_host(shared), as.double(1:8))
   expect_true(factory$release(shared))
   expect_error(factory$to_host(shared), "released")
+})
+
+test_that("native contiguous subsets create allocation-free shared views", {
+  skip_if_not(identical(Sys.getenv("CUDAVERSE_NATIVE_TESTS"), "true"))
+  skip_if_not(isTRUE(cudaverse:::.native_diagnostics()$available))
+  factory <- cudaverse:::.native_backend_factory()
+  factory$synchronize()
+  gc()
+  baseline <- cudaverse:::.native_memory_tracker(reset = TRUE)$current
+  source <- view <- nested <- right <- product <- NULL
+  on.exit({
+    for (pointer in list(product, right, nested, view, source)) {
+      if (!is.null(pointer)) try(factory$release(pointer), silent = TRUE)
+    }
+  }, add = TRUE)
+
+  values <- matrix(seq_len(24) / 7, 4, 6)
+  source <- factory$from_host(values, "float64", c(4L, 6L))
+  source_bytes <- cudaverse:::.native_memory_tracker(reset = TRUE)$current
+  expect_identical(source_bytes - baseline, 24 * 8)
+
+  view <- factory$subset(source, 5:16, c(4L, 3L))
+  after_view <- cudaverse:::.native_memory_tracker()
+  expect_identical(after_view$current, source_bytes)
+  expect_identical(after_view$peak, source_bytes)
+
+  factory$release(source)
+  source <- NULL
+  expect_equal(
+    factory$to_host(view), as.vector(values[, 2:4, drop = FALSE]),
+    tolerance = 1e-10
+  )
+
+  for (iteration in seq_len(1000L)) {
+    nested <- factory$subset(view, 1:8, c(4L, 2L))
+    expect_identical(
+      cudaverse:::.native_memory_tracker()$current,
+      source_bytes
+    )
+    factory$release(nested)
+    nested <- NULL
+  }
+
+  right_values <- matrix(seq_len(6) / 5, 3, 2)
+  right <- factory$from_host(right_values, "float64", c(3L, 2L))
+  product <- factory$matmul(view, right)
+  expect_equal(
+    factory$to_host(product),
+    as.vector(values[, 2:4, drop = FALSE] %*% right_values),
+    tolerance = 1e-10
+  )
+
+  factory$release(product)
+  product <- NULL
+  factory$release(right)
+  right <- NULL
+  factory$release(view)
+  view <- NULL
+  factory$synchronize()
+  gc()
+
+  final <- cudaverse:::.native_memory_tracker()
+  expect_identical(final$current, baseline)
 })
 
 test_that("native reshape creates allocation-free shared views", {

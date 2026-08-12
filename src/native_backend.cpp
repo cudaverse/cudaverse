@@ -643,6 +643,24 @@ SharedBuffer* buffer_view(SharedBuffer* source,
   return view;
 }
 
+SharedBuffer* contiguous_buffer_view(SharedBuffer* source,
+                                     const std::vector<int>& shape,
+                                     std::size_t offset_elements,
+                                     std::size_t elements) {
+  if (offset_elements > source->elements ||
+      elements > source->elements - offset_elements) {
+    Rf_error("Native CUDA view is outside its source allocation.");
+  }
+  std::size_t element_bytes = dtype_size(source->dtype);
+  std::size_t offset_bytes = offset_elements * element_bytes;
+  std::size_t view_bytes = elements * element_bytes;
+  auto* view = new SharedBuffer{
+      source->pointer + static_cast<CUdeviceptr>(offset_bytes),
+      view_bytes, elements, source->dtype, shape, 1, source->allocation};
+  source->allocation->references.fetch_add(1);
+  return view;
+}
+
 SharedBuffer* allocate_buffer(DType dtype, const std::vector<int>& shape,
                               std::size_t elements) {
   std::size_t bytes = elements * dtype_size(dtype);
@@ -1195,6 +1213,22 @@ extern "C" SEXP C_cudaverse_cuda_gather(SEXP pointer, SEXP indices_sexp,
       indices_sexp, input->elements, "indices");
   if (indices.size() != output_elements) {
     Rf_error("Native CUDA gather indices do not match the output shape.");
+  }
+
+  bool contiguous = true;
+  for (std::size_t index = 1; index < indices.size(); ++index) {
+    if (static_cast<std::size_t>(indices[index]) !=
+        static_cast<std::size_t>(indices[0]) + index) {
+      contiguous = false;
+      break;
+    }
+  }
+  if (contiguous) {
+    return make_pointer(
+        contiguous_buffer_view(
+            input, output_shape, static_cast<std::size_t>(indices[0]),
+            output_elements),
+        false);
   }
 
   const char* kernel = input->dtype == DType::Float64

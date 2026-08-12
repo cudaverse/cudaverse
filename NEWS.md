@@ -13,6 +13,8 @@
   needs a compatible floating dtype cast, with the cast recorded in provenance.
 - Made `cuda_tensor()` cast an existing tensor through its current backend when
   the requested device is unchanged, avoiding a download/upload round trip.
+- Made contiguous native CUDA subsets allocation-free shared views while
+  retaining device gather for non-contiguous selections.
 
 # cudaverse 0.3.0.9000
 

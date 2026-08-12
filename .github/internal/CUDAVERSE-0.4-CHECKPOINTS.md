@@ -141,6 +141,46 @@ Remote evidence at the implementation commit:
 - Linux and Windows no-CUDA artifact builds pass; and
 - CUDA 12.8.1 ABI and PTX checks pass.
 
+## CP-02D: allocation-free contiguous subset views
+
+Status: implementation and local gates complete; remote PR gates pending.
+
+Scope:
+
+- detect native selections whose one-based R linear indices form one
+  increasing contiguous range;
+- represent those selections as offset dense views sharing the source device
+  allocation rather than launching a gather and allocating output VRAM;
+- preserve independent source/view lifetimes, shape, dimnames, dtype,
+  provenance, and downstream kernel compatibility; and
+- keep non-contiguous selection on the established native gather path.
+
+Required gate:
+
+- contiguous and non-contiguous selections retain base R parity for integer,
+  float32, and float64 tensors;
+- a source can be released while its contiguous view remains usable;
+- 1,000 nested contiguous views allocate zero additional tracked VRAM and the
+  final owner returns to the exact baseline; and
+- cuBLAS matmul consumes an offset view without materialization.
+
+Local evidence:
+
+- contiguous and non-contiguous native selections match base R across integer,
+  float32, and float64 tensors while retaining dimnames and provenance;
+- an offset view remains readable after its source descriptor is released and
+  feeds cuBLAS matmul with the correct logical shape and values;
+- 1,000 nested contiguous views allocate zero additional tracked VRAM and the
+  final shared owner returns to the exact tracked-memory baseline;
+- the complete ordinary and explicitly enabled RTX 2000 suites pass, with no
+  hardware skips in the latter;
+- source tarball SHA-256 is
+  `65223CD058FD45CD7A5190F0BCD22177F19540CBB1991B56BEAFFE2D8882FF54`;
+- Windows `R CMD check --as-cran` reports 0 errors, 0 warnings, and only the
+  expected development-version NOTE; and
+- capability, redistribution, SBOM, release-boundary, benchmark, candidate,
+  rejection, pkgdown, and public-documentation gates pass without deployment.
+
 ## CP-02C: same-device tensor reconstruction casts
 
 Status: complete at implementation commit
