@@ -1,5 +1,9 @@
 # cudaverse 0.4.0.9000
 
+- Added a maintainer native-session contract that installs the exact source in
+  an isolated library, runs two fresh R processes through dense, sparse,
+  PCA/kNN, injected-error recovery, exact allocator cleanup, backend reuse,
+  and clean process exit.
 - Added `cuda_memory_info()` for backend-aware memory
   observability. Native reports CUDA-driver totals plus cudaverse-owned current
   and peak bytes; torch reports allocated and reserved allocator bytes, while
