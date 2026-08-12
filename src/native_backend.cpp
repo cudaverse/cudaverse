@@ -5,6 +5,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <limits>
+#include <memory>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -193,6 +194,10 @@ struct SharedSparseBuffer {
   int columns;
   int nnz;
   std::atomic<unsigned int> references;
+  SharedAllocation* row_index_allocation;
+  SharedAllocation* row_ptr_allocation;
+  SharedAllocation* col_index_allocation;
+  SharedAllocation* value_allocation;
 };
 
 void* open_library(const char* environment_name,
@@ -499,6 +504,19 @@ void destroy_buffer(SharedBuffer* buffer) {
   delete buffer;
 }
 
+void release_shared_allocation(SharedAllocation* allocation) {
+  if (allocation == nullptr || allocation->references.fetch_sub(1) != 1) {
+    return;
+  }
+  if (allocation->pointer != 0 && api.cuMemFree != nullptr) {
+    if (api.context != nullptr && api.cuCtxSetCurrent != nullptr) {
+      api.cuCtxSetCurrent(api.context);
+    }
+    release_tracked_device_memory(allocation->pointer, allocation->bytes);
+  }
+  delete allocation;
+}
+
 void release_reference(SEXP pointer) {
   auto* buffer = static_cast<SharedBuffer*>(R_ExternalPtrAddr(pointer));
   if (buffer == nullptr) return;
@@ -535,15 +553,10 @@ void release_sparse_reference(SEXP pointer) {
   if (buffer == nullptr) return;
   R_ClearExternalPtr(pointer);
   if (buffer->references.fetch_sub(1) == 1) {
-    if (api.context != nullptr && api.cuCtxSetCurrent != nullptr) {
-      api.cuCtxSetCurrent(api.context);
-    }
-    release_tracked_device_memory(buffer->row_index,
-                                  buffer->row_index_bytes);
-    release_tracked_device_memory(buffer->row_ptr, buffer->row_ptr_bytes);
-    release_tracked_device_memory(buffer->col_index,
-                                  buffer->col_index_bytes);
-    release_tracked_device_memory(buffer->values, buffer->value_bytes);
+    release_shared_allocation(buffer->row_index_allocation);
+    release_shared_allocation(buffer->row_ptr_allocation);
+    release_shared_allocation(buffer->col_index_allocation);
+    release_shared_allocation(buffer->value_allocation);
     delete buffer;
   }
 }
@@ -771,10 +784,54 @@ SharedSparseBuffer* shared_sparse_from_devices(
   std::size_t row_ptr_bytes = row_ptr.bytes();
   std::size_t col_index_bytes = col_index.bytes();
   std::size_t value_bytes = values.bytes();
-  return new SharedSparseBuffer{
-      row_index.release(), row_ptr.release(), col_index.release(),
-      values.release(), row_index_bytes, row_ptr_bytes, col_index_bytes,
-      value_bytes, rows, columns, nnz, 1};
+  using AllocationOwner = std::unique_ptr<
+      SharedAllocation, decltype(&release_shared_allocation)>;
+  AllocationOwner row_index_allocation(
+      new SharedAllocation{row_index.release(), row_index_bytes, 1},
+      release_shared_allocation);
+  AllocationOwner row_ptr_allocation(
+      new SharedAllocation{row_ptr.release(), row_ptr_bytes, 1},
+      release_shared_allocation);
+  AllocationOwner col_index_allocation(
+      new SharedAllocation{col_index.release(), col_index_bytes, 1},
+      release_shared_allocation);
+  AllocationOwner value_allocation(
+      new SharedAllocation{values.release(), value_bytes, 1},
+      release_shared_allocation);
+  auto* result = new SharedSparseBuffer{
+      row_index_allocation->pointer, row_ptr_allocation->pointer,
+      col_index_allocation->pointer, value_allocation->pointer,
+      row_index_bytes, row_ptr_bytes, col_index_bytes, value_bytes,
+      rows, columns, nnz, 1, row_index_allocation.get(),
+      row_ptr_allocation.get(), col_index_allocation.get(),
+      value_allocation.get()};
+  row_index_allocation.release();
+  row_ptr_allocation.release();
+  col_index_allocation.release();
+  value_allocation.release();
+  return result;
+}
+
+SharedSparseBuffer* shared_sparse_with_values(
+    SharedSparseBuffer* source, DeviceMemory&& values) {
+  std::size_t value_bytes = values.bytes();
+  using AllocationOwner = std::unique_ptr<
+      SharedAllocation, decltype(&release_shared_allocation)>;
+  AllocationOwner value_allocation(
+      new SharedAllocation{values.release(), value_bytes, 1},
+      release_shared_allocation);
+  auto* result = new SharedSparseBuffer{
+      source->row_index, source->row_ptr, source->col_index,
+      value_allocation->pointer, source->row_index_bytes,
+      source->row_ptr_bytes, source->col_index_bytes, value_bytes,
+      source->rows, source->columns, source->nnz, 1,
+      source->row_index_allocation, source->row_ptr_allocation,
+      source->col_index_allocation, value_allocation.get()};
+  source->row_index_allocation->references.fetch_add(1);
+  source->row_ptr_allocation->references.fetch_add(1);
+  source->col_index_allocation->references.fetch_add(1);
+  value_allocation.release();
+  return result;
 }
 
 struct DeviceSvd {
@@ -1821,18 +1878,8 @@ extern "C" SEXP C_cudaverse_cuda_sparse_normalize(
     launch_or_throw(function, "cudaverse_sparse_normalize_f64",
                     sparse->nnz, parameters);
 
-    DeviceMemory row_index = copy_device_to_device(
-        sparse->row_index, sparse->row_index_bytes,
-        "cuMemcpyDtoD(sparse row index)");
-    DeviceMemory row_ptr = copy_device_to_device(
-        sparse->row_ptr, sparse->row_ptr_bytes,
-        "cuMemcpyDtoD(sparse row pointer)");
-    DeviceMemory col_index = copy_device_to_device(
-        sparse->col_index, sparse->col_index_bytes,
-        "cuMemcpyDtoD(sparse column index)");
-    SharedSparseBuffer* output = shared_sparse_from_devices(
-        std::move(row_index), std::move(row_ptr), std::move(col_index),
-        std::move(normalized), sparse->rows, sparse->columns, sparse->nnz);
+    SharedSparseBuffer* output = shared_sparse_with_values(
+        sparse, std::move(normalized));
     SEXP output_pointer_sexp = PROTECT(make_sparse_pointer(output, false));
     SEXP result = PROTECT(named_list({"storage"}));
     SET_VECTOR_ELT(result, 0, output_pointer_sexp);
