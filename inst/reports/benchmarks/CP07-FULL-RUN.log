@@ -1,0 +1,34 @@
+Validated benchmark resume; reusing 8 complete case(s).
+Running benchmark case matmul-float32-256
+  reusing complete checkpoint
+Running benchmark case matmul-float64-256
+  reusing complete checkpoint
+Running benchmark case matmul-float32-1024
+  reusing complete checkpoint
+Running benchmark case matmul-float64-1024
+  reusing complete checkpoint
+Running benchmark case matmul-float32-4096
+  reusing complete checkpoint
+Running benchmark case matmul-float64-4096
+  reusing complete checkpoint
+Running benchmark case dense-1000x50
+  reusing complete checkpoint
+Running benchmark case dense-10000x100
+  reusing complete checkpoint
+Running benchmark case dense-50000x128
+  backend: base
+  backend: native
+  backend: torch
+Running benchmark case sparse-1000x50@0.10
+  backend: base
+  backend: native
+  backend: torch
+Running benchmark case sparse-10000x100@0.03
+  backend: base
+  backend: native
+  backend: torch
+Running benchmark case sparse-50000x128@0.01
+  backend: base
+  backend: native
+  backend: torch
+Benchmark report complete: C:/Users/Li/Dropbox/R/cudaverse/evidence/0.4.0.9000-deb7712-cp07b/CP07-FULL.incomplete.json
