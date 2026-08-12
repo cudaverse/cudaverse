@@ -15,7 +15,16 @@
 
 ## CP-01: diagnostics and development-line isolation
 
-Status: implementation and local gates complete; remote PR checks pending.
+Status: complete at implementation commit
+`01d751663ceb9a745486474b9beffacf2c16cca8`; the checkpoint-record-only
+follow-up must pass the same PR gates before merge.
+
+Review:
+
+- draft PR: <https://github.com/cudaverse/cudaverse/pull/27>;
+- target: `develop/0.4` (not `main`);
+- no tag, release, CRAN submission, or Pages deployment; and
+- GitHub Pages deploy job skipped as required.
 
 Scope:
 
@@ -62,9 +71,13 @@ Local evidence:
   Windows `R CMD check --as-cran` has 0 errors, 0 warnings, and only the
   expected development-version incoming NOTE for `0.4.0.9000`.
 
-Remote evidence required before merge:
+Remote evidence at the implementation commit:
 
-- Windows, macOS, Ubuntu, and R-devel package checks;
-- CPU integration, pkgdown, supply-chain, Linux/Windows artifact, CUDA 12.8.1
-  ABI/PTX, and repository workflow-boundary checks; and
-- RTX parity when the protected runner is enabled or explicitly dispatched.
+- Windows, macOS, Ubuntu, and R-devel package checks pass;
+- CPU integration and pkgdown pass;
+- supply-chain and repository workflow-boundary checks pass;
+- Linux and Windows artifact builds pass;
+- CUDA 12.8.1 ABI and PTX checks pass; and
+- the GitHub hardware job skips without the protected runner, while the
+  explicitly enabled local RTX 2000 parity and lifecycle suites pass with no
+  hardware skips.
