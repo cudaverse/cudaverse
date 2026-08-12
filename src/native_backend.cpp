@@ -1786,19 +1786,32 @@ extern "C" SEXP C_cudaverse_cuda_sparse_normalize(
   try {
     DeviceMemory sums = sparse_sums_device(sparse, margin);
     int groups = margin == 0 ? sparse->rows : sparse->columns;
-    std::vector<double> host_sums(static_cast<std::size_t>(groups));
+    DeviceMemory invalid(sizeof(int));
+    CUdeviceptr invalid_pointer = invalid.pointer();
+    int zero = 0;
+    unsigned long long one = 1;
+    void* fill_parameters[] = {&invalid_pointer, &zero, &one};
+    launch_or_throw(get_kernel("cudaverse_fill_i32"),
+                    "cudaverse_fill_i32", 1, fill_parameters);
+    CUdeviceptr sum_pointer = sums.pointer();
+    unsigned long long group_count =
+        static_cast<unsigned long long>(groups);
+    void* validation_parameters[] = {
+        &sum_pointer, &invalid_pointer, &group_count};
+    launch_or_throw(
+        get_kernel("cudaverse_validate_positive_finite_f64"),
+        "cudaverse_validate_positive_finite_f64", groups,
+        validation_parameters);
+    int host_invalid = 0;
     cuda_or_throw(api.cuMemcpyDtoH(
-                      host_sums.data(), sums.pointer(), sums.bytes()),
-                  "cuMemcpyDtoH(sparse normalization sums)");
-    for (double value : host_sums) {
-      if (!std::isfinite(value) || value <= 0) {
-        throw std::runtime_error(
-            "Every normalized sparse margin must have a positive finite sum.");
-      }
+                      &host_invalid, invalid.pointer(), sizeof(int)),
+                  "cuMemcpyDtoH(sparse normalization validation flag)");
+    if (host_invalid != 0) {
+      throw std::runtime_error(
+          "Every normalized sparse margin must have a positive finite sum.");
     }
 
     DeviceMemory normalized(sparse->value_bytes);
-    CUdeviceptr sum_pointer = sums.pointer();
     CUdeviceptr output_pointer = normalized.pointer();
     CUfunction function = get_kernel("cudaverse_sparse_normalize_f64");
     void* parameters[] = {
@@ -1821,17 +1834,9 @@ extern "C" SEXP C_cudaverse_cuda_sparse_normalize(
         std::move(row_index), std::move(row_ptr), std::move(col_index),
         std::move(normalized), sparse->rows, sparse->columns, sparse->nnz);
     SEXP output_pointer_sexp = PROTECT(make_sparse_pointer(output, false));
-    SEXP host_values = PROTECT(Rf_allocVector(REALSXP, sparse->nnz));
-    if (sparse->nnz > 0) {
-      cuda_or_throw(api.cuMemcpyDtoH(
-                        REAL(host_values), output->values,
-                        output->value_bytes),
-                    "cuMemcpyDtoH(normalized sparse values)");
-    }
-    SEXP result = PROTECT(named_list({"storage", "values"}));
+    SEXP result = PROTECT(named_list({"storage"}));
     SET_VECTOR_ELT(result, 0, output_pointer_sexp);
-    SET_VECTOR_ELT(result, 1, host_values);
-    UNPROTECT(3);
+    UNPROTECT(2);
     return result;
   } catch (const std::exception& exception) {
     Rf_error("%s", exception.what());

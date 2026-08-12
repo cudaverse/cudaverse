@@ -1564,6 +1564,11 @@ test_that("native sparse normalization feeds resident PCA and stable kNN", {
   )
   dense <- log1p(values * 1000 / rowSums(values))
   expect_equal(
+    normalized$values,
+    log1p(sparse$values * 1000 / rowSums(values)[sparse$i]),
+    tolerance = 1e-10
+  )
+  expect_equal(
     as.matrix(cudaverse::to_dgCMatrix(normalized)),
     dense,
     tolerance = 1e-10
@@ -1648,6 +1653,22 @@ test_that("native sparse failures are structured and backend remains reusable", 
   expect_s3_class(transpose_condition, "cudaverse_native_error")
   expect_identical(transpose_condition$operation, "sparse_transpose")
 
+  empty_margin <- factory$sparse_from_coo(
+    1L, 1L, 1, c(2L, 1L), "csr"
+  )
+  on.exit(factory$sparse_release(empty_margin), add = TRUE)
+  normalization_condition <- tryCatch(
+    cudaverse:::.backend_call(
+      "native", "sparse_normalize", empty_margin, 0L, 1, FALSE
+    ),
+    error = identity
+  )
+  expect_s3_class(normalization_condition, "cudaverse_native_error")
+  expect_identical(normalization_condition$operation, "sparse_normalize")
+  expect_match(
+    conditionMessage(normalization_condition), "positive finite sum"
+  )
+
   expect_equal(
     as.numeric(cudaverse::sparse_row_sums(sparse)),
     1:4,
@@ -1676,6 +1697,36 @@ test_that("one thousand sparse transpose cycles do not leak", {
     factory$sparse_release(roundtrip)
     factory$sparse_release(transposed)
     factory$sparse_release(storage)
+  }
+  factory$synchronize()
+  gc()
+  final <- cudaverse:::.native_memory_info()$used
+  tracked_final <- cudaverse:::.native_memory_tracker()
+  expect_lte(abs(final - baseline), 1024^2)
+  expect_identical(tracked_final$current, tracked_baseline)
+  expect_gt(tracked_final$peak, tracked_baseline)
+})
+
+test_that("one thousand resident sparse normalizations do not leak", {
+  skip_if_not(identical(Sys.getenv("CUDAVERSE_NATIVE_TESTS"), "true"))
+  skip_if_not(isTRUE(cudaverse:::.native_diagnostics()$available))
+  factory <- cudaverse:::.native_backend_factory()
+  i <- rep(1:16, each = 3L)
+  j <- rep(c(1L, 4L, 8L), 16L)
+  values <- rep(c(1, 2, 3), 16L)
+  storage <- factory$sparse_from_coo(
+    i, j, values, c(16L, 8L), "csr"
+  )
+  on.exit(factory$sparse_release(storage), add = TRUE)
+  factory$synchronize()
+  gc()
+  baseline <- cudaverse:::.native_memory_info()$used
+  tracked_baseline <- cudaverse:::.native_memory_tracker(reset = TRUE)$current
+
+  for (iteration in seq_len(1000L)) {
+    normalized <- factory$sparse_normalize(storage, 0L, 1000, TRUE)
+    expect_named(normalized, "storage")
+    factory$sparse_release(normalized$storage)
   }
   factory$synchronize()
   gc()

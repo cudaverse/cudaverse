@@ -137,6 +137,21 @@
   )
 }
 
+.sparse_margin_sums <- function(x, margin) {
+  groups <- if (margin == 0L) x$i else x$j
+  group_count <- x$shape[[margin + 1L]]
+  result <- numeric(group_count)
+  if (!length(x$values)) return(result)
+
+  grouped <- rowsum(
+    matrix(x$values, ncol = 1L),
+    group = groups,
+    reorder = FALSE
+  )
+  result[as.integer(rownames(grouped))] <- grouped[, 1L]
+  result
+}
+
 #' Create a GPU-aware sparse matrix
 #'
 #' @param x A numeric matrix, a sparse matrix from the `Matrix` package, or a
@@ -627,10 +642,8 @@ sparse_col_sums <- function(x) {
     .backend_has_operation(backend_id, "sparse_reduce")
   result <- if (native) {
     as.numeric(.backend_call(backend_id, "sparse_reduce", x$storage, margin))
-  } else if (margin == 0L) {
-    as.numeric(Matrix::rowSums(.triplet_matrix(x)))
   } else {
-    as.numeric(Matrix::colSums(.triplet_matrix(x)))
+    .sparse_margin_sums(x, margin)
   }
   sparse_dimnames <- .sparse_dimnames(x)
   axis <- margin + 1L
@@ -661,6 +674,10 @@ sparse_col_sums <- function(x) {
 #' Each selected row or column is divided by its sum and multiplied by
 #' `scale_factor`. Optionally, `log1p()` is applied to stored non-zero values.
 #' The operation preserves sparse structure and dimension labels.
+#' The native CUDA backend retains normalized storage on the device and updates
+#' the public host COO mirror from metadata already held by the object. It does
+#' not download the normalized values or the complete margin-sum vector; only
+#' a small device-validation flag crosses back before the result is returned.
 #'
 #' @param x A non-negative `cudasparse` matrix.
 #' @param margin Normalize `"rows"` or `"columns"`.
@@ -686,15 +703,14 @@ sparse_normalize <- function(x, margin = c("rows", "columns"),
   if (any(x$values < 0)) {
     stop("Sparse normalization requires non-negative values.", call. = FALSE)
   }
-  sums <- if (margin_index == 0L) {
-    as.numeric(Matrix::rowSums(.triplet_matrix(x)))
-  } else {
-    as.numeric(Matrix::colSums(.triplet_matrix(x)))
-  }
+  sums <- .sparse_margin_sums(x, margin_index)
   if (any(!is.finite(sums)) || any(sums <= 0)) {
     stop("Every normalized sparse margin must have a positive finite sum.",
          call. = FALSE)
   }
+  groups <- if (margin_index == 0L) x$i else x$j
+  values <- x$values * scale_factor / sums[groups]
+  if (isTRUE(log1p)) values <- base::log1p(values)
 
   backend_id <- if (is.null(x$backend_id)) "base" else x$backend_id
   native <- identical(x$device, "cuda") &&
@@ -710,11 +726,8 @@ sparse_normalize <- function(x, margin = c("rows", "columns"),
     )
     output <- x
     output$storage <- normalized$storage
-    output$values <- as.numeric(normalized$values)
+    output$values <- values
   } else {
-    groups <- if (margin_index == 0L) x$i else x$j
-    values <- x$values * scale_factor / sums[groups]
-    if (isTRUE(log1p)) values <- base::log1p(values)
     output <- x
     output$values <- values
     output$storage <- .backend_call(

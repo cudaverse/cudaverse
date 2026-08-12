@@ -27,6 +27,10 @@
 - Added device-side finite/constant validation and resident SVD/PCA dispatch
   for native `cudatensor` inputs. Float32 and integer inputs cast on the GPU;
   the full input matrix is no longer downloaded and uploaded for decomposition.
+- Kept native sparse-normalization output resident without downloading the
+  margin-sum or normalized-value vectors. The required public COO mirror is
+  updated from its existing host metadata, while device validation returns
+  only one small status flag.
 
 # cudaverse 0.3.0.9000
 
