@@ -117,8 +117,7 @@ test_that("capabilities and callable operations have distinct contracts", {
 })
 
 test_that("torch stable top-k keeps distance blocks on the backend", {
-  skip_if_not_installed("torch")
-  skip_if_not(cudaverse:::.torch_stable_sort_available())
+  skip_if_not(torch_cpu_runtime_available())
 
   values <- rbind(
     c(0, 0), c(1, 0), c(-1, 0), c(0, 1), c(0, -1), c(0, 0)
@@ -163,8 +162,7 @@ test_that("torch stable top-k keeps distance blocks on the backend", {
 })
 
 test_that("torch cosine stable top-k clamps roundoff before selection", {
-  skip_if_not_installed("torch")
-  skip_if_not(cudaverse:::.torch_stable_sort_available())
+  skip_if_not(torch_cpu_runtime_available())
 
   values <- rbind(
     c(1, 0), c(0, 1), c(-1, 0), c(0, -1),

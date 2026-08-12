@@ -186,8 +186,12 @@ test_that("automatic fallback is visible and explicit CUDA remains strict", {
 })
 
 test_that("torch stable top-k is recorded as one CUDA compute path", {
-  skip_if_not_installed("torch")
-  skip_if_not(cudaverse:::.torch_stable_sort_available())
+  skip_if_not(torch_cpu_runtime_available())
+
+  values <- rbind(
+    c(0, 0), c(1, 0), c(-1, 0), c(0, 1), c(0, -1), c(0, 0)
+  )
+  reference <- cuda_knn(values, k = 3L, batch_size = 2L, device = "cpu")
 
   factory <- cudaverse:::.torch_backend_factory()
   factory$name <- "torch-resident-contract"
@@ -220,10 +224,6 @@ test_that("torch stable top-k is recorded as one CUDA compute path", {
     .package = "cudaverse"
   )
 
-  values <- rbind(
-    c(0, 0), c(1, 0), c(-1, 0), c(0, 1), c(0, -1), c(0, 0)
-  )
-  reference <- cuda_knn(values, k = 3L, batch_size = 2L, device = "cpu")
   result <- cuda_knn(values, k = 3L, batch_size = 2L, device = "cuda")
   provenance <- cuda_provenance(result)
 
