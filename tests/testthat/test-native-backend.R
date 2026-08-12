@@ -1737,6 +1737,52 @@ test_that("one thousand resident sparse normalizations do not leak", {
   expect_gt(tracked_final$peak, tracked_baseline)
 })
 
+test_that("resident normalization shares sparse pattern ownership", {
+  skip_if_not(identical(Sys.getenv("CUDAVERSE_NATIVE_TESTS"), "true"))
+  skip_if_not(isTRUE(cudaverse:::.native_diagnostics()$available))
+  factory <- cudaverse:::.native_backend_factory()
+  factory$synchronize()
+  gc()
+  baseline <- cudaverse:::.native_memory_tracker(reset = TRUE)$current
+  i <- rep(1:16, each = 3L)
+  j <- rep(c(1L, 4L, 8L), 16L)
+  values <- rep(c(1, 2, 3), 16L)
+  nnz <- length(values)
+  storage <- factory$sparse_from_coo(
+    i, j, values, c(16L, 8L), "csr"
+  )
+  source_current <- cudaverse:::.native_memory_tracker(reset = TRUE)$current
+  normalized <- factory$sparse_normalize(storage, 0L, 1000, TRUE)
+  allocation <- cudaverse:::.native_memory_tracker()
+
+  expect_identical(allocation$current - source_current, nnz * 8)
+  expect_identical(
+    allocation$peak - source_current,
+    nnz * 8 + 16L * 8 + 4L
+  )
+  factory$sparse_release(storage)
+  normalized_host <- factory$sparse_to_host(normalized$storage)
+  expect_equal(
+    normalized_host$values,
+    log1p(values * 1000 / 6),
+    tolerance = 1e-10
+  )
+  factory$sparse_release(normalized$storage)
+  expect_identical(cudaverse:::.native_memory_tracker()$current, baseline)
+
+  source_again <- factory$sparse_from_coo(
+    i, j, values, c(16L, 8L), "csr"
+  )
+  normalized_again <- factory$sparse_normalize(
+    source_again, 0L, 1000, FALSE
+  )
+  factory$sparse_release(normalized_again$storage)
+  source_host <- factory$sparse_to_host(source_again)
+  expect_equal(source_host$values, values, tolerance = 0)
+  factory$sparse_release(source_again)
+  expect_identical(cudaverse:::.native_memory_tracker()$current, baseline)
+})
+
 test_that("R time-limit interruption leaves sparse native state reusable", {
   skip_if_not(identical(Sys.getenv("CUDAVERSE_NATIVE_TESTS"), "true"))
   skip_if_not(isTRUE(cudaverse:::.native_diagnostics()$available))

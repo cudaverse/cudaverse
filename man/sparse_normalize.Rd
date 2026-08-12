@@ -31,6 +31,8 @@ The native CUDA backend retains normalized storage on the device and updates
 the public host COO mirror from metadata already held by the object. It does
 not download the normalized values or the complete margin-sum vector; only
 a small device-validation flag crosses back before the result is returned.
+Native results share immutable sparse index storage with their source while
+retaining independent value storage and release-safe ownership.
 }
 \examples{
 x <- cuda_sparse(matrix(c(1, 0, 3, 2), 2), device = "cpu")

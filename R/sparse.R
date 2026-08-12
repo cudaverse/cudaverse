@@ -678,6 +678,8 @@ sparse_col_sums <- function(x) {
 #' the public host COO mirror from metadata already held by the object. It does
 #' not download the normalized values or the complete margin-sum vector; only
 #' a small device-validation flag crosses back before the result is returned.
+#' Native results share immutable sparse index storage with their source while
+#' retaining independent value storage and release-safe ownership.
 #'
 #' @param x A non-negative `cudasparse` matrix.
 #' @param margin Normalize `"rows"` or `"columns"`.

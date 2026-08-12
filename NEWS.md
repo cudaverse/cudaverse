@@ -31,6 +31,10 @@
   margin-sum or normalized-value vectors. The required public COO mirror is
   updated from its existing host metadata, while device validation returns
   only one small status flag.
+- Made native sparse normalization share immutable CSR/COO index allocations
+  with its source through independent reference counting. Normalized results
+  allocate only new values, remain valid after either release order, and free
+  shared pattern storage exactly once.
 
 # cudaverse 0.3.0.9000
 
