@@ -1192,6 +1192,7 @@ same unchanged contract after all accepted performance work is merged.
 
 Review:
 
+- draft PR: <https://github.com/cudaverse/cudaverse/pull/49>;
 - branch: `agent/16-full-benchmark-evidence`;
 - target: `develop/0.4` (not `main`);
 - no tag, release, CRAN/Bioconductor submission, or Pages deployment; and
