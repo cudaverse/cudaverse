@@ -87,7 +87,8 @@ backends <- unlist(
 )
 lines <- character()
 
-append_line("# CP-06 full benchmark evidence")
+profile <- text_value(report$profile)
+append_line("# cudaverse ", profile, " benchmark evidence")
 append_line("")
 if (!is_complete) {
   append_line("> **DRAFT -- incomplete report.** Only atomically completed ",
