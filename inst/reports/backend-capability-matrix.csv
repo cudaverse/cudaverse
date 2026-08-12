@@ -3,7 +3,7 @@ as_adjacency_matrix,graph,graph,metadata,metadata,metadata,host,Returns the alre
 as_coo,sparse,sparse,metadata,metadata,metadata,same_device,Changes the logical public format view without numerical work
 as_csr,sparse,sparse,metadata,metadata,metadata,same_device,Changes the logical public format view without numerical work
 cuda_available,diagnostics,diagnostics,probe,probe,probe,host,Reports whether native or torch can satisfy an explicit CUDA request
-cuda_diagnostics,diagnostics,diagnostics,probe,probe,probe,host,Reports legacy torch fields plus registered and selected backends
+cuda_diagnostics,diagnostics,diagnostics,probe,probe,probe,host,Reports compatibility fields plus backend health summary status table and actionable next steps
 cuda_diffusion_map,embedding,embedding,direct,hybrid,hybrid,host,GPU backends cover distance only while kernel and eigendecomposition are CPU
 cuda_distance,algorithm,algorithm,direct,direct,direct,host,Distance kernels use the selected backend and return an R matrix
 cuda_kmeans,algorithm,algorithm,direct,hybrid,direct,host,Native keeps repeated distance assignment accumulation and centre updates on device; torch retains CPU updates

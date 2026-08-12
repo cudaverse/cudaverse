@@ -18,8 +18,9 @@ backend and record what actually ran.
 
 ## Lightweight native CUDA
 
-The 0.3 development line includes a backend registry and a built-in native
-CUDA implementation behind the same public R API. Native execution covers
+The 0.4 development line builds on the validated backend registry and its
+built-in native CUDA implementation behind the same public R API. Native
+execution covers
 dense tensor operations, shared-ownership COO/CSR sparse storage, sparse
 normalization and multiplication, device-native indexing and replacement,
 and resident PCA, exact kNN, and k-means stages. Its measured design benefits
@@ -44,8 +45,8 @@ back.
 
 Reproducible PTX, RTX 2000 parity and lifecycle evidence, the CycloneDX SBOM,
 and the third-party redistribution inventory are kept in this repository. See
-the [0.3 roadmap](.github/CUDAVERSE-0.3-ROADMAP.md) for ordered milestones, the
-[benchmark contract](https://github.com/cudaverse/cudaverse/blob/develop/native-cuda/inst/benchmarks/README.md)
+the [0.4 roadmap](.github/CUDAVERSE-0.4-ROADMAP.md) for ordered milestones, the
+[benchmark contract](https://github.com/cudaverse/cudaverse/blob/develop/0.4/inst/benchmarks/README.md)
 for performance evidence, and the
 [GPU setup and troubleshooting article](https://cudaverse.github.io/cudaverse/articles/gpu-setup.html)
 for runtime setup. The
@@ -54,11 +55,11 @@ lists intentional native, compatibility, hybrid, and CPU boundaries.
 
 ## Installation
 
-Install the current 0.3 development line from GitHub:
+Install the current 0.4 development line from GitHub:
 
 ```r
 # install.packages("pak")
-pak::pak("cudaverse/cudaverse@develop/native-cuda")
+pak::pak("cudaverse/cudaverse@develop/0.4")
 ```
 
 The native backend is included but remains runtime-lazy, so installing
@@ -68,6 +69,10 @@ The native backend is included but remains runtime-lazy, so installing
 library(cudaverse)
 
 diagnostics <- cuda_diagnostics()
+diagnostics$status
+diagnostics$summary
+diagnostics$next_steps
+diagnostics$backend_status
 diagnostics$selected_backend
 diagnostics$auto_eligible_backends
 diagnostics$backend_diagnostics$native$self_test
@@ -91,7 +96,7 @@ workflows on both CUDA backends rather than maintaining separate hand-written
 feature lists.
 
 The versioned
-[benchmark contract](https://github.com/cudaverse/cudaverse/blob/develop/native-cuda/inst/benchmarks/README.md)
+[benchmark contract](https://github.com/cudaverse/cudaverse/blob/develop/0.4/inst/benchmarks/README.md)
 defines separate
 smoke and full profiles. Full evidence uses five warmups and ten timed runs for
 base, torch, and native, reports raw times plus median/p95, distinguishes
@@ -100,7 +105,7 @@ peak-memory source, installed footprint, numerical error, and provenance.
 Results are interpreted per workload; cudaverse does not claim that GPU
 execution is universally faster.
 
-On the 0.3 development line, native CUDA subsetting and replacement keep tensor
+On the 0.4 development line, native CUDA subsetting and replacement keep tensor
 values on the GPU. Only index metadata is evaluated in R. Missing subscripts
 and compatibility backends without indexing operations use an explicit,
 provenance-visible host path.

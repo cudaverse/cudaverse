@@ -11,11 +11,14 @@ A named list containing the legacy fields \code{torch_installed},
 \code{torch_version}, \code{cuda_available}, \code{cuda_device_count}, \code{reason}, and
 \code{detection_error}, plus \code{available_backends}, \code{auto_eligible_backends},
 \code{auto_selection_reason}, \code{selected_backend}, and per-backend diagnostic
-details. Each backend detail distinguishes advertised \code{capabilities} from
-callable internal \code{operations}. Native automatic eligibility requires a compatible backend
-contract, the complete tensor/algorithm capability set, all runtime
+details. The additive \code{status}, \code{summary}, \code{next_steps}, and
+\code{backend_status} fields provide a user-facing health result without
+removing the machine-readable details. Each backend detail distinguishes
+advertised \code{capabilities} from callable internal \code{operations}. Native
+automatic eligibility requires a compatible backend contract, the
+complete tensor/algorithm capability set, all runtime
 components, and a passing cached self-test. The legacy fields are retained
-throughout the 0.3 compatibility cycle.
+throughout the 0.4 compatibility cycle.
 }
 \description{
 Inspecting the runtime is non-destructive and never installs or downloads

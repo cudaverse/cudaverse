@@ -64,6 +64,101 @@
     x == trunc(x)
 }
 
+.diagnostic_text <- function(x, default = NA_character_) {
+  if (is.character(x) && length(x) == 1L && !is.na(x) && nzchar(x)) {
+    return(x)
+  }
+  default
+}
+
+.cuda_backend_status_table <- function(backend_diagnostics,
+                                       selected_backend) {
+  details <- c(
+    list(base = list(
+      installed = TRUE,
+      available = TRUE,
+      auto_eligible = FALSE,
+      reason = "cpu_available",
+      detection_error = NULL
+    )),
+    backend_diagnostics
+  )
+  backends <- names(details)
+  data.frame(
+    backend = backends,
+    device = ifelse(backends == "base", "cpu", "cuda"),
+    installed = vapply(details, function(x) isTRUE(x$installed), logical(1L)),
+    available = vapply(details, function(x) isTRUE(x$available), logical(1L)),
+    auto_eligible = vapply(
+      details, function(x) isTRUE(x$auto_eligible), logical(1L)
+    ),
+    selected = backends == selected_backend,
+    reason = vapply(
+      details,
+      function(x) .diagnostic_text(x$auto_selection_reason,
+                                    .diagnostic_text(x$reason, "unknown")),
+      character(1L)
+    ),
+    error = vapply(
+      details,
+      function(x) .diagnostic_text(x$detection_error),
+      character(1L)
+    ),
+    stringsAsFactors = FALSE
+  )
+}
+
+.cuda_diagnostic_next_steps <- function(reason) {
+  switch(
+    reason,
+    unsupported_platform = paste(
+      "Native CUDA is supported on Windows and Linux. Use the CPU backend on",
+      "macOS, or a supported CUDA backend on a CUDA-capable platform."
+    ),
+    driver_unavailable = paste(
+      "Install or update the NVIDIA display driver, then restart R and run",
+      "cuda_diagnostics() again."
+    ),
+    kernel_unavailable = paste(
+      "Reinstall cudaverse so its package-owned PTX kernel file matches the",
+      "installed native backend."
+    ),
+    native_runtime_incomplete = paste(
+      "Make cuBLAS 12 and cuSOLVER 11 available to the dynamic loader; on",
+      "Windows, CUDAVERSE_CUBLAS_PATH and CUDAVERSE_CUSOLVER_PATH may point",
+      "to the user-provided DLL files."
+    ),
+    native_self_test_failed = paste(
+      "Inspect backend_diagnostics$native$self_test$error, then reinstall",
+      "cudaverse or report the retained diagnostic if the failure persists."
+    ),
+    native_contract_incompatible = paste(
+      "Reinstall or update cudaverse; the loaded native backend contract does",
+      "not match this R package."
+    ),
+    native_capability_incompatible = paste(
+      "Reinstall or update cudaverse; the loaded native backend is missing",
+      "required automatic-selection capabilities."
+    ),
+    backend_error = paste(
+      "Inspect backend_status$error and backend_diagnostics for the failing",
+      "runtime probe before retrying CUDA."
+    ),
+    torch_not_installed = paste(
+      "Provide the NVIDIA driver, cuBLAS 12, and cuSOLVER 11 for the built-in",
+      "native backend, or optionally install a supported CUDA-enabled torch."
+    ),
+    cuda_unavailable = paste(
+      "Verify the NVIDIA driver and GPU are visible in this R session, then",
+      "run cuda_diagnostics() again."
+    ),
+    paste(
+      "Inspect backend_status and backend_diagnostics, correct the reported",
+      "runtime issue, then run cuda_diagnostics() again."
+    )
+  )
+}
+
 #' Diagnose the optional CUDA runtime
 #'
 #' Inspecting the runtime is non-destructive and never installs or downloads
@@ -73,11 +168,14 @@
 #'   `torch_version`, `cuda_available`, `cuda_device_count`, `reason`, and
 #'   `detection_error`, plus `available_backends`, `auto_eligible_backends`,
 #'   `auto_selection_reason`, `selected_backend`, and per-backend diagnostic
-#'   details. Each backend detail distinguishes advertised `capabilities` from
-#'   callable internal `operations`. Native automatic eligibility requires a compatible backend
-#'   contract, the complete tensor/algorithm capability set, all runtime
+#'   details. The additive `status`, `summary`, `next_steps`, and
+#'   `backend_status` fields provide a user-facing health result without
+#'   removing the machine-readable details. Each backend detail distinguishes
+#'   advertised `capabilities` from callable internal `operations`. Native
+#'   automatic eligibility requires a compatible backend contract, the
+#'   complete tensor/algorithm capability set, all runtime
 #'   components, and a passing cached self-test. The legacy fields are retained
-#'   throughout the 0.3 compatibility cycle.
+#'   throughout the 0.4 compatibility cycle.
 #' @export
 #' @examples
 #' cuda_diagnostics()
@@ -144,6 +242,32 @@ cuda_diagnostics <- function() {
   } else {
     torch$auto_selection_reason
   }
+  selected_backend <- if (available) selected_backend else "base"
+  status <- if (available) "cuda_ready" else "cpu_only"
+  summary <- if (available) {
+    sprintf(
+      "CUDA is ready through the %s backend (%s device%s).",
+      selected_backend,
+      device_count,
+      if (identical(device_count, 1L)) "" else "s"
+    )
+  } else {
+    sprintf(
+      paste0(
+        "CUDA is unavailable; automatic requests will use the base CPU ",
+        "backend (%s)."
+      ),
+      auto_selection_reason
+    )
+  }
+  next_steps <- if (available) {
+    character()
+  } else {
+    .cuda_diagnostic_next_steps(auto_selection_reason)
+  }
+  backend_status <- .cuda_backend_status_table(
+    backend_diagnostics, selected_backend
+  )
 
   structure(
     list(
@@ -156,8 +280,12 @@ cuda_diagnostics <- function() {
       available_backends = available_backends,
       auto_eligible_backends = auto_eligible_backends,
       auto_selection_reason = auto_selection_reason,
-      selected_backend = if (available) selected_backend else "base",
-      backend_diagnostics = backend_diagnostics
+      selected_backend = selected_backend,
+      backend_diagnostics = backend_diagnostics,
+      status = status,
+      summary = summary,
+      next_steps = next_steps,
+      backend_status = backend_status
     ),
     class = "cuda_diagnostics"
   )
@@ -226,16 +354,24 @@ cuda_select_device <- function(device = c("auto", "cuda", "cpu")) {
   }
 
   if (identical(requested_device, "cuda")) {
+    next_steps <- diagnostics$next_steps
+    if (!is.character(next_steps)) next_steps <- character()
     message <- paste0(
       "CUDA is unavailable (", auto_selection_reason, "). ",
-      "Make the NVIDIA CUDA driver, cuBLAS 12, and cuSOLVER 11 available, ",
-      "install a CUDA-enabled `torch` backend, or use `device = \"cpu\"`."
+      if (length(next_steps)) {
+        paste0("Next: ", paste(next_steps, collapse = " "), " ")
+      } else {
+        ""
+      },
+      "Use `device = \"cpu\"` to request CPU execution explicitly."
     )
     condition <- structure(
       list(
         message = message,
         call = NULL,
-        diagnostics = diagnostics
+        diagnostics = diagnostics,
+        reason = auto_selection_reason,
+        next_steps = next_steps
       ),
       class = c(
         "cudaverse_cuda_unavailable",
@@ -539,15 +675,27 @@ print.cuda_provenance <- function(x, ...) {
 print.cuda_diagnostics <- function(x, ...) {
   cat(sprintf(
     paste0(
-      "<cuda_diagnostics available=%s devices=%s selected=%s ",
+      "<cuda_diagnostics status=%s available=%s devices=%s selected=%s ",
       "torch=%s reason=%s>\n"
     ),
+    if (is.null(x$status)) {
+      if (isTRUE(x$cuda_available)) "cuda_ready" else "cpu_only"
+    } else {
+      x$status
+    },
     x$cuda_available,
     x$cuda_device_count,
     if (is.null(x$selected_backend)) "legacy" else x$selected_backend,
     if (is.na(x$torch_version)) "not installed" else x$torch_version,
     x$reason
   ))
+  if (is.character(x$summary) && length(x$summary) == 1L) {
+    cat(x$summary, "\n", sep = "")
+  }
+  if (is.character(x$next_steps) && length(x$next_steps)) {
+    cat("Next steps:\n")
+    cat(paste0("- ", x$next_steps, collapse = "\n"), "\n", sep = "")
+  }
   invisible(x)
 }
 

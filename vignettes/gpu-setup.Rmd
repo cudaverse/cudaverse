@@ -23,7 +23,7 @@ CPU before changing the runtime:
 
 ```{r install, eval = FALSE}
 # install.packages("pak")
-pak::pak("cudaverse/cudaverse@develop/native-cuda")
+pak::pak("cudaverse/cudaverse@develop/0.4")
 ```
 
 ```{r cpu-contract}
@@ -83,6 +83,10 @@ Run diagnostics in a fresh R session after changing a driver or library path:
 
 ```{r diagnostics}
 diagnostics <- cuda_diagnostics()
+diagnostics$status
+diagnostics$summary
+diagnostics$next_steps
+diagnostics$backend_status
 diagnostics$available_backends
 diagnostics$auto_eligible_backends
 diagnostics$selected_backend
@@ -106,6 +110,9 @@ native$missing_auto_capabilities
 Native is eligible for automatic selection only when the versioned
 `cudaverse-backend/1` contract, required operations, runtime components, and
 cached self-test all pass. A detected GPU alone is insufficient.
+When CUDA is unavailable, `next_steps` maps the stable selection reason to a
+concrete action. The strict `cudaverse_cuda_unavailable` condition retains the
+same reason, diagnostics, and guidance for programmatic error handling.
 
 ## Prove strict native execution
 

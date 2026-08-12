@@ -1,3 +1,12 @@
+# cudaverse 0.4.0.9000
+
+- Started the isolated 0.4 development line from the exact review-ready 0.3
+  candidate while keeping the 0.3 source and evidence unchanged.
+- Extended `cuda_diagnostics()` with a concise health `status`, human-readable
+  `summary`, actionable `next_steps`, and a backend comparison table. Strict
+  CUDA-unavailable conditions now retain the same reason and guidance.
+- Added the ordered 0.4 roadmap and enabled development-line CI coverage.
+
 # cudaverse 0.3.0.9000
 
 - Added reproducible full-benchmark Markdown generation and validation. The

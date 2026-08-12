@@ -12,7 +12,7 @@ require_gate <- function(value, message) {
 
 required <- c(
   "index.html",
-  "CUDAVERSE-0.3-ROADMAP.html",
+  "CUDAVERSE-0.4-ROADMAP.html",
   file.path("articles", "gpu-setup.html"),
   file.path("articles", "backend-provenance.html"),
   file.path("articles", "backend-support.html"),
@@ -32,6 +32,7 @@ internal_pages <- c(
   "CUDAVERSE-0.3-CHECKPOINTS.html",
   "CUDAVERSE-0.3-CANDIDATE-AUDIT.html",
   "CUDAVERSE-0.3-SPARSE-FLOAT32-DECISION.html",
+  "CUDAVERSE-0.4-CHECKPOINTS.html",
   "NATIVE-CUDA-CONSOLIDATION.html",
   "NATIVE-CUDA-PHASE4-RC.html",
   "NATIVE-CUDA-ROADMAP.html"
@@ -70,8 +71,8 @@ index <- if (file.exists(index_path)) {
   ""
 }
 required_home <- c(
-  "cudaverse/cudaverse@develop/native-cuda",
-  "https://github.com/cudaverse/cudaverse/blob/develop/native-cuda/inst/benchmarks/README.md",
+  "cudaverse/cudaverse@develop/0.4",
+  "https://github.com/cudaverse/cudaverse/blob/develop/0.4/inst/benchmarks/README.md",
   "https://cudaverse.github.io/cudaverse/articles/gpu-setup.html",
   "https://cudaverse.github.io/cudaverse/articles/backend-support.html"
 )

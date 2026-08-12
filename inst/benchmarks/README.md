@@ -1,7 +1,8 @@
-# cudaverse 0.3 benchmark contract
+# cudaverse benchmark contract
 
-`contract.csv` is the authoritative workload definition for 0.3 benchmark
-evidence. It has two profiles:
+`contract.csv` is the authoritative workload definition established for the
+0.3 candidate and retained as the 0.4 regression baseline until a versioned
+replacement is justified. It has two profiles:
 
 - `smoke` proves the runner, report schema, numerical comparisons, provenance,
   timing distributions, and memory fields on bounded inputs;
