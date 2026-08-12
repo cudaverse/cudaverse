@@ -81,3 +81,62 @@ Remote evidence at the implementation commit:
 - the GitHub hardware job skips without the protected runner, while the
   explicitly enabled local RTX 2000 parity and lifecycle suites pass with no
   hardware skips.
+
+## CP-02A: allocation-free native reshape views
+
+Status: complete at implementation commit
+`ab971eecead4a7b04b535fe5d4d569300c9ad0a8`; the checkpoint-record-only
+follow-up must pass the same PR gates before merge.
+
+Review:
+
+- draft PR: <https://github.com/cudaverse/cudaverse/pull/28>;
+- target: `develop/0.4` (not `main`);
+- no tag, release, CRAN submission, or Pages deployment; and
+- GitHub Pages deploy job skipped as required.
+
+Scope:
+
+- separate dense view descriptors from shared device-allocation ownership;
+- make native reshape metadata-only without a device-to-device copy;
+- keep downstream kernels aware of each view's logical shape; and
+- guarantee source, alias, and nested-view release order cannot double-free or
+  invalidate a live view.
+
+Required gate:
+
+- existing CPU, torch, and native tensor behavior remains unchanged;
+- creating and releasing 1,000 native reshape views allocates zero additional
+  tracked VRAM;
+- nested views remain readable after their source descriptors are released;
+- matmul consumes the reshaped logical dimensions; and
+- the final shared owner releases the allocation exactly once.
+
+Unresolved scope:
+
+- transpose still materializes a contiguous device output; general strided
+  views require a separate contract because current kernels assume contiguous
+  R column-major storage.
+
+Local evidence:
+
+- the complete ordinary package suite passes, with hardware-only cases skipped
+  only when the explicit native test switch is absent;
+- the complete explicitly enabled RTX 2000 suite passes with no hardware skips;
+- nested reshape views allocate zero additional tracked VRAM, survive source
+  release, drive matmul with their logical shape, and return to the exact
+  tracked-memory baseline after 1,000 create/release cycles;
+- the source package builds and Windows `R CMD check --as-cran` reports
+  0 errors, 0 warnings, and only the expected development-version NOTE;
+- capability, redistribution, SBOM, release-boundary, benchmark, candidate,
+  report, and rejection self-tests pass; and
+- pkgdown and the public documentation boundary pass from a temporary source
+  copy outside the Dropbox synchronization lock, without deploying Pages.
+
+Remote evidence at the implementation commit:
+
+- Windows, macOS, Ubuntu, and R-devel package checks pass;
+- CPU integration and pkgdown pass;
+- supply-chain and repository workflow-boundary checks pass;
+- Linux and Windows no-CUDA artifact builds pass; and
+- CUDA 12.8.1 ABI and PTX checks pass.

@@ -164,6 +164,12 @@ struct BroadcastMeta {
   unsigned long long source_stride[CUDAVERSE_MAX_RANK];
 };
 
+struct SharedAllocation {
+  CUdeviceptr pointer;
+  std::size_t bytes;
+  std::atomic<unsigned int> references;
+};
+
 struct SharedBuffer {
   CUdeviceptr pointer;
   std::size_t bytes;
@@ -171,6 +177,7 @@ struct SharedBuffer {
   DType dtype;
   std::vector<int> shape;
   std::atomic<unsigned int> references;
+  SharedAllocation* allocation;
 };
 
 struct SharedSparseBuffer {
@@ -477,19 +484,26 @@ SharedBuffer* get_buffer(SEXP pointer) {
   return buffer;
 }
 
+void destroy_buffer(SharedBuffer* buffer) {
+  if (buffer == nullptr) return;
+  SharedAllocation* allocation = buffer->allocation;
+  if (allocation != nullptr && allocation->references.fetch_sub(1) == 1) {
+    if (allocation->pointer != 0 && api.cuMemFree != nullptr) {
+      if (api.context != nullptr && api.cuCtxSetCurrent != nullptr) {
+        api.cuCtxSetCurrent(api.context);
+      }
+      release_tracked_device_memory(allocation->pointer, allocation->bytes);
+    }
+    delete allocation;
+  }
+  delete buffer;
+}
+
 void release_reference(SEXP pointer) {
   auto* buffer = static_cast<SharedBuffer*>(R_ExternalPtrAddr(pointer));
   if (buffer == nullptr) return;
   R_ClearExternalPtr(pointer);
-  if (buffer->references.fetch_sub(1) == 1) {
-    if (buffer->pointer != 0 && api.cuMemFree != nullptr) {
-      if (api.context != nullptr && api.cuCtxSetCurrent != nullptr) {
-        api.cuCtxSetCurrent(api.context);
-      }
-      release_tracked_device_memory(buffer->pointer, buffer->bytes);
-    }
-    delete buffer;
-  }
+  if (buffer->references.fetch_sub(1) == 1) destroy_buffer(buffer);
 }
 
 void buffer_finalizer(SEXP pointer) {
@@ -605,17 +619,40 @@ std::vector<int> parse_indices(SEXP indices, std::size_t upper_bound,
   return result;
 }
 
+SharedBuffer* buffer_from_device(CUdeviceptr pointer, std::size_t bytes,
+                                 std::size_t elements, DType dtype,
+                                 const std::vector<int>& shape) {
+  SharedAllocation* allocation = nullptr;
+  try {
+    allocation = new SharedAllocation{pointer, bytes, 1};
+    return new SharedBuffer{
+        pointer, bytes, elements, dtype, shape, 1, allocation};
+  } catch (...) {
+    delete allocation;
+    release_tracked_device_memory(pointer, bytes);
+    throw;
+  }
+}
+
+SharedBuffer* buffer_view(SharedBuffer* source,
+                          const std::vector<int>& shape) {
+  auto* view = new SharedBuffer{
+      source->pointer, source->bytes, source->elements, source->dtype,
+      shape, 1, source->allocation};
+  source->allocation->references.fetch_add(1);
+  return view;
+}
+
 SharedBuffer* allocate_buffer(DType dtype, const std::vector<int>& shape,
                               std::size_t elements) {
-  auto* buffer = new SharedBuffer{
-      0, elements * dtype_size(dtype), elements, dtype, shape, 1};
-  CUresult status = api.cuMemAlloc(&buffer->pointer, buffer->bytes);
+  std::size_t bytes = elements * dtype_size(dtype);
+  CUdeviceptr pointer = 0;
+  CUresult status = api.cuMemAlloc(&pointer, bytes);
   if (status != CUDA_SUCCESS) {
-    delete buffer;
     check_cuda(status, "cuMemAlloc");
   }
-  track_device_allocation(buffer->bytes);
-  return buffer;
+  track_device_allocation(bytes);
+  return buffer_from_device(pointer, bytes, elements, dtype, shape);
 }
 
 class DeviceMemory {
@@ -701,11 +738,11 @@ DeviceMemory copy_device_to_device(CUdeviceptr source, std::size_t bytes,
 }
 
 SharedBuffer* shared_buffer_from_device(DeviceMemory&& memory, DType dtype,
-                                        const std::vector<int>& shape,
-                                        std::size_t elements) {
+                                         const std::vector<int>& shape,
+                                         std::size_t elements) {
   std::size_t bytes = memory.bytes();
-  return new SharedBuffer{
-      memory.release(), bytes, elements, dtype, shape, 1};
+  return buffer_from_device(
+      memory.release(), bytes, elements, dtype, shape);
 }
 
 SharedSparseBuffer* shared_sparse_from_devices(
@@ -1061,8 +1098,7 @@ extern "C" SEXP C_cudaverse_cuda_from_host(SEXP x, SEXP dtype_sexp,
     UNPROTECT(1);
   }
   if (status != CUDA_SUCCESS) {
-    release_tracked_device_memory(buffer->pointer, buffer->bytes);
-    delete buffer;
+    destroy_buffer(buffer);
     check_cuda(status, "cuMemcpyHtoD");
   }
   return make_pointer(buffer, false);
@@ -1129,8 +1165,7 @@ extern "C" SEXP C_cudaverse_cuda_cast(SEXP pointer, SEXP dtype_sexp) {
   void* parameters[] = {&input_pointer, &output_pointer, &elements};
   CUresult status = launch_1d(function, input->elements, parameters);
   if (status != CUDA_SUCCESS) {
-    release_tracked_device_memory(output->pointer, output->bytes);
-    delete output;
+    destroy_buffer(output);
     check_cuda(status, kernel);
   }
   return make_pointer(output, false);
@@ -1146,15 +1181,7 @@ extern "C" SEXP C_cudaverse_cuda_reshape(SEXP pointer,
     Rf_error("Native CUDA reshape must preserve the number of values.");
   }
   if (shape == input->shape) return make_pointer(input, true);
-  SharedBuffer* output = allocate_buffer(input->dtype, shape, elements);
-  CUresult status = api.cuMemcpyDtoD(
-      output->pointer, input->pointer, input->bytes);
-  if (status != CUDA_SUCCESS) {
-    release_tracked_device_memory(output->pointer, output->bytes);
-    delete output;
-    check_cuda(status, "cuMemcpyDtoD(reshape)");
-  }
-  return make_pointer(output, false);
+  return make_pointer(buffer_view(input, shape), false);
 }
 
 extern "C" SEXP C_cudaverse_cuda_gather(SEXP pointer, SEXP indices_sexp,
@@ -1302,8 +1329,7 @@ extern "C" SEXP C_cudaverse_cuda_broadcast(SEXP pointer,
       &input_pointer, &output_pointer, &meta, &kernel_elements};
   CUresult status = launch_1d(function, output_elements, parameters);
   if (status != CUDA_SUCCESS) {
-    release_tracked_device_memory(output->pointer, output->bytes);
-    delete output;
+    destroy_buffer(output);
     check_cuda(status, kernel);
   }
   return make_pointer(output, false);
@@ -1348,8 +1374,7 @@ extern "C" SEXP C_cudaverse_cuda_binary(SEXP left_pointer,
       &left_values, &right_values, &output_values, &operation, &elements};
   CUresult status = launch_1d(function, left->elements, parameters);
   if (status != CUDA_SUCCESS) {
-    release_tracked_device_memory(output->pointer, output->bytes);
-    delete output;
+    destroy_buffer(output);
     check_cuda(status, kernel);
   }
   return make_pointer(output, false);
@@ -1379,8 +1404,7 @@ extern "C" SEXP C_cudaverse_cuda_transpose(SEXP pointer) {
       &input_values, &output_values, &rows, &columns};
   CUresult status = launch_1d(function, input->elements, parameters);
   if (status != CUDA_SUCCESS) {
-    release_tracked_device_memory(output->pointer, output->bytes);
-    delete output;
+    destroy_buffer(output);
     check_cuda(status, kernel);
   }
   return make_pointer(output, false);
@@ -1478,8 +1502,7 @@ extern "C" SEXP C_cudaverse_cuda_reduce(SEXP pointer, SEXP dim_sexp,
       &input_pointer, &output_pointer, &meta, &kernel_elements};
   CUresult status = launch_1d(function, output_elements, parameters);
   if (status != CUDA_SUCCESS) {
-    release_tracked_device_memory(output->pointer, output->bytes);
-    delete output;
+    destroy_buffer(output);
     check_cuda(status, kernel);
   }
 
@@ -1968,13 +1991,11 @@ extern "C" SEXP C_cudaverse_cuda_pca(SEXP pointer,
     double denominator = std::sqrt(static_cast<double>(rows - 1));
     for (double& value : host_singular) value /= denominator;
 
-    auto* score_buffer = new SharedBuffer{
-        scores.release(),
-        static_cast<std::size_t>(rows) * components * sizeof(double),
-        static_cast<std::size_t>(rows) * components,
-        DType::Float64,
-        {rows, components},
-        1};
+    std::size_t score_elements =
+        static_cast<std::size_t>(rows) * components;
+    auto* score_buffer = buffer_from_device(
+        scores.release(), score_elements * sizeof(double), score_elements,
+        DType::Float64, {rows, components});
     SEXP score_storage = PROTECT(make_pointer(score_buffer, false));
     SEXP result = PROTECT(named_list({
         "sdev", "rotation", "x", "center", "scale", "scores_storage"}));
@@ -2007,13 +2028,10 @@ extern "C" SEXP C_cudaverse_cuda_row_norms(SEXP pointer) {
   try {
     DeviceMemory norms = row_norms_squared(
         input->pointer, input->shape[0], input->shape[1]);
-    auto* result = new SharedBuffer{
-        norms.release(),
-        static_cast<std::size_t>(input->shape[0]) * sizeof(double),
-        static_cast<std::size_t>(input->shape[0]),
-        DType::Float64,
-        {input->shape[0]},
-        1};
+    std::size_t elements = static_cast<std::size_t>(input->shape[0]);
+    auto* result = buffer_from_device(
+        norms.release(), elements * sizeof(double), elements,
+        DType::Float64, {input->shape[0]});
     return make_pointer(result, false);
   } catch (const std::exception& exception) {
     Rf_error("%s", exception.what());
@@ -2039,9 +2057,9 @@ extern "C" SEXP C_cudaverse_cuda_normalize_rows(SEXP pointer) {
         &input_pointer, &output_pointer, &rows, &columns};
     launch_or_throw(normalize, "cudaverse_normalize_rows_f64", rows,
                     parameters);
-    auto* result = new SharedBuffer{
+    auto* result = buffer_from_device(
         output.release(), input->bytes, input->elements, DType::Float64,
-        input->shape, 1};
+        input->shape);
     return make_pointer(result, false);
   } catch (const std::exception& exception) {
     Rf_error("%s", exception.what());
@@ -2072,9 +2090,9 @@ extern "C" SEXP C_cudaverse_cuda_distance(SEXP query_pointer,
         reference->shape[0], query->shape[1], metric, 0, self);
     std::size_t elements = static_cast<std::size_t>(query->shape[0]) *
                            reference->shape[0];
-    auto* result = new SharedBuffer{
+    auto* result = buffer_from_device(
         distance.release(), elements * sizeof(double), elements,
-        DType::Float64, {query->shape[0], reference->shape[0]}, 1};
+        DType::Float64, {query->shape[0], reference->shape[0]});
     return make_pointer(result, false);
   } catch (const std::exception& exception) {
     Rf_error("%s", exception.what());
@@ -2392,8 +2410,7 @@ extern "C" SEXP C_cudaverse_cuda_matmul(SEXP left_pointer,
     operation = "cublasSgemm";
   }
   if (status != CUBLAS_STATUS_SUCCESS) {
-    release_tracked_device_memory(output->pointer, output->bytes);
-    delete output;
+    destroy_buffer(output);
     check_cublas(status, operation);
   }
   return make_pointer(output, false);

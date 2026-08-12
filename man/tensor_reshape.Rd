@@ -18,6 +18,13 @@ A \code{cudatensor} on the same device with the requested shape.
 \description{
 Reshape a tensor without changing its values
 }
+\details{
+The native CUDA backend creates an allocation-free metadata view
+that shares the source device allocation. The source and reshaped tensor
+have independent external-pointer lifetimes, and the allocation is freed
+only after the final view is released. Compatibility backends retain their
+established reshape behavior.
+}
 \examples{
 x <- cuda_tensor(1:6, device = "cpu")
 tensor_reshape(x, c(2, 3))
