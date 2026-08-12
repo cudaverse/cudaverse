@@ -25,6 +25,12 @@ column names are retained on the corresponding singular vectors.
 \description{
 GPU-aware singular value decomposition
 }
+\details{
+A native CUDA \code{cudatensor} selected on the same backend is validated
+for finite values on the device and passed directly to cuSOLVER. Float32
+and integer storage is converted to float64 on the device. Only the
+requested decomposition results are materialized in R.
+}
 \examples{
 cuda_svd(matrix(rnorm(30), 10, 3), device = "cpu")
 }

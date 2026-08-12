@@ -16,6 +16,83 @@
   x
 }
 
+.learn_resident_tensor_matrix <- function(
+    x, selection, operation, argument = "x", min_rows = 2L,
+    min_cols = 1L, check_constant = FALSE) {
+  if (!inherits(x, "cudatensor") ||
+      !identical(x$device, "cuda") ||
+      !identical(selection$device, "cuda")) {
+    return(NULL)
+  }
+  backend <- .learn_selection_backend(selection)
+  if (!identical(x$backend, backend) ||
+      !.backend_has_operation(backend, operation) ||
+      !.backend_has_operation(backend, "algorithm_matrix_validate")) {
+    return(NULL)
+  }
+  .check_tensor(x, argument)
+  shape <- x$shape
+  valid_shape <- is.numeric(shape) && length(shape) == 2L &&
+    !anyNA(shape) && all(is.finite(shape)) &&
+    all(shape == as.integer(shape)) &&
+    shape[[1L]] >= min_rows && shape[[2L]] >= min_cols
+  if (!valid_shape ||
+      !is.character(x$dtype) || length(x$dtype) != 1L ||
+      is.na(x$dtype) ||
+      !x$dtype %in% c("integer", "float32", "float64")) {
+    stop(
+      sprintf(
+        "`%s` must be a finite numeric matrix with at least %s rows and %s columns.",
+        argument, min_rows, min_cols
+      ),
+      call. = FALSE
+    )
+  }
+  tensor_dimnames <- .tensor_dimnames(x)
+  validation <- .backend_call(
+    backend,
+    "algorithm_matrix_validate",
+    x$storage,
+    isTRUE(check_constant)
+  )
+  if (!is.list(validation) ||
+      !identical(validation$finite, TRUE) ||
+      !is.logical(validation$constant) ||
+      length(validation$constant) != 1L ||
+      is.na(validation$constant)) {
+    if (is.list(validation) && identical(validation$finite, FALSE)) {
+      stop(
+        sprintf(
+          "`%s` must be a finite numeric matrix with at least %s rows and %s columns.",
+          argument, min_rows, min_cols
+        ),
+        call. = FALSE
+      )
+    }
+    stop("The selected backend returned an invalid matrix validation result.",
+         call. = FALSE)
+  }
+  list(
+    storage = x$storage,
+    shape = as.integer(shape),
+    dtype = x$dtype,
+    dimnames = tensor_dimnames,
+    backend = backend,
+    constant = validation$constant
+  )
+}
+
+.learn_resident_input_stage <- function(backend) {
+  cuda_stage(
+    requested_device = "inherited",
+    device = "cuda",
+    backend = backend,
+    selection_reason = "device_resident_input",
+    fallback = FALSE,
+    output_device = "cuda"
+  )
+}
+
 .learn_sparse_matrix <- function(x, argument = "x", min_rows = 2L,
                                  min_cols = 1L) {
   if (!inherits(x, "cudasparse")) {
@@ -509,6 +586,10 @@
 #' @param device One of `"auto"`, `"cuda"`, or `"cpu"`.
 #' @return A list with `d`, `u`, `v`, and the actual `device`. Matrix row and
 #'   column names are retained on the corresponding singular vectors.
+#' @details A native CUDA `cudatensor` selected on the same backend is validated
+#'   for finite values on the device and passed directly to cuSOLVER. Float32
+#'   and integer storage is converted to float64 on the device. Only the
+#'   requested decomposition results are materialized in R.
 #' @export
 #' @examples
 #' cuda_svd(matrix(rnorm(30), 10, 3), device = "cpu")
@@ -518,12 +599,32 @@ cuda_svd <- function(x, nu = min(nrow(x), ncol(x)),
   source_device <- .learn_source_device(x)
   source_class <- class(x)[[1L]]
   input_stage <- .learn_input_stage(x)
-  x <- .learn_matrix(x)
-  observation_names <- rownames(x)
-  feature_names <- colnames(x)
   selection <- .learn_device(device)
   device <- selection$device
-  rank <- min(dim(x))
+  backend <- .learn_selection_backend(selection)
+  resident <- .learn_resident_tensor_matrix(
+    x, selection, "algorithm_svd_storage"
+  )
+  if (is.null(resident)) {
+    x <- .learn_matrix(x)
+    input_shape <- dim(x)
+    observation_names <- rownames(x)
+    feature_names <- colnames(x)
+  } else {
+    input_shape <- resident$shape
+    observation_names <- if (is.null(resident$dimnames)) {
+      NULL
+    } else {
+      resident$dimnames[[1L]]
+    }
+    feature_names <- if (is.null(resident$dimnames)) {
+      NULL
+    } else {
+      resident$dimnames[[2L]]
+    }
+    input_stage <- .learn_resident_input_stage(backend)
+  }
+  rank <- min(input_shape)
   for (value in list(nu = nu, nv = nv)) {
     if (!is.numeric(value) || length(value) != 1L || is.na(value) ||
         value < 0 || value > rank || value != as.integer(value)) {
@@ -534,8 +635,19 @@ cuda_svd <- function(x, nu = min(nrow(x), ncol(x)),
   nu <- as.integer(nu)
   nv <- as.integer(nv)
 
-  backend <- .learn_selection_backend(selection)
-  result <- .backend_call(backend, "algorithm_svd", x, nu, nv)
+  result <- if (is.null(resident)) {
+    .backend_call(backend, "algorithm_svd", x, nu, nv)
+  } else {
+    .backend_call(
+      backend,
+      "algorithm_svd_storage",
+      resident$storage,
+      resident$shape,
+      resident$dtype,
+      nu,
+      nv
+    )
+  }
   singular_values <- result$d
   u <- result$u
   v <- result$v
@@ -582,6 +694,11 @@ cuda_svd <- function(x, nu = min(nrow(x), ncol(x)),
 #'   standard deviations, centring/scaling values, and actual device.
 #'   Observation names, feature names, and stable `PC1`, `PC2`, ... component
 #'   names are preserved on every backend.
+#' @details A native CUDA `cudatensor` selected on the same backend is validated
+#'   on the device and passed directly into preprocessing and cuSOLVER without
+#'   downloading its input matrix. Float32 and integer tensors are converted to
+#'   float64 on the device. PCA scores retain shared native storage for direct
+#'   composition with native distance and kNN operations.
 #' @export
 #' @examples
 #' fit <- cuda_pca(iris[, 1:4], n_components = 2, device = "cpu")
@@ -592,22 +709,47 @@ cuda_pca <- function(x, n_components = 2L, center = TRUE, scale. = FALSE,
   source_device <- .learn_source_device(x)
   source_class <- class(x)[[1L]]
   input_stage <- .learn_input_stage(x)
+  center <- .learn_flag(center, "center")
+  scale. <- .learn_flag(scale., "scale.")
+  selection <- .learn_device(device)
+  device <- selection$device
+  compute_backend <- .learn_selection_backend(selection, "base")
+  resident <- if (sparse_input) {
+    NULL
+  } else {
+    .learn_resident_tensor_matrix(
+      x,
+      selection,
+      "algorithm_pca_storage",
+      min_cols = 2L,
+      check_constant = scale.
+    )
+  }
   if (sparse_input) {
     x <- .learn_sparse_matrix(x, min_cols = 2L)
     sparse_names <- .sparse_dimnames(x)
     observation_names <- if (is.null(sparse_names)) NULL else sparse_names[[1L]]
     feature_names <- if (is.null(sparse_names)) NULL else sparse_names[[2L]]
     input_shape <- x$shape
-  } else {
+  } else if (is.null(resident)) {
     x <- .learn_matrix(as.matrix(x), min_cols = 2L)
     observation_names <- rownames(x)
     feature_names <- colnames(x)
     input_shape <- dim(x)
+  } else {
+    input_shape <- resident$shape
+    observation_names <- if (is.null(resident$dimnames)) {
+      NULL
+    } else {
+      resident$dimnames[[1L]]
+    }
+    feature_names <- if (is.null(resident$dimnames)) {
+      NULL
+    } else {
+      resident$dimnames[[2L]]
+    }
+    input_stage <- .learn_resident_input_stage(compute_backend)
   }
-  center <- .learn_flag(center, "center")
-  scale. <- .learn_flag(scale., "scale.")
-  selection <- .learn_device(device)
-  device <- selection$device
   max_components <- min(input_shape[[1L]] - 1L, input_shape[[2L]])
   if (!is.numeric(n_components) || length(n_components) != 1L ||
       is.na(n_components) || n_components < 1 ||
@@ -618,7 +760,9 @@ cuda_pca <- function(x, n_components = 2L, center = TRUE, scale. = FALSE,
       call. = FALSE
     )
   }
-  constant_features <- if (sparse_input) {
+  constant_features <- if (!is.null(resident)) {
+    resident$constant
+  } else if (sparse_input) {
     .learn_sparse_constant_columns(x)
   } else {
     apply(x, 2L, stats::sd) == 0
@@ -628,7 +772,6 @@ cuda_pca <- function(x, n_components = 2L, center = TRUE, scale. = FALSE,
   }
   n_components <- as.integer(n_components)
 
-  compute_backend <- .learn_selection_backend(selection, "base")
   backend_sparse <- sparse_input &&
     .backend_has_operation(compute_backend, "algorithm_sparse_pca")
   sparse_transferred <- FALSE
@@ -649,6 +792,17 @@ cuda_pca <- function(x, n_components = 2L, center = TRUE, scale. = FALSE,
       "algorithm_sparse_pca",
       sparse_compute$storage,
       sparse_compute$shape,
+      n_components,
+      center,
+      scale.
+    )
+  } else if (!is.null(resident)) {
+    fit <- .backend_call(
+      compute_backend,
+      "algorithm_pca_storage",
+      resident$storage,
+      resident$shape,
+      resident$dtype,
       n_components,
       center,
       scale.

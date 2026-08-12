@@ -26,7 +26,8 @@ test_that("native diagnostics and factory follow the integrated contract", {
     "sparse_from_coo", "sparse_to_host",
     "sparse_transpose", "sparse_reduce", "sparse_normalize",
     "sparse_matmul_dense",
-    "algorithm_pca_predict", "algorithm_sparse_pca",
+    "algorithm_matrix_validate", "algorithm_svd_storage",
+    "algorithm_pca_storage", "algorithm_pca_predict", "algorithm_sparse_pca",
     "algorithm_distance_batched", "algorithm_kmeans",
     "algorithm_sparse_knn_prepare",
     "synchronize", "release", "error_translate"
@@ -34,7 +35,8 @@ test_that("native diagnostics and factory follow the integrated contract", {
   expect_true(all(c(
     "sparse-coo", "sparse-csr", "sparse-transpose", "sparse-normalize",
     "sparse-matmul",
-    "sparse-reduce", "sparse-pca", "sparse-knn", "pca-predict", "kmeans",
+    "sparse-reduce", "sparse-pca", "sparse-knn", "matrix-validation",
+    "svd-resident", "pca-resident", "pca-predict", "kmeans",
     "dtype-float32",
     "dtype-float64", "runtime-self-test", "arithmetic", "reshape",
     "broadcast", "transpose", "subset", "replacement"
@@ -62,6 +64,7 @@ test_that("native runtime self-test is cached and releases its allocations", {
     "float32-transfer-matmul-reduce",
     "arithmetic-reshape-broadcast-transpose",
     "device-indexing",
+    "resident-matrix-validation-svd-pca",
     "resident-batched-distance",
     "resident-kmeans",
     "sparse-transpose",
@@ -484,6 +487,155 @@ test_that("native PCA matches R subspaces and retains device scores", {
       expect_type(state$storage, "externalptr")
     }
   }
+})
+
+test_that("native matrix validation is device-side and leak-free", {
+  skip_if_not(identical(Sys.getenv("CUDAVERSE_NATIVE_TESTS"), "true"))
+  skip_if_not(isTRUE(cudaverse:::.native_diagnostics()$available))
+  factory <- cudaverse:::.native_backend_factory()
+  factory$synchronize()
+  gc()
+  baseline <- cudaverse:::.native_memory_tracker(reset = TRUE)$current
+
+  for (dtype in c("integer", "float32", "float64")) {
+    values <- matrix(c(1, 2, 3, 4, 5, 6), 3L, 2L)
+    storage <- factory$from_host(values, dtype, c(3L, 2L))
+    validation <- factory$algorithm_matrix_validate(storage, TRUE)
+    expect_identical(validation, list(finite = TRUE, constant = FALSE))
+    factory$release(storage)
+
+    constant <- factory$from_host(matrix(2, 3L, 2L), dtype, c(3L, 2L))
+    constant_validation <- factory$algorithm_matrix_validate(constant, TRUE)
+    expect_identical(
+      constant_validation,
+      list(finite = TRUE, constant = TRUE)
+    )
+    factory$release(constant)
+  }
+
+  for (value in list(NA_real_, NaN, Inf, -Inf)) {
+    storage <- factory$from_host(
+      matrix(c(1, value, 3, 4), 2L, 2L),
+      "float64", c(2L, 2L)
+    )
+    expect_identical(
+      factory$algorithm_matrix_validate(storage, FALSE)$finite,
+      FALSE
+    )
+    factory$release(storage)
+  }
+
+  probe <- factory$from_host(
+    matrix(seq_len(12), 4L, 3L), "float64", c(4L, 3L)
+  )
+  probe_baseline <- cudaverse:::.native_memory_tracker(reset = TRUE)$current
+  for (iteration in seq_len(1000L)) {
+    expect_identical(
+      factory$algorithm_matrix_validate(probe, TRUE),
+      list(finite = TRUE, constant = FALSE)
+    )
+  }
+  factory$synchronize()
+  expect_identical(
+    cudaverse:::.native_memory_tracker()$current,
+    probe_baseline
+  )
+  factory$release(probe)
+  gc()
+  factory$synchronize()
+  expect_identical(cudaverse:::.native_memory_tracker()$current, baseline)
+})
+
+test_that("resident cudatensors enter native SVD and PCA without host copies", {
+  skip_if_not(identical(Sys.getenv("CUDAVERSE_NATIVE_TESTS"), "true"))
+  skip_if_not(isTRUE(cudaverse:::.native_diagnostics()$available))
+  skip_if_not(nzchar(Sys.getenv("CUDAVERSE_CUSOLVER_PATH")))
+  old <- options(cudaverse.cuda_backends = "native")
+  on.exit(options(old), add = TRUE)
+  set.seed(731)
+  source <- matrix(rnorm(60), 12L, 5L)
+  rownames(source) <- paste0("row_", seq_len(nrow(source)))
+  colnames(source) <- paste0("feature_", seq_len(ncol(source)))
+
+  for (dtype in c("integer", "float32", "float64")) {
+    values <- if (identical(dtype, "integer")) {
+      matrix(seq_len(60), 12L, 5L, dimnames = dimnames(source))
+    } else {
+      source
+    }
+    tensor <- cudaverse::cuda_tensor(values, device = "cuda", dtype = dtype)
+    reference <- cudaverse::to_cpu(tensor)
+    decomposition <- cudaverse::cuda_svd(
+      tensor, nu = 3L, nv = 3L, device = "cuda"
+    )
+    reconstruction <- decomposition$u %*%
+      diag(decomposition$d[1:3], nrow = 3L) %*%
+      t(decomposition$v)
+    cpu_svd <- base::svd(reference, nu = 3L, nv = 3L)
+    cpu_reconstruction <- cpu_svd$u %*%
+      diag(cpu_svd$d[1:3], nrow = 3L) %*% t(cpu_svd$v)
+    expect_equal(reconstruction, cpu_reconstruction, tolerance = 1e-8)
+    expect_identical(rownames(decomposition$u), rownames(values))
+    expect_identical(rownames(decomposition$v), colnames(values))
+    expect_identical(
+      decomposition$compute_stages$input_materialization$selection_reason,
+      "device_resident_input"
+    )
+
+    pca <- cudaverse::cuda_pca(
+      tensor, n_components = 3L, center = TRUE, scale. = TRUE,
+      device = "cuda"
+    )
+    cpu <- stats::prcomp(
+      reference, rank. = 3L, center = TRUE, scale. = TRUE
+    )
+    expect_equal(
+      tcrossprod(pca$rotation),
+      tcrossprod(cpu$rotation[, 1:3, drop = FALSE]),
+      tolerance = 1e-8
+    )
+    expect_equal(
+      pca$x %*% t(pca$rotation),
+      cpu$x[, 1:3, drop = FALSE] %*%
+        t(cpu$rotation[, 1:3, drop = FALSE]),
+      tolerance = 1e-8
+    )
+    expect_identical(
+      pca$compute_stages$input_materialization$selection_reason,
+      "device_resident_input"
+    )
+  }
+})
+
+test_that("resident native decomposition preserves validation errors", {
+  skip_if_not(identical(Sys.getenv("CUDAVERSE_NATIVE_TESTS"), "true"))
+  skip_if_not(isTRUE(cudaverse:::.native_diagnostics()$available))
+  skip_if_not(nzchar(Sys.getenv("CUDAVERSE_CUSOLVER_PATH")))
+  old <- options(cudaverse.cuda_backends = "native")
+  on.exit(options(old), add = TRUE)
+
+  nonfinite <- cudaverse::cuda_tensor(
+    matrix(c(1, 2, NA, 4, 5, 6), 3L, 2L),
+    device = "cuda", dtype = "float64"
+  )
+  constant <- cudaverse::cuda_tensor(
+    cbind(rep(1, 6L), seq_len(6L)),
+    device = "cuda", dtype = "float64"
+  )
+  expect_error(
+    cudaverse::cuda_svd(nonfinite, device = "cuda"),
+    "finite numeric matrix"
+  )
+  expect_error(
+    cudaverse::cuda_pca(nonfinite, 1L, device = "cuda"),
+    "finite numeric matrix"
+  )
+  expect_error(
+    cudaverse::cuda_pca(
+      constant, 1L, scale. = TRUE, device = "cuda"
+    ),
+    "Cannot scale constant features"
+  )
 })
 
 test_that("native distances and stable device top-k match CPU ordering", {

@@ -263,6 +263,141 @@ test_that("same-device tensor reconstruction casts without host transfer", {
   )
 })
 
+test_that("resident tensors dispatch SVD and PCA without host transfer", {
+  values <- matrix(seq_len(24) / 7, 8L, 3L)
+  rownames(values) <- paste0("row_", seq_len(nrow(values)))
+  colnames(values) <- paste0("feature_", seq_len(ncol(values)))
+  calls <- new.env(parent = emptyenv())
+  calls$validate <- 0L
+  calls$svd <- 0L
+  calls$pca <- 0L
+  factory <- cudaverse:::.base_backend_factory()
+  factory$name <- "resident-decomposition-contract"
+  factory$device <- "cuda"
+  factory$to_host <- function(storage) {
+    stop("unexpected host transfer", call. = FALSE)
+  }
+  factory$algorithm_matrix_validate <- function(storage, check_constant) {
+    calls$validate <- calls$validate + 1L
+    list(
+      finite = all(is.finite(storage)),
+      constant = isTRUE(check_constant) &&
+        any(apply(storage, 2L, stats::sd) == 0)
+    )
+  }
+  factory$algorithm_svd_storage <- function(
+      storage, shape, dtype, nu, nv) {
+    calls$svd <- calls$svd + 1L
+    expect_identical(shape, c(8L, 3L))
+    expect_identical(dtype, "float64")
+    decomposition <- base::svd(storage, nu = nu, nv = nv)
+    list(d = decomposition$d, u = decomposition$u, v = decomposition$v)
+  }
+  factory$algorithm_pca_storage <- function(
+      storage, shape, dtype, n_components, center, scale) {
+    calls$pca <- calls$pca + 1L
+    expect_identical(shape, c(8L, 3L))
+    expect_identical(dtype, "float64")
+    cudaverse:::.base_backend_factory()$algorithm_pca(
+      storage, n_components, center, scale
+    )
+  }
+  cudaverse:::.backend_register(factory, replace = TRUE)
+  on.exit(
+    rm(list = factory$name, envir = cudaverse:::.cudaverse_backends),
+    add = TRUE
+  )
+  testthat::local_mocked_bindings(
+    .learn_device = function(device) list(
+      requested_device = "cuda",
+      device = "cuda",
+      backend = factory$name,
+      selection_reason = "contract_test",
+      fallback = FALSE
+    )
+  )
+  tensor <- cudaverse:::.new_cudatensor(
+    values, "cuda", factory$name, "float64", c(8L, 3L),
+    dimnames = dimnames(values)
+  )
+
+  decomposition <- cuda_svd(tensor, nu = 2L, nv = 2L, device = "cuda")
+  pca <- cuda_pca(
+    tensor, n_components = 2L, center = TRUE, scale. = TRUE,
+    device = "cuda"
+  )
+
+  expect_identical(calls$validate, 2L)
+  expect_identical(calls$svd, 1L)
+  expect_identical(calls$pca, 1L)
+  expect_identical(dimnames(decomposition$u)[[1L]], rownames(values))
+  expect_identical(dimnames(decomposition$v)[[1L]], colnames(values))
+  expect_identical(dimnames(pca$x)[[1L]], rownames(values))
+  expect_identical(dimnames(pca$rotation)[[1L]], colnames(values))
+  expect_identical(
+    decomposition$compute_stages$input_materialization$selection_reason,
+    "device_resident_input"
+  )
+  expect_identical(
+    pca$compute_stages$input_materialization$selection_reason,
+    "device_resident_input"
+  )
+})
+
+test_that("resident matrix validation preserves finite and scaling errors", {
+  factory <- cudaverse:::.base_backend_factory()
+  factory$name <- "resident-validation-contract"
+  factory$device <- "cuda"
+  factory$to_host <- function(storage) {
+    stop("unexpected host transfer", call. = FALSE)
+  }
+  factory$algorithm_matrix_validate <- function(storage, check_constant) {
+    list(
+      finite = all(is.finite(storage)),
+      constant = isTRUE(check_constant) &&
+        any(apply(storage, 2L, stats::sd) == 0)
+    )
+  }
+  factory$algorithm_svd_storage <- function(...) {
+    stop("decomposition should not run", call. = FALSE)
+  }
+  factory$algorithm_pca_storage <- function(...) {
+    stop("decomposition should not run", call. = FALSE)
+  }
+  cudaverse:::.backend_register(factory, replace = TRUE)
+  on.exit(
+    rm(list = factory$name, envir = cudaverse:::.cudaverse_backends),
+    add = TRUE
+  )
+  testthat::local_mocked_bindings(
+    .learn_device = function(device) list(
+      requested_device = "cuda",
+      device = "cuda",
+      backend = factory$name,
+      selection_reason = "contract_test",
+      fallback = FALSE
+    )
+  )
+  nonfinite <- cudaverse:::.new_cudatensor(
+    matrix(c(1, 2, NA, 4, 5, 6), 3L, 2L),
+    "cuda", factory$name, "float64", c(3L, 2L)
+  )
+  constant <- cudaverse:::.new_cudatensor(
+    cbind(rep(1, 4L), seq_len(4L)),
+    "cuda", factory$name, "float64", c(4L, 2L)
+  )
+
+  expect_error(cuda_svd(nonfinite, device = "cuda"), "finite numeric matrix")
+  expect_error(
+    cuda_pca(nonfinite, 1L, device = "cuda"),
+    "finite numeric matrix"
+  )
+  expect_error(
+    cuda_pca(constant, 1L, scale. = TRUE, device = "cuda"),
+    "Cannot scale constant features"
+  )
+})
+
 test_that("missing backend capabilities return structured conditions", {
   factory <- list(
     name = "contract-test",
