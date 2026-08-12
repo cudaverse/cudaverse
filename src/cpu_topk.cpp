@@ -2,6 +2,7 @@
 #include <Rinternals.h>
 
 #include <cmath>
+#include <new>
 #include <queue>
 #include <vector>
 
@@ -72,30 +73,37 @@ extern "C" SEXP C_cudaverse_cpu_stable_topk(SEXP distance_sexp,
   double* output_distance = REAL(distance_result);
 
   for (int query = 0; query < query_count; ++query) {
-    {
-      // BetterCandidate makes priority_queue::top() the worst retained value,
-      // so a better (distance, original index) pair replaces it in O(log k).
-      std::priority_queue<Candidate, std::vector<Candidate>, BetterCandidate>
-          selected;
-      int self = rows[query];
-      for (int candidate = 1; candidate <= candidate_count; ++candidate) {
-        if (candidate == self) continue;
-        Candidate value{
-            distance[query + query_count * (candidate - 1)], candidate};
-        if (static_cast<int>(selected.size()) < k) {
-          selected.push(value);
-        } else if (BetterCandidate{}(value, selected.top())) {
+    bool allocation_failed = false;
+    try {
+      {
+        // BetterCandidate makes priority_queue::top() the worst retained
+        // value, so a better (distance, original index) pair replaces it in
+        // O(log k).
+        std::priority_queue<Candidate, std::vector<Candidate>, BetterCandidate>
+            selected;
+        int self = rows[query];
+        for (int candidate = 1; candidate <= candidate_count; ++candidate) {
+          if (candidate == self) continue;
+          Candidate value{
+              distance[query + query_count * (candidate - 1)], candidate};
+          if (static_cast<int>(selected.size()) < k) {
+            selected.push(value);
+          } else if (BetterCandidate{}(value, selected.top())) {
+            selected.pop();
+            selected.push(value);
+          }
+        }
+        for (int position = k - 1; position >= 0; --position) {
+          const Candidate value = selected.top();
           selected.pop();
-          selected.push(value);
+          output_index[query + query_count * position] = value.index;
+          output_distance[query + query_count * position] = value.distance;
         }
       }
-      for (int position = k - 1; position >= 0; --position) {
-        const Candidate value = selected.top();
-        selected.pop();
-        output_index[query + query_count * position] = value.index;
-        output_distance[query + query_count * position] = value.distance;
-      }
+    } catch (const std::bad_alloc&) {
+      allocation_failed = true;
     }
+    if (allocation_failed) Rf_error("CPU stable top-k allocation failed.");
     R_CheckUserInterrupt();
   }
 
