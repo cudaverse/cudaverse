@@ -115,6 +115,11 @@ share the same device allocation while keeping independent lifetimes. This
 avoids a device-to-device copy and keeps downstream kernels aware of the view's
 shape.
 
+Replacement tensors already on the same CUDA backend are cast to the target
+floating dtype on-device before scatter, avoiding a host round trip and
+recording the conversion as a separate provenance stage. Integer targets still
+validate exact representability before any cast.
+
 ## One workflow, one package
 
 ```r

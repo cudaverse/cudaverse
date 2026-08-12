@@ -171,6 +171,48 @@ test_that("CPU tensor and algorithm adapters match their R references", {
   )
 })
 
+test_that("same-backend replacement casts remain device-resident", {
+  factory <- cudaverse:::.base_backend_factory()
+  factory$name <- "resident-cast-test"
+  factory$device <- "cuda"
+  original_cast <- factory$cast
+  cast_calls <- 0L
+  factory$cast <- function(storage, dtype) {
+    cast_calls <<- cast_calls + 1L
+    original_cast(storage, dtype)
+  }
+  factory$to_host <- function(storage) {
+    stop("unexpected host transfer", call. = FALSE)
+  }
+  cudaverse:::.backend_register(factory, replace = TRUE)
+  on.exit(
+    rm(list = factory$name, envir = cudaverse:::.cudaverse_backends),
+    add = TRUE
+  )
+
+  x <- cudaverse:::.new_cudatensor(
+    array(c(1, 2, 3, 4), dim = 4L),
+    "cuda", factory$name, "float64", 4L
+  )
+  replacement <- cudaverse:::.new_cudatensor(
+    array(c(8L, 9L), dim = 2L),
+    "cuda", factory$name, "integer", 2L
+  )
+
+  x[c(2L, 4L)] <- replacement
+  expect_identical(cast_calls, 1L)
+  expect_equal(as.vector(x$storage), c(1, 8, 3, 9), tolerance = 0)
+  expect_identical(x$dtype, "float64")
+  expect_identical(
+    cuda_provenance(x)$stage,
+    c("replacement_cast", "replacement")
+  )
+  expect_identical(
+    cuda_provenance(x)$selection_reason,
+    c("replacement_dtype_conversion", "inherited_device")
+  )
+})
+
 test_that("missing backend capabilities return structured conditions", {
   factory <- list(
     name = "contract-test",

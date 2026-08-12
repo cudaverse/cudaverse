@@ -170,6 +170,79 @@ test_that("native subsetting and replacement keep tensor values on device", {
   }
 })
 
+test_that("native replacement casts compatible tensor values on device", {
+  skip_if_not(identical(Sys.getenv("CUDAVERSE_NATIVE_TESTS"), "true"))
+  skip_if_not(isTRUE(cudaverse:::.native_diagnostics()$available))
+  old <- options(cudaverse.cuda_backends = "native")
+  on.exit(options(old), add = TRUE)
+
+  cases <- list(
+    list(target = "float64", replacement = "integer", tolerance = 0),
+    list(target = "float32", replacement = "float64", tolerance = 1e-6)
+  )
+  for (case in cases) {
+    source <- c(1, 2, 3, 4)
+    x <- cudaverse::cuda_tensor(
+      source, device = "cuda", dtype = case$target
+    )
+    replacement <- cudaverse::cuda_tensor(
+      c(8, 9), device = "cuda", dtype = case$replacement
+    )
+
+    x[c(2L, 4L)] <- replacement
+    source[c(2L, 4L)] <- c(8, 9)
+
+    expect_equal(
+      cudaverse::to_cpu(x), array(source, dim = 4L),
+      tolerance = case$tolerance
+    )
+    provenance <- cudaverse::cuda_provenance(x)
+    expect_identical(
+      provenance$stage,
+      c("replacement_cast", "replacement")
+    )
+    expect_identical(provenance$device, c("cuda", "cuda"))
+    expect_identical(provenance$backend, c("native", "native"))
+    expect_identical(
+      provenance$selection_reason,
+      c("replacement_dtype_conversion", "inherited_device")
+    )
+  }
+})
+
+test_that("repeated native replacement casts release all temporaries", {
+  skip_if_not(identical(Sys.getenv("CUDAVERSE_NATIVE_TESTS"), "true"))
+  skip_if_not(isTRUE(cudaverse:::.native_diagnostics()$available))
+  factory <- cudaverse:::.native_backend_factory()
+  factory$synchronize()
+  gc()
+  baseline <- cudaverse:::.native_memory_tracker(reset = TRUE)$current
+
+  source <- factory$from_host(double(32), "float64", 32L)
+  replacement <- factory$from_host(1:4, "integer", 4L)
+  on.exit(try(factory$release(source), silent = TRUE), add = TRUE)
+  on.exit(try(factory$release(replacement), silent = TRUE), add = TRUE)
+
+  for (iteration in seq_len(1000L)) {
+    cast <- factory$cast(replacement, "float64")
+    result <- factory$replace(
+      source, c(1L, 8L, 16L, 32L), cast, seq_len(4L)
+    )
+    factory$release(result)
+    factory$release(cast)
+  }
+  factory$release(replacement)
+  replacement <- NULL
+  factory$release(source)
+  source <- NULL
+  factory$synchronize()
+  gc()
+
+  final <- cudaverse:::.native_memory_tracker()
+  expect_identical(final$current, baseline)
+  expect_gte(final$peak - baseline, 32 * 8 + 4 * 4 + 4 * 8)
+})
+
 test_that("native indexing errors recover and repeated buffers do not leak", {
   skip_if_not(identical(Sys.getenv("CUDAVERSE_NATIVE_TESTS"), "true"))
   skip_if_not(isTRUE(cudaverse:::.native_diagnostics()$available))
