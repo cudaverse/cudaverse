@@ -1565,7 +1565,7 @@ test_that("native sparse normalization feeds resident PCA and stable kNN", {
   dense <- log1p(values * 1000 / rowSums(values))
   expect_equal(
     normalized$values,
-    log1p(sparse$values * 1000 / rowSums(values)[sparse$i]),
+    unname(log1p(sparse$values * 1000 / rowSums(values)[sparse$i])),
     tolerance = 1e-10
   )
   expect_equal(
