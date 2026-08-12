@@ -1,5 +1,9 @@
 # cudaverse 0.4.0.9000
 
+- Diffusion maps now retain the device-resident input stage in provenance.
+  Native PCA scores are reused directly by CUDA distance instead of being
+  uploaded again; kernel construction and eigendecomposition remain explicit
+  CPU stages.
 - Started the isolated 0.4 development line from the exact review-ready 0.3
   candidate while keeping the 0.3 source and evidence unchanged.
 - Extended `cuda_diagnostics()` with a concise health `status`, human-readable

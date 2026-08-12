@@ -330,6 +330,20 @@
   )
 }
 
+.embedding_diffusion_distance_stages <- function(distances) {
+  stages <- attr(
+    cuda_provenance(distances),
+    "compute_stages",
+    exact = TRUE
+  )
+  output <- list()
+  if (!is.null(stages$input_x_materialization)) {
+    output$distance_input <- stages$input_x_materialization
+  }
+  output$distance <- stages$distance
+  output
+}
+
 `%||%` <- function(x, y) {
   if (is.null(x) || length(x) == 0L) y else x
 }
@@ -617,6 +631,7 @@ cuda_tsne <- function(x, n_components = 2L, perplexity = 30,
 #'   to embed. See [cuda_umap()] for automatic selection.
 #' @return A `cuda_embedding` with the stable fields documented by
 #'   [cuda_umap()], stage-level distance/kernel/eigendecomposition provenance,
+#'   an optional `distance_input` stage when resident native storage is reused,
 #'   and an additional `eigenvalues` element.
 #' @export
 #' @examples
@@ -648,6 +663,7 @@ cuda_diffusion_map <- function(x, n_components = 2L, sigma = NULL,
     metric = metric,
     device = requested_device
   )
+  distance_stages <- .embedding_diffusion_distance_stages(distances)
   positive <- distances[distances > 0 & is.finite(distances)]
   if (is.null(sigma)) {
     sigma <- if (length(positive)) stats::median(positive) else 1
@@ -713,13 +729,9 @@ cuda_diffusion_map <- function(x, n_components = 2L, sigma = NULL,
       }
     ),
     compute_device = compute_device,
-    compute_stages = list(
-      distance = attr(
-        cuda_provenance(distances),
-        "compute_stages",
-        exact = TRUE
-      )$distance,
-      kernel = cuda_stage(
+    compute_stages = c(
+      distance_stages,
+      list(kernel = cuda_stage(
         requested_device = "fixed-cpu",
         device = "cpu",
         backend = "base",
@@ -732,7 +744,7 @@ cuda_diffusion_map <- function(x, n_components = 2L, sigma = NULL,
         backend = backend,
         selection_reason = "algorithm_cpu_only",
         output_device = "cpu"
-      )
+      ))
     )
   )
   result$eigenvalues <- retained_values

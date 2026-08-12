@@ -806,3 +806,58 @@ Remote evidence at the implementation commit:
 - supply-chain and repository workflow-boundary checks pass;
 - Linux and Windows no-CUDA artifact builds pass; and
 - CUDA 12.8.1 ABI and unchanged PTX reproducibility checks pass.
+
+## CP-05A: resident PCA to diffusion-distance boundary
+
+Status: complete at implementation commit
+`537e176752fa57e20218f76e6041b41d12dfb25b`; the checkpoint-record-only
+follow-up must pass the same PR gates before merge.
+
+Review:
+
+- draft PR: <https://github.com/cudaverse/cudaverse/pull/40>;
+- target: `develop/0.4` (not `main`);
+- no tag, release, CRAN submission, or Pages deployment; and
+- graph assembly, Louvain/Leiden, UMAP, t-SNE, and diffusion kernel/eigen
+  remain at their documented CPU or hybrid boundaries.
+
+Scope:
+
+- preserve the hidden shared native storage attached to public PCA scores
+  through embedding input normalization;
+- reuse those resident scores directly in native diffusion-map distance;
+- retain the distance input stage in embedding provenance so the avoided
+  upload is observable; and
+- keep the completed dense distance result, diffusion kernel, and
+  eigendecomposition explicitly on the host.
+
+Required gate:
+
+- an RTX contract replaces the native host-upload function with an immediate
+  error after PCA and still completes diffusion distance;
+- the input external pointer is identical before and after embedding input
+  normalization;
+- provenance begins with `distance_input` using
+  `device_resident_input`, followed by a native distance output to CPU and
+  explicit CPU kernel/eigendecomposition stages;
+- complete ordinary and RTX suites retain zero failures; and
+- no-CUDA, cross-platform, source, supply-chain, PTX, and documentation gates
+  stay green.
+
+Local evidence:
+
+- the upload-forbidden RTX test passes and produces finite diffusion
+  coordinates with hybrid compute provenance;
+- the complete ordinary and explicitly enabled RTX 2000 suites pass;
+- exact full-vignette source tarball SHA-256 is
+  `AC57EDFD4EDB079BA379130D30E08338F729CBFA672D708F413ACDE191E78643`;
+- Windows `R CMD check --as-cran --no-manual` reports 0 errors, 0 warnings,
+  and only the expected development-version incoming NOTE; and
+- capability, redistribution, SBOM, release-boundary, benchmark, candidate,
+  rejection, pkgdown, and public-documentation gates pass without deployment.
+
+Remote evidence at the implementation commit:
+
+- supply-chain and repository workflow-boundary checks pass;
+- Linux and Windows no-CUDA artifact builds pass; and
+- CUDA 12.8.1 ABI and unchanged PTX reproducibility checks pass.
