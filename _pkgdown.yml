@@ -17,6 +17,7 @@ reference:
   contents:
   - cuda_available
   - cuda_diagnostics
+  - cuda_memory_info
   - cuda_select_device
   - cuda_stage
   - cuda_provenance

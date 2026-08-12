@@ -11,6 +11,7 @@ cuda_knn,algorithm,algorithm,direct,hybrid,direct,host,Torch transfers distance 
 cuda_knn_graph,graph,graph,direct,cpu_only,cpu_only,host,Graph assembly always uses Matrix on CPU from a completed kNN result
 cuda_leiden,graph,graph,direct,cpu_only,cpu_only,host,Community detection always uses igraph on CPU
 cuda_louvain,graph,graph,direct,cpu_only,cpu_only,host,Community detection always uses igraph on CPU
+cuda_memory_info,diagnostics,diagnostics,metadata,direct,direct,host,Reports native driver and package allocator bytes or torch allocator bytes without estimating unsupported counters; first selection can run the cached self-test
 cuda_pca,algorithm,algorithm,direct,hybrid,direct,host_with_native_cache,Torch sparse input materializes before dense PCA while native has a sparse path
 cuda_provenance,provenance,diagnostics,metadata,metadata,metadata,host,Returns the recorded stage table without new numerical work
 cuda_select_device,diagnostics,diagnostics,probe,probe,probe,host,Selects native then torch for auto and records CPU fallback

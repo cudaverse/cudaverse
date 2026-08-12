@@ -1,5 +1,9 @@
 # cudaverse 0.4.0.9000
 
+- Added `cuda_memory_info()` for backend-aware memory
+  observability. Native reports CUDA-driver totals plus cudaverse-owned current
+  and peak bytes; torch reports allocated and reserved allocator bytes, while
+  unsupported counters remain explicit `NA` values.
 - Diffusion maps now retain the device-resident input stage in provenance.
   Native PCA scores are reused directly by CUDA distance instead of being
   uploaded again; kernel construction and eigendecomposition remain explicit

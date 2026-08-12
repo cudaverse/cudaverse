@@ -1032,6 +1032,44 @@ test_that("injected CUDA failures unwind temporary allocations", {
   expect_gte(final$peak - baseline, 4096)
 })
 
+test_that("public native memory telemetry survives errors and tracks ownership", {
+  skip_if_not(identical(Sys.getenv("CUDAVERSE_NATIVE_TESTS"), "true"))
+  skip_if_not(isTRUE(cudaverse:::.native_diagnostics()$auto_eligible))
+  old <- options(cudaverse.cuda_backends = "native")
+  on.exit(options(old), add = TRUE)
+  factory <- cudaverse:::.native_backend_factory()
+  factory$synchronize()
+  baseline <- cudaverse:::.native_memory_tracker(reset = TRUE)$current
+
+  before <- cudaverse::cuda_memory_info("cuda")
+  expect_true(before$available)
+  expect_identical(before$backend, "native")
+  expect_identical(before$allocated_bytes, baseline)
+  expect_equal(before$total_bytes - before$free_bytes, before$used_bytes)
+  expect_gt(before$total_bytes, 0)
+
+  storage <- factory$from_host(double(128L), "float64", 128L)
+  during <- cudaverse::cuda_memory_info("cuda")
+  expect_identical(during$allocated_bytes - baseline, 128 * 8)
+  expect_gte(during$allocated_peak_bytes, during$allocated_bytes)
+  expect_true(is.na(during$reserved_bytes))
+  factory$release(storage)
+
+  condition <- tryCatch(
+    cudaverse:::.backend_call(
+      "native", "test_inject_cuda_error", 4096L
+    ),
+    error = identity
+  )
+  expect_s3_class(condition, "cudaverse_native_error")
+  factory$synchronize()
+  gc()
+  recovered <- cudaverse::cuda_memory_info("cuda")
+  expect_true(recovered$available)
+  expect_identical(recovered$allocated_bytes, baseline)
+  expect_gte(recovered$allocated_peak_bytes - baseline, 4096)
+})
+
 test_that("repeated dense pipelines release all operation-owned VRAM", {
   skip_if_not(identical(Sys.getenv("CUDAVERSE_NATIVE_TESTS"), "true"))
   skip_if_not(isTRUE(cudaverse:::.native_diagnostics()$available))

@@ -78,6 +78,7 @@ diagnostics$auto_eligible_backends
 diagnostics$backend_diagnostics$native$self_test
 diagnostics$backend_diagnostics$native$capabilities
 diagnostics$backend_diagnostics$native$operations
+cuda_memory_info("auto")
 ```
 
 On Windows, `CUDAVERSE_CUBLAS_PATH` and `CUDAVERSE_CUSOLVER_PATH` may point
