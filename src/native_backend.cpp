@@ -2134,6 +2134,93 @@ extern "C" SEXP C_cudaverse_cuda_distance(SEXP query_pointer,
   return R_NilValue;
 }
 
+extern "C" SEXP C_cudaverse_cuda_distance_block(
+    SEXP query_pointer, SEXP reference_pointer,
+    SEXP reference_norms_pointer, SEXP first_sexp, SEXP count_sexp,
+    SEXP metric_sexp, SEXP self_sexp) {
+  require_backend();
+  require_kernels();
+  SharedBuffer* query = get_buffer(query_pointer);
+  SharedBuffer* reference = get_buffer(reference_pointer);
+  if (query->dtype != DType::Float64 ||
+      reference->dtype != DType::Float64 ||
+      query->shape.size() != 2 || reference->shape.size() != 2 ||
+      query->shape[1] != reference->shape[1]) {
+    Rf_error(
+        "Native CUDA distance blocks require conformable float64 matrices.");
+  }
+  int query_rows = query->shape[0];
+  int reference_rows = reference->shape[0];
+  int columns = query->shape[1];
+  int first = Rf_asInteger(first_sexp);
+  int count = Rf_asInteger(count_sexp);
+  if (first == NA_INTEGER || count == NA_INTEGER || first < 0 || count < 1 ||
+      count > query_rows || first > query_rows - count) {
+    Rf_error("Native CUDA distance block bounds are invalid.");
+  }
+  if (TYPEOF(metric_sexp) != STRSXP || XLENGTH(metric_sexp) != 1 ||
+      STRING_ELT(metric_sexp, 0) == NA_STRING) {
+    Rf_error("Native CUDA distance metric must be one string.");
+  }
+  std::string metric_name = CHAR(STRING_ELT(metric_sexp, 0));
+  if (metric_name != "euclidean" && metric_name != "cosine") {
+    Rf_error("Native CUDA distance metric is unsupported.");
+  }
+  int metric = metric_name == "cosine" ? 1 : 0;
+  int self = Rf_asLogical(self_sexp);
+  if (self == NA_LOGICAL) {
+    Rf_error("Native CUDA distance self flag must be TRUE or FALSE.");
+  }
+  if (self && query_rows != reference_rows) {
+    Rf_error("Native CUDA self-distance inputs must have equal rows.");
+  }
+
+  CUdeviceptr cached_norms = 0;
+  if (metric == 0) {
+    SharedBuffer* norms = get_buffer(reference_norms_pointer);
+    if (norms->dtype != DType::Float64 || norms->elements !=
+        static_cast<std::size_t>(reference_rows)) {
+      Rf_error("Native CUDA distance reference norms are invalid.");
+    }
+    cached_norms = norms->pointer;
+  }
+
+  R_CheckUserInterrupt();
+  try {
+    DeviceMemory compact_query;
+    CUdeviceptr query_device = query->pointer;
+    if (first != 0 || count != query_rows) {
+      CUfunction gather = get_kernel("cudaverse_gather_rows_f64");
+      compact_query = DeviceMemory(
+          static_cast<std::size_t>(count) * columns * sizeof(double));
+      CUdeviceptr compact_pointer = compact_query.pointer();
+      void* gather_parameters[] = {
+          &query_device, &compact_pointer, &query_rows, &columns,
+          &first, &count};
+      launch_or_throw(gather, "cudaverse_gather_rows_f64",
+                      static_cast<std::size_t>(count) * columns,
+                      gather_parameters);
+      query_device = compact_pointer;
+    }
+
+    DeviceMemory distance = distance_device(
+        query_device, count, reference->pointer, reference_rows,
+        columns, metric, first, self, cached_norms);
+    std::size_t elements =
+        static_cast<std::size_t>(count) * reference_rows;
+    SEXP result = PROTECT(Rf_allocVector(REALSXP, elements));
+    cuda_or_throw(api.cuMemcpyDtoH(
+                      REAL(result), distance.pointer(),
+                      elements * sizeof(double)),
+                  "cuMemcpyDtoH(distance block)");
+    UNPROTECT(1);
+    return result;
+  } catch (const std::exception& exception) {
+    Rf_error("%s", exception.what());
+  }
+  return R_NilValue;
+}
+
 extern "C" SEXP C_cudaverse_cuda_kmeans(
     SEXP input_pointer, SEXP centers_pointer, SEXP iter_max_sexp,
     SEXP tolerance_sexp) {
@@ -2571,6 +2658,8 @@ static const R_CallMethodDef call_methods[] = {
      reinterpret_cast<DL_FUNC>(&C_cudaverse_cuda_normalize_rows), 1},
     {"C_cudaverse_cuda_distance",
      reinterpret_cast<DL_FUNC>(&C_cudaverse_cuda_distance), 4},
+    {"C_cudaverse_cuda_distance_block",
+     reinterpret_cast<DL_FUNC>(&C_cudaverse_cuda_distance_block), 7},
     {"C_cudaverse_cuda_kmeans",
      reinterpret_cast<DL_FUNC>(&C_cudaverse_cuda_kmeans), 4},
     {"C_cudaverse_cuda_knn_block",

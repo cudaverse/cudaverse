@@ -15,6 +15,9 @@
   the requested device is unchanged, avoiding a download/upload round trip.
 - Made contiguous native CUDA subsets allocation-free shared views while
   retaining device gather for non-contiguous selections.
+- Added explicit, provenance-recorded distance batching across base, torch,
+  and native backends. Native execution retains input/reference storage and
+  cached reference norms across blocks, bounding peak device memory.
 
 # cudaverse 0.3.0.9000
 

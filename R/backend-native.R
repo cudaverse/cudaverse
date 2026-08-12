@@ -145,6 +145,20 @@
     }
     checks <- c(checks, "device-indexing")
 
+    distance_values <- rbind(c(0, 0), c(1, 0), c(0, 1), c(1, 1))
+    distance <- .native_algorithm_distance_batched(
+      distance_values, distance_values, "euclidean", 2L
+    )
+    if (!isTRUE(all.equal(
+      distance,
+      as.matrix(stats::dist(distance_values)),
+      tolerance = 1e-10,
+      check.attributes = FALSE
+    ))) {
+      stop("batched distance parity failed", call. = FALSE)
+    }
+    checks <- c(checks, "resident-batched-distance")
+
     kmeans_values <- rbind(c(0, 0), c(0, 1), c(10, 10), c(10, 11))
     kmeans <- .native_algorithm_kmeans(
       kmeans_values,
@@ -264,6 +278,7 @@
     "pca",
     "pca-predict",
     "distance",
+    "distance-batched",
     "kmeans",
     "knn",
     "stable-topk",
@@ -566,6 +581,48 @@
   )
 }
 
+.native_algorithm_distance_batched <- function(x, y, metric, batch_size,
+                                                source_x = x,
+                                                source_y = y) {
+  .native_ensure_kernels()
+  self <- identical(source_x, source_y)
+  query_storage <- .native_distance_storage(x, source_x, metric)
+  on.exit(.native_release(query_storage), add = TRUE)
+  reference_storage <- if (self) {
+    query_storage
+  } else {
+    .native_distance_storage(y, source_y, metric)
+  }
+  if (!self) on.exit(.native_release(reference_storage), add = TRUE)
+  reference_norms <- if (identical(metric, "euclidean")) {
+    .Call(C_cudaverse_cuda_row_norms, reference_storage)
+  } else {
+    NULL
+  }
+  if (!is.null(reference_norms)) {
+    on.exit(.native_release(reference_norms), add = TRUE)
+  }
+
+  result <- matrix(NA_real_, nrow = nrow(x), ncol = nrow(y))
+  starts <- seq.int(1L, nrow(x), by = batch_size)
+  for (start in starts) {
+    count <- min(batch_size, nrow(x) - start + 1L)
+    rows <- seq.int(start, length.out = count)
+    block <- .Call(
+      C_cudaverse_cuda_distance_block,
+      query_storage,
+      reference_storage,
+      reference_norms,
+      as.integer(start - 1L),
+      as.integer(count),
+      as.character(metric),
+      self
+    )
+    result[rows, ] <- matrix(block, nrow = count, ncol = nrow(y))
+  }
+  result
+}
+
 .native_algorithm_kmeans <- function(x, centers, iter_max, tolerance) {
   .native_ensure_kernels()
   input_storage <- .native_from_host(x, "float64", dim(x))
@@ -723,6 +780,7 @@
     algorithm_pca_predict = .native_algorithm_pca_predict,
     algorithm_sparse_pca = .native_algorithm_sparse_pca,
     algorithm_distance = .native_algorithm_distance,
+    algorithm_distance_batched = .native_algorithm_distance_batched,
     algorithm_kmeans = .native_algorithm_kmeans,
     algorithm_knn_prepare = .native_knn_prepare,
     algorithm_sparse_knn_prepare = .native_sparse_knn_prepare,

@@ -9,7 +9,8 @@
   "driver-detection", "allocation", "transfer", "cast", "matmul",
   "reduce", "arithmetic", "reshape", "broadcast", "transpose",
   "subset", "replacement", "svd",
-  "pca", "pca-predict", "distance", "knn", "stable-topk", "sparse",
+  "pca", "pca-predict", "distance", "distance-batched", "knn",
+  "stable-topk", "sparse",
   "sparse-coo", "sparse-csr", "sparse-normalize", "sparse-matmul",
   "sparse-reduce", "sparse-pca", "sparse-knn", "synchronize",
   "shared-ownership", "dtype-float32", "dtype-float64",
@@ -188,7 +189,7 @@
       "transfer", "cast", "arithmetic", "matmul", "reduce",
       "reshape", "broadcast", "transpose", "subset", "replacement",
       "svd", "pca",
-      "pca-predict", "distance", "knn", "sparse"
+      "pca-predict", "distance", "distance-batched", "knn", "sparse"
     ),
     from_host = function(x, dtype, shape, dimnames = NULL) {
       values <- switch(
@@ -293,6 +294,24 @@
         1 - tcrossprod(x, y)
       }
     },
+    algorithm_distance_batched = function(x, y, metric, batch_size,
+                                          source_x = x, source_y = y) {
+      result <- matrix(NA_real_, nrow = nrow(x), ncol = nrow(y))
+      starts <- seq.int(1L, nrow(x), by = batch_size)
+      for (start in starts) {
+        rows <- seq.int(
+          start,
+          length.out = min(batch_size, nrow(x) - start + 1L)
+        )
+        query <- x[rows, , drop = FALSE]
+        result[rows, ] <- if (identical(metric, "euclidean")) {
+          .euclidean_distance_cpu(query, y)
+        } else {
+          1 - tcrossprod(query, y)
+        }
+      }
+      result
+    },
     algorithm_knn_prepare = function(values, metric = "euclidean",
                                      source_values = values) values,
     algorithm_knn_block = function(storage, values, rows, metric) {
@@ -356,7 +375,7 @@
     capabilities = function() c(
       "transfer", "cast", "arithmetic", "matmul", "reduce",
       "reshape", "broadcast", "transpose", "svd", "pca", "distance",
-      "pca-predict", "knn", "sparse"
+      "distance-batched", "pca-predict", "knn", "sparse"
     ),
     from_host = function(x, dtype, shape, dimnames = NULL) {
       torch::torch_tensor(x, dtype = .torch_dtype(dtype), device = "cuda")
@@ -481,6 +500,29 @@
         1 - x_gpu$matmul(y_gpu$t())
       }
       .torch_array(result)
+    },
+    algorithm_distance_batched = function(x, y, metric, batch_size,
+                                          source_x = x, source_y = y) {
+      x_gpu <- .torch_matrix(x)
+      y_gpu <- if (identical(x, y)) x_gpu else .torch_matrix(y)
+      result <- matrix(NA_real_, nrow = nrow(x), ncol = nrow(y))
+      starts <- seq.int(1L, nrow(x), by = batch_size)
+      for (start in starts) {
+        rows <- seq.int(
+          start,
+          length.out = min(batch_size, nrow(x) - start + 1L)
+        )
+        query <- x_gpu[rows, , drop = FALSE]
+        block <- if (identical(metric, "euclidean")) {
+          torch::torch_cdist(query, y_gpu, p = 2)
+        } else {
+          1 - query$matmul(y_gpu$t())
+        }
+        result[rows, ] <- matrix(
+          .torch_array(block), nrow = length(rows), ncol = nrow(y)
+        )
+      }
+      result
     },
     algorithm_knn_prepare = function(values, metric = "euclidean",
                                      source_values = values) {

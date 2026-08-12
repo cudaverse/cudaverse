@@ -928,12 +928,57 @@ predict.cuda_pca <- function(object, newdata, device = c(
   scaled / sqrt(rowSums(scaled^2))
 }
 
+.row_batch_size <- function(batch_size, n) {
+  integer_batch_size <- suppressWarnings(as.integer(batch_size))
+  if (!is.numeric(batch_size) || length(batch_size) != 1L ||
+      is.na(batch_size) || !is.finite(batch_size) ||
+      is.na(integer_batch_size) || integer_batch_size < 1L ||
+      batch_size != integer_batch_size) {
+    stop("`batch_size` must be one positive whole number.", call. = FALSE)
+  }
+  min(integer_batch_size, n)
+}
+
+.distance_backend_blocks <- function(backend, x, y, metric,
+                                     source_x, source_y, batch_size) {
+  if (.backend_has_operation(backend, "algorithm_distance_batched")) {
+    return(.backend_call(
+      backend, "algorithm_distance_batched",
+      x, y, metric, batch_size, source_x, source_y
+    ))
+  }
+  if (batch_size == nrow(x)) {
+    return(.backend_call(
+      backend, "algorithm_distance", x, y, metric, source_x, source_y
+    ))
+  }
+
+  result <- matrix(NA_real_, nrow = nrow(x), ncol = nrow(y))
+  starts <- seq.int(1L, nrow(x), by = batch_size)
+  for (start in starts) {
+    rows <- seq.int(
+      start,
+      length.out = min(batch_size, nrow(x) - start + 1L)
+    )
+    query <- x[rows, , drop = FALSE]
+    block <- .backend_call(
+      backend, "algorithm_distance", query, y, metric, query, source_y
+    )
+    result[rows, ] <- matrix(
+      block, nrow = length(rows), ncol = nrow(y)
+    )
+  }
+  result
+}
+
 #' Pairwise distances with an optional CUDA backend
 #'
 #' @param x,y Numeric matrices with observations in rows. When `y` is `NULL`,
 #'   computes all pairwise distances within `x`.
 #' @param metric `"euclidean"` or `"cosine"`.
 #' @param device One of `"auto"`, `"cuda"`, or `"cpu"`.
+#' @param batch_size Maximum number of query rows in each compute block. The
+#'   final dense result is still allocated in host memory.
 #' @return A dense numeric distance matrix with a `device` attribute. Input
 #'   observation names are retained as row and column names when present.
 #' @details On CPU, Euclidean distances use a common translation and global
@@ -941,13 +986,17 @@ predict.cuda_pca <- function(object, newdata, device = c(
 #'   non-finite intermediate results are recomputed from direct observation
 #'   differences with a scale-first norm. This avoids cancellation from large
 #'   shared offsets and avoids avoidable overflow and underflow for extreme
-#'   finite values.
+#'   finite values. All built-in backends honor `batch_size`. The native CUDA
+#'   backend uploads each input once, keeps the reference matrix and its norms
+#'   device-resident, and transfers only completed distance blocks to R. This
+#'   bounds operation-owned device memory without silently changing backend.
 #' @export
 #' @examples
 #' cuda_distance(matrix(1:12, 4, 3), device = "cpu")
 cuda_distance <- function(x, y = NULL,
                           metric = c("euclidean", "cosine"),
-                          device = c("auto", "cuda", "cpu")) {
+                          device = c("auto", "cuda", "cpu"),
+                          batch_size = 256L) {
   source_device <- .learn_source_device(x)
   source_class <- class(x)[[1L]]
   input_x_stage <- .learn_input_stage(x)
@@ -965,6 +1014,7 @@ cuda_distance <- function(x, y = NULL,
   if (ncol(x) != ncol(y)) {
     stop("`x` and `y` must have the same number of columns.", call. = FALSE)
   }
+  batch_size <- .row_batch_size(batch_size, nrow(x))
   metric <- match.arg(metric)
   if (metric == "cosine") {
     x_unit <- .cosine_unit_rows(x, "x")
@@ -974,14 +1024,14 @@ cuda_distance <- function(x, y = NULL,
   device <- selection$device
 
   backend <- .learn_selection_backend(selection)
-  distance <- .backend_call(
+  distance <- .distance_backend_blocks(
     backend,
-    "algorithm_distance",
     if (metric == "cosine") x_unit else x,
     if (metric == "cosine") y_unit else y,
     metric,
     x,
-    y
+    y,
+    batch_size
   )
   if (metric == "cosine") {
     distance <- pmin(pmax(distance, 0), 2)
@@ -1008,21 +1058,14 @@ cuda_distance <- function(x, y = NULL,
     stages,
     requested_device = selection$requested_device,
     backend = backend,
-    parameters = list(metric = metric),
+    parameters = list(
+      metric = metric,
+      batch_size = batch_size,
+      batches = as.integer(ceiling(nrow(x) / batch_size))
+    ),
     source_device = source_device,
     source_class = source_class
   )
-}
-
-.knn_batch_size <- function(batch_size, n) {
-  integer_batch_size <- suppressWarnings(as.integer(batch_size))
-  if (!is.numeric(batch_size) || length(batch_size) != 1L ||
-      is.na(batch_size) || !is.finite(batch_size) ||
-      is.na(integer_batch_size) || integer_batch_size < 1L ||
-      batch_size != integer_batch_size) {
-    stop("`batch_size` must be one positive whole number.", call. = FALSE)
-  }
-  min(integer_batch_size, n)
 }
 
 .knn_distance_state <- function(x, metric, selection = NULL,
@@ -1137,7 +1180,7 @@ cuda_knn <- function(x, k = 15L, metric = c("euclidean", "cosine"),
   metric <- match.arg(metric)
   selection <- .learn_device(device)
   device <- selection$device
-  batch_size <- .knn_batch_size(batch_size, n_observations)
+  batch_size <- .row_batch_size(batch_size, n_observations)
   compute_backend <- .learn_selection_backend(selection)
   backend_sparse <- sparse_input &&
     .backend_has_operation(compute_backend, "algorithm_sparse_knn_prepare")

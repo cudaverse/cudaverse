@@ -107,11 +107,12 @@ test_that("capabilities and callable operations have distinct contracts", {
   base <- cudaverse:::.backend_get("base")
 
   expect_true(all(c(
-    "svd", "pca", "pca-predict", "distance", "knn"
+    "svd", "pca", "pca-predict", "distance", "distance-batched", "knn"
   ) %in% base$capabilities()))
   expect_true(all(c(
     "algorithm_svd", "algorithm_pca", "algorithm_pca_predict",
-    "algorithm_distance", "algorithm_knn_prepare", "algorithm_knn_block"
+    "algorithm_distance", "algorithm_distance_batched",
+    "algorithm_knn_prepare", "algorithm_knn_block"
   ) %in% cudaverse:::.backend_operations(base)))
 })
 
@@ -389,6 +390,51 @@ test_that("native auto-selection requires its contract, capabilities, and self-t
 test_that("optional backend operations are discovered without changing contract", {
   expect_false(cudaverse:::.backend_has_operation("base", "missing_method"))
   expect_true(cudaverse:::.backend_has_operation("base", "algorithm_distance"))
+})
+
+test_that("distance dispatches one explicit backend batching contract", {
+  values <- matrix(seq_len(30) / 7, 10L, 3L)
+  calls <- new.env(parent = emptyenv())
+  calls$batched <- 0L
+  factory <- cudaverse:::.base_backend_factory()
+  factory$name <- "distance-batch-contract"
+  factory$device <- "cuda"
+  factory$algorithm_distance <- function(...) {
+    stop("unexpected unbatched distance dispatch", call. = FALSE)
+  }
+  factory$algorithm_distance_batched <- function(
+      x, y, metric, batch_size, source_x, source_y) {
+    calls$batched <- calls$batched + 1L
+    expect_identical(x, values)
+    expect_identical(y, values)
+    expect_identical(source_x, values)
+    expect_identical(source_y, values)
+    expect_identical(metric, "euclidean")
+    expect_identical(batch_size, 3L)
+    as.matrix(stats::dist(values))
+  }
+  cudaverse:::.backend_register(factory, replace = TRUE)
+  on.exit(
+    rm(list = factory$name, envir = cudaverse:::.cudaverse_backends),
+    add = TRUE
+  )
+  testthat::local_mocked_bindings(
+    .learn_device = function(device) list(
+      requested_device = "cuda",
+      device = "cuda",
+      backend = factory$name,
+      selection_reason = "contract_test",
+      fallback = FALSE
+    )
+  )
+
+  result <- cuda_distance(values, device = "cuda", batch_size = 3L)
+
+  expect_identical(calls$batched, 1L)
+  expect_equal(result, as.matrix(stats::dist(values)), ignore_attr = TRUE)
+  expect_identical(attr(result, "backend"), factory$name)
+  expect_identical(attr(result, "parameters")$batch_size, 3L)
+  expect_identical(attr(result, "parameters")$batches, 4L)
 })
 
 test_that("sparse algorithms dispatch by operation rather than backend name", {

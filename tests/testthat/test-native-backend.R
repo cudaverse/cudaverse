@@ -26,7 +26,8 @@ test_that("native diagnostics and factory follow the integrated contract", {
     "sparse_from_coo", "sparse_to_host",
     "sparse_transpose", "sparse_reduce", "sparse_normalize",
     "sparse_matmul_dense",
-    "algorithm_pca_predict", "algorithm_sparse_pca", "algorithm_kmeans",
+    "algorithm_pca_predict", "algorithm_sparse_pca",
+    "algorithm_distance_batched", "algorithm_kmeans",
     "algorithm_sparse_knn_prepare",
     "synchronize", "release", "error_translate"
   ) %in% names(factory)))
@@ -61,6 +62,7 @@ test_that("native runtime self-test is cached and releases its allocations", {
     "float32-transfer-matmul-reduce",
     "arithmetic-reshape-broadcast-transpose",
     "device-indexing",
+    "resident-batched-distance",
     "resident-kmeans",
     "sparse-transpose",
     "sparse-transfer-normalize"
@@ -494,10 +496,18 @@ test_that("native distances and stable device top-k match CPU ordering", {
     c(0, 0), c(1, 0), c(-1, 0), c(0, 1), c(0, -1), c(1, 0)
   )
   cpu_distance <- cudaverse::cuda_distance(values, device = "cpu")
-  native_distance <- cudaverse::cuda_distance(values, device = "cuda")
-  expect_equal(
-    as.vector(native_distance), as.vector(cpu_distance), tolerance = 1e-10
-  )
+  for (batch_size in c(1L, 2L, 100L)) {
+    native_distance <- cudaverse::cuda_distance(
+      values, device = "cuda", batch_size = batch_size
+    )
+    expect_equal(
+      as.vector(native_distance), as.vector(cpu_distance), tolerance = 1e-10
+    )
+    expect_identical(
+      attr(native_distance, "parameters")$batch_size,
+      min(batch_size, nrow(values))
+    )
+  }
 
   factory <- cudaverse:::.native_backend_factory()
   state <- factory$algorithm_knn_prepare(values)
@@ -524,6 +534,20 @@ test_that("native distances and stable device top-k match CPU ordering", {
   expect_identical(native_cosine$index, cpu_cosine$index)
   expect_equal(native_cosine$distance, cpu_cosine$distance, tolerance = 1e-10)
 
+  cpu_cosine_distance <- cudaverse::cuda_distance(
+    cosine_values, metric = "cosine", device = "cpu", batch_size = 2L
+  )
+  for (batch_size in c(1L, 3L, 100L)) {
+    native_cosine_distance <- cudaverse::cuda_distance(
+      cosine_values, metric = "cosine", device = "cuda",
+      batch_size = batch_size
+    )
+    expect_equal(
+      native_cosine_distance, cpu_cosine_distance,
+      tolerance = 1e-10, ignore_attr = TRUE
+    )
+  }
+
   set.seed(33)
   general_values <- matrix(rnorm(135), 45, 3)
   general_state <- factory$algorithm_knn_prepare(general_values)
@@ -535,6 +559,107 @@ test_that("native distances and stable device top-k match CPU ordering", {
   )
   expect_identical(native_general$index, cpu_general$index)
   expect_equal(native_general$distance, cpu_general$distance, tolerance = 1e-10)
+
+  query <- general_values[1:7, , drop = FALSE]
+  reference <- general_values[8:45, , drop = FALSE]
+  for (metric in c("euclidean", "cosine")) {
+    cpu_cross <- cudaverse::cuda_distance(
+      query, reference, metric = metric, device = "cpu", batch_size = 7L
+    )
+    for (batch_size in c(1L, 4L, 100L)) {
+      native_cross <- cudaverse::cuda_distance(
+        query, reference, metric = metric, device = "cuda",
+        batch_size = batch_size
+      )
+      expect_equal(
+        native_cross, cpu_cross, tolerance = 1e-10, ignore_attr = TRUE
+      )
+    }
+  }
+})
+
+test_that("native distance batching bounds peak VRAM and releases cycles", {
+  skip_if_not(identical(Sys.getenv("CUDAVERSE_NATIVE_TESTS"), "true"))
+  skip_if_not(isTRUE(cudaverse:::.native_diagnostics()$available))
+  factory <- cudaverse:::.native_backend_factory()
+  set.seed(982)
+  values <- matrix(rnorm(512L * 16L), 512L, 16L)
+  factory$synchronize()
+  gc()
+  baseline <- cudaverse:::.native_memory_tracker(reset = TRUE)$current
+
+  full <- factory$algorithm_distance(values, values, "euclidean")
+  factory$synchronize()
+  full_tracker <- cudaverse:::.native_memory_tracker()
+  expect_identical(full_tracker$current, baseline)
+
+  cudaverse:::.native_memory_tracker(reset = TRUE)
+  batched <- factory$algorithm_distance_batched(
+    values, values, "euclidean", 64L
+  )
+  factory$synchronize()
+  batched_tracker <- cudaverse:::.native_memory_tracker()
+  expect_equal(batched, full, tolerance = 1e-10)
+  expect_identical(batched_tracker$current, baseline)
+  expect_lt(
+    batched_tracker$peak - baseline,
+    full_tracker$peak - baseline
+  )
+
+  input_bytes <- 512 * 16 * 8
+  reference_norm_bytes <- 512 * 8
+  query_bytes <- 64 * 16 * 8
+  query_norm_bytes <- 64 * 8
+  block_bytes <- 64 * 512 * 8
+  expected_peak <- input_bytes + reference_norm_bytes + query_bytes +
+    query_norm_bytes + 2 * block_bytes
+  expect_lte(batched_tracker$peak - baseline, expected_peak)
+
+  small <- matrix(seq_len(32) / 11, 8L, 4L)
+  cudaverse:::.native_memory_tracker(reset = TRUE)
+  for (iteration in seq_len(1000L)) {
+    repeated <- factory$algorithm_distance_batched(
+      small, small, "euclidean", 2L
+    )
+    expect_identical(dim(repeated), c(8L, 8L))
+  }
+  rm(repeated)
+  factory$synchronize()
+  gc()
+  final <- cudaverse:::.native_memory_tracker()
+  expect_identical(final$current, baseline)
+})
+
+test_that("interrupted native distance batches release and remain reusable", {
+  skip_if_not(identical(Sys.getenv("CUDAVERSE_NATIVE_TESTS"), "true"))
+  skip_if_not(isTRUE(cudaverse:::.native_diagnostics()$available))
+  factory <- cudaverse:::.native_backend_factory()
+  values <- matrix(rnorm(30000), 1500L, 20L)
+  factory$synchronize()
+  gc()
+  baseline <- cudaverse:::.native_memory_tracker(reset = TRUE)$current
+  on.exit(setTimeLimit(cpu = Inf, elapsed = Inf, transient = FALSE), add = TRUE)
+
+  setTimeLimit(elapsed = 0.02, transient = TRUE)
+  condition <- tryCatch(
+    factory$algorithm_distance_batched(
+      values, values, "euclidean", 1L
+    ),
+    error = identity
+  )
+  setTimeLimit(cpu = Inf, elapsed = Inf, transient = FALSE)
+  expect_s3_class(condition, "error")
+
+  factory$synchronize()
+  gc()
+  final <- cudaverse:::.native_memory_tracker()
+  expect_identical(final$current, baseline)
+  reused <- factory$algorithm_distance_batched(
+    values[1:8, , drop = FALSE],
+    values[1:8, , drop = FALSE],
+    "euclidean", 3L
+  )
+  expect_identical(dim(reused), c(8L, 8L))
 })
 
 test_that("native k-means keeps Lloyd updates resident and matches CPU", {

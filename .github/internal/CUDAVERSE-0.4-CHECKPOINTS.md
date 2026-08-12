@@ -141,6 +141,66 @@ Remote evidence at the implementation commit:
 - Linux and Windows no-CUDA artifact builds pass; and
 - CUDA 12.8.1 ABI and PTX checks pass.
 
+## CP-03A: explicit batched dense distance
+
+Status: implementation and local gates complete; remote PR gates pending.
+
+Scope:
+
+- add one explicit `batch_size` contract to `cuda_distance()` and record the
+  effective batch size and count in existing provenance parameters;
+- require base, torch, and native built-in backends to honor query batching;
+- keep native query/reference storage and cached reference norms resident
+  across blocks, transferring only each completed distance block to R; and
+- preserve the full dense host-output contract, strict CUDA semantics,
+  Euclidean/cosine accuracy, dimnames, and existing provenance schema.
+
+Required gate:
+
+- self and cross-distance parity passes for Euclidean and cosine metrics at
+  batch sizes 1, intermediate, and larger than the query;
+- public validation rejects non-positive, fractional, non-finite, missing, or
+  empty batch sizes before backend dispatch;
+- RTX 2000 operation-owned peak VRAM scales with `batch_size * nrow(y)` rather
+  than `nrow(x) * nrow(y)`;
+- 1,000 repeated native batched calls return to the exact tracked-memory
+  baseline; and
+- interruption releases native block state and leaves the backend reusable.
+
+Initial RTX 2000 evidence:
+
+- for a `512 x 16` self-distance input with batch size 64, tracked peak delta
+  falls from 4,268,032 bytes for the full device matrix path to 602,624 bytes
+  for the batched path, an 85.9% reduction; and
+- final tracked VRAM delta is zero.
+
+Local evidence:
+
+- base and native self/cross distance parity passes for Euclidean and cosine
+  metrics at batch sizes 1, intermediate, and larger than the query;
+- the backend operation contract receives one explicit effective batch size,
+  while legacy third-party distance operations retain a compatibility path;
+- invalid batch sizes fail before backend dispatch, and effective batch size
+  plus batch count are recorded in provenance parameters;
+- the native runtime self-test includes resident batched distance;
+- 1,000 repeated native batched distance calls return to the exact
+  tracked-memory baseline, and an interrupted run leaves the backend reusable;
+- the complete ordinary and explicitly enabled RTX 2000 suites pass, with no
+  hardware skips in the latter;
+- source tarball SHA-256 is
+  `CB7287AFD7BB9ECDDC24413C05200C58DC1EB81784AA4CB215F1903597982427`;
+- Windows `R CMD check --as-cran` reports 0 errors, 0 warnings, and only the
+  expected development-version NOTE; and
+- capability, redistribution, SBOM, release-boundary, benchmark, candidate,
+  rejection, pkgdown, and public-documentation gates pass without deployment.
+
+Environment boundary:
+
+- the installed torch package does not report a usable CUDA backend on this R
+  runtime, so torch hardware parity remains assigned to the protected runner;
+  its built-in adapter implements the same explicit block loop and is covered
+  by no-CUDA loading, contract, and cross-platform checks.
+
 ## CP-02D: allocation-free contiguous subset views
 
 Status: complete at implementation commit
