@@ -1,5 +1,7 @@
 # cudaverse
 
+![cudaverse logo](reference/figures/logo.svg)
+
 `cudaverse` provides GPU-aware numerical workflows for R.
 
 The public API is organized by topic:
