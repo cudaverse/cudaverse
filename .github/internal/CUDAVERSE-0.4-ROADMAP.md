@@ -1,4 +1,4 @@
-# cudaverse 0.4 development roadmap
+# cudaverse 0.4 internal development roadmap
 
 ## Outcome and boundaries
 

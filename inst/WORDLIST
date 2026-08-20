@@ -1,5 +1,6 @@
 allocator
 allocator's
+Auditable
 backend's
 centre
 centres
@@ -37,6 +38,7 @@ operand's
 PCA's
 pkgdown
 PTX
+PowerShell
 rematerialize
 representability
 reproducibly
@@ -46,9 +48,12 @@ runnable
 SBOM
 SHA
 SingleCellExperiment
+symlink
 SNE
 tensor's
+toolchain
 UMAP
+unversioned
 untimed
 unquantized
 VRAM

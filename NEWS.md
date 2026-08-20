@@ -1,3 +1,14 @@
+# cudaverse 0.4.1
+
+- Reworked the README and tutorials around first-time CUDA users, with clearer
+  Windows and Linux setup, strict CUDA examples, task-oriented workflows, and
+  an evidence-backed performance guide.
+- Kept maintainer roadmaps and hardware-validation details out of the public
+  pkgdown site, and added checks that prevent those internal pages and testing
+  machine descriptions from being published again.
+- Added the cudaverse package logo and aligned package, website, and
+  organization branding.
+
 # cudaverse 0.4.0
 
 - Replaced the base kNN backend's full per-row stable ordering with bounded

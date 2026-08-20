@@ -11,6 +11,7 @@ articles:
   - gpu-setup
   - backend-provenance
   - backend-support
+  - performance
 
 reference:
 - title: Device and provenance

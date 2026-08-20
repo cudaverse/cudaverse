@@ -46,8 +46,8 @@ complete pairwise distance matrix. The native CUDA backend keeps distance
 blocks and deterministic top-k selection on the GPU. A torch backend with
 stable-sort support follows the same residency contract. Both transfer only
 the final \code{n}-by-\code{k} index and distance matrices. Compatibility backends
-without device-side selection transfer each distance block to the CPU for stable
-ordering. On CPU, Euclidean blocks use the same guarded
+without device-side selection transfer each distance block to the CPU for
+stable ordering. On CPU, Euclidean blocks use the same guarded
 translated-and-scaled implementation as \code{\link[=cuda_distance]{cuda_distance()}}.
 }
 \examples{

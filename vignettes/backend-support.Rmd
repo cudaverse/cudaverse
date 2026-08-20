@@ -1,134 +1,121 @@
 ---
-title: "Backend support and release boundaries"
+title: "What runs on CUDA?"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Backend support and release boundaries}
+  %\VignetteIndexEntry{What runs on CUDA?}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
 
-```{r setup, include = FALSE}
-knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", eval = FALSE)
 ```
 
-`cudaverse` has one public API and three possible computation backends. The
-portable base backend is always present. The optional torch backend uses a
-CUDA-enabled torch installation. The lightweight native backend dynamically
-loads an NVIDIA driver, cuBLAS, cuSOLVER, and package PTX only when CUDA is
-diagnosed or requested.
+Use this page to decide whether cudaverse can accelerate the part of your
+analysis that matters. “Yes” means the numerical work runs with CUDA. “Partly”
+means cudaverse uses CUDA for some steps and an established R package for the
+rest.
 
-Installing the package does not download a CUDA runtime or LibTorch. Explicit
-`device = "cuda"` requests are strict and never silently fall back to CPU.
-`device = "auto"` may fall back, and the reason is preserved in provenance.
+## CUDA task summary
 
-## Read the matrix
+| Task | Runs with CUDA? | What you receive in R |
+|---|---|---|
+| Dense tensor operations | Yes | A GPU tensor until you call `to_cpu()` |
+| Matrix multiplication and summaries | Yes | A GPU tensor |
+| SVD and PCA | Yes | An R model that can reuse GPU results |
+| Pairwise distances | Yes | A regular R distance matrix |
+| Exact kNN | Yes | Neighbour indices and distances |
+| k-means | Yes | An R clustering result |
+| Sparse storage, normalization, and multiplication | Yes | A GPU sparse object |
+| Sparse PCA followed by exact kNN | Yes | Final neighbour results |
+| kNN graph construction | Partly | A sparse `Matrix` graph |
+| Louvain and Leiden | Partly | Community labels |
+| UMAP and t-SNE | Partly | Embedding coordinates |
+| Diffusion map | Partly | Embedding coordinates |
 
-The table below covers every exported function. Its status vocabulary is:
+Use `device = "cuda"` for tasks that must run on an eligible CUDA backend and
+inspect `cuda_provenance()` for the actual stage boundary.
 
-- `direct`: the main numerical operation is implemented by that backend;
-- `hybrid`: meaningful stages are split between that backend and CPU code;
-- `cpu_only`: the operation deliberately runs on CPU for the current surface;
-- `metadata`: validation or metadata without a new numerical kernel;
-- `probe`: backend diagnosis or selection; and
-- `host`: an explicit host materialization.
+## Dense CUDA example
 
-`direct` does not imply that the public return value remains on the device.
-The `result_location` column states whether the result is host-resident,
-device-resident, cached for a native continuation, or backend-dependent.
-The `contract_case` column connects every export to one of six executable
-public-API workflows: diagnostics, tensor, sparse, algorithm, graph, or
-embedding.
-
-```{r capability-matrix, echo = FALSE}
-matrix_path <- system.file(
-  "reports", "backend-capability-matrix.csv", package = "cudaverse"
-)
-if (!nzchar(matrix_path)) {
-  matrix_path <- file.path(
-    dirname(knitr::current_input(dir = TRUE)),
-    "..", "inst", "reports", "backend-capability-matrix.csv"
-  )
-}
-support <- utils::read.csv(matrix_path, stringsAsFactors = FALSE)
-knitr::kable(support, row.names = FALSE)
-```
-
-The installed matrix and `NAMESPACE` are checked together: a new or removed
-export fails the package tests until this table is updated. The same compact
-contract workflows always run against base. On the protected hardware gate,
-they must also pass against both torch and native without skipped cases. The
-suite checks numerical parity, metadata, provenance, intentional CPU/hybrid
-boundaries, missing-runtime behavior, invalid inputs, and backend reuse after
-an error. Backend-specific ownership, injected CUDA failure, interruption, and
-1,000-cycle lifecycle tests continue to run beside this public surface suite.
-
-## Intentional CPU and hybrid boundaries
-
-The following boundaries are deliberate and are not reasons to install more
-packages:
-
-- native CUDA tensor subsetting and replacement keep tensor values on the
-  device; missing indices and compatibility backends without indexing
-  operations use a recorded CPU round trip;
-- `t()` preserves `cudasparse` device, format, and labels; native backing
-  storage is transposed on CUDA while compatibility backends rebuild from the
-  stable public COO metadata;
-- native CUDA k-means keeps distance, stable assignment, accumulation, and
-  centre updates on the device; the torch compatibility path uses GPU distance
-  and CPU assignment/centre updates;
-- exact kNN keeps each distance block and stable top-k selection on the native
-  backend, and does the same on torch versions that expose stable device sort;
-  only the final index and distance matrices cross the host boundary;
-- kNN graph construction uses `Matrix`, while Louvain and Leiden use `igraph`;
-- UMAP and t-SNE use `uwot` and `Rtsne` on CPU; and
-- diffusion maps may calculate distance on CUDA, but construct the kernel and
-  eigendecomposition on CPU.
-
-`SingleCellExperiment` support is optional. Embedding entry points materialize
-the selected reduced dimension as a host matrix and retain its cell names and
-compatible source provenance. UMAP and t-SNE remain CPU operations. Diffusion
-maps can move that matrix through the documented CUDA distance stage, followed
-by the intentional CPU kernel and eigendecomposition stages. Seurat objects are
-not currently a public input type.
-
-Use `cuda_provenance()` on a result to inspect each actual compute and transfer
-stage. A hybrid result is not presented as fully GPU-resident.
-
-## Native acceptance gate
-
-On 2026-08-10, source commit
-`fdceea66d13c84c4adf731b8cd4fd0826c738ca6` passed the complete explicitly
-gated native test file on an NVIDIA RTX 2000 Ada Generation GPU with 16 GB VRAM
-and driver 595.97. No hardware case was skipped. The gate covered:
-
-- float32/float64 transfer, matmul, arithmetic, reductions, reshape,
-  broadcasting, transpose, subsetting, and replacement;
-- SVD, PCA, PCA prediction, distance, deterministic top-k, and kNN;
-- COO/CSR ownership, sparse multiplication, reductions, normalization, sparse
-  PCA, and sparse kNN;
-- structured CUDA and R error recovery, time-limit interruption, and backend
-  reuse; and
-- shared ownership, allocation telemetry, and 1,000-cycle dense and sparse
-  lifecycle tests.
-
-The test process referenced user-provided `cublas64_12.dll` and
-`cusolver64_11.dll` files already present on that machine. These libraries are
-not copied into or redistributed with `cudaverse`. Exact release-candidate
-evidence is regenerated at the final candidate commit rather than inferred
-from this checkpoint.
-
-## Inspect a local installation
-
-```{r diagnostics}
+```{r dense}
 library(cudaverse)
+cuda_select_device("cuda")
 
+set.seed(1)
+x <- matrix(rnorm(10000 * 100), nrow = 10000)
+x_gpu <- cuda_tensor(x, device = "cuda", dtype = "float32")
+
+product_gpu <- tensor_matmul(t(x_gpu), x_gpu)
+reduced_gpu <- tensor_sum(product_gpu, dim = 1)
+pca <- cuda_pca(x_gpu, n_components = 20, device = "cuda")
+neighbors <- cuda_knn(pca$x, k = 15, device = "cuda")
+
+tensor_device(reduced_gpu)
+cuda_provenance(neighbors)
+```
+
+The tensor operations and PCA scores stay on the GPU. Only the final neighbour
+matrices are returned as ordinary R objects.
+
+## Sparse CUDA example
+
+```{r sparse}
+counts <- Matrix::rsparsematrix(10000, 100, density = 0.03)
+counts@x <- abs(counts@x)
+
+counts_gpu <- cuda_sparse(counts, device = "cuda")
+normalized_gpu <- sparse_normalize(
+  counts_gpu,
+  margin = "rows",
+  scale_factor = 10000,
+  log1p = TRUE
+)
+feature_totals_gpu <- sparse_row_sums(t(normalized_gpu))
+sparse_pca <- cuda_pca(normalized_gpu, n_components = 20, device = "cuda")
+sparse_neighbors <- cuda_knn(
+  sparse_pca$x,
+  k = 15,
+  device = "cuda"
+)
+
+sparse_info(normalized_gpu)
+cuda_provenance(sparse_neighbors)
+```
+
+## Graph and embedding workflows
+
+GPU acceleration of PCA and exact kNN can still reduce the cost before graph
+or embedding stages, but the current graph clustering and UMAP/t-SNE
+implementations are not described as native CUDA.
+
+```{r graph-embedding}
+pca <- cuda_pca(x, n_components = 20, device = "cuda")
+neighbors <- cuda_knn(pca$x, k = 15, device = "cuda")
+
+graph <- cuda_knn_graph(neighbors)
+communities <- cuda_leiden(graph)
+embedding <- cuda_umap(pca$x)
+
+cuda_provenance(communities)
+cuda_provenance(embedding)
+```
+
+The provenance record shows the CUDA preprocessing stages and the intentional
+host stages separately. This makes it possible to use the accelerated portion
+without presenting the complete workflow as GPU-resident.
+
+## The lightweight backend
+
+The native backend loads the NVIDIA libraries already installed on your
+computer and does not require LibTorch. The selected backend is always visible
+in diagnostics and provenance.
+
+```{r backend-check}
 diagnostics <- cuda_diagnostics()
 diagnostics$selected_backend
-diagnostics$backend_diagnostics$native$capabilities
-diagnostics$backend_diagnostics$native$operations
+diagnostics$backend_status
 ```
 
-`capabilities` are user-facing feature declarations. `operations` are the
-callable internal registry entries. Native automatic selection additionally
-requires the compatible contract schema, complete runtime components, and a
-passing cached self-test.
+An explicit CUDA request is strict: if CUDA is not ready, cudaverse stops and
+shows diagnostic guidance instead of silently changing where the work runs.

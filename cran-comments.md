@@ -11,7 +11,7 @@ actionable error instead of silently using the CPU.
 
 ## Test environments
 
-- Windows 11, R 4.6.0 (local, NVIDIA RTX 2000 Ada)
+- Windows 11, R 4.6.0 (local, NVIDIA CUDA hardware)
 - Windows, current R release (GitHub Actions)
 - macOS, current R release (GitHub Actions)
 - Ubuntu, current R release (GitHub Actions)

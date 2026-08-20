@@ -12,7 +12,6 @@ require_gate <- function(value, message) {
 
 required <- c(
   "index.html",
-  "CUDAVERSE-0.4-ROADMAP.html",
   file.path("articles", "gpu-setup.html"),
   file.path("articles", "backend-provenance.html"),
   file.path("articles", "backend-support.html"),
@@ -29,12 +28,14 @@ for (path in required) {
 internal_pages <- c(
   "CRAN-RELEASE.html",
   "CUDAVERSE-0.2-CAPABILITY-MATRIX.html",
+  "CUDAVERSE-0.3-ROADMAP.html",
   "CUDAVERSE-0.3-CHECKPOINTS.html",
   "CUDAVERSE-0.3-CANDIDATE-AUDIT.html",
   "CUDAVERSE-0.3-SPARSE-FLOAT32-DECISION.html",
   "CUDAVERSE-0.4-CHECKPOINTS.html",
   "CUDAVERSE-0.4-CANDIDATE-AUDIT.html",
   "CUDAVERSE-0.4-CANDIDATE-DECISION-TEMPLATE.html",
+  "CUDAVERSE-0.4-ROADMAP.html",
   "NATIVE-CUDA-CONSOLIDATION.html",
   "NATIVE-CUDA-PHASE4-RC.html",
   "NATIVE-CUDA-ROADMAP.html"
@@ -58,7 +59,9 @@ content <- paste(
 forbidden <- c(
   "cudatensr", "cudasparsr", "cudalearnr", "cudagraphR", "cudaembedr",
   "cudaverseCUDA", "cudacellr", "former packages", "combined packages",
-  "separate extension", "installs two packages"
+  "separate extension", "installs two packages", "RTX 2000",
+  "development machine", "1,000-cycle", "VRAM contract",
+  "integrated native workflow"
 )
 for (term in forbidden) {
   require_gate(
@@ -74,7 +77,7 @@ index <- if (file.exists(index_path)) {
   ""
 }
 required_home <- c(
-  "cudaverse/cudaverse@v0.4.0",
+  "cudaverse/cudaverse@v0.4.1",
   "https://github.com/cudaverse/cudaverse/blob/0a422fad7744da4116915037fc7134075a65e2a0/inst/benchmarks/README.md",
   "https://cudaverse.github.io/cudaverse/articles/gpu-setup.html",
   "https://cudaverse.github.io/cudaverse/articles/backend-support.html"

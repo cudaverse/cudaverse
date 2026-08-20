@@ -1,4 +1,4 @@
-#' cudaverse: GPU-aware numerical computing for R
+#' cudaverse: Lightweight CUDA numerical computing for R
 #'
 #' @useDynLib cudaverse, .registration = TRUE
 #' @keywords internal

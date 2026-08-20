@@ -1,4 +1,4 @@
-# cudaverse 0.3 development roadmap
+# cudaverse 0.3 internal development roadmap
 
 ## Outcome
 
