@@ -70,3 +70,5 @@ jobs:
           clean: false
           branch: gh-pages
           folder: docs
+          git-config-name: YaoxiangLi
+          git-config-email: YaoxiangLi@users.noreply.github.com
