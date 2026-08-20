@@ -7,7 +7,7 @@
 ## Citation
 
 Source:
-[`DESCRIPTION`](https://github.com/cudaverse/cudaverse/blob/main/DESCRIPTION)
+[`DESCRIPTION`](https://github.com/cudaverse/cudaverse/blob/v0.4.0/DESCRIPTION)
 
 Li Y (2026). *cudaverse: GPU-Aware Numerical Computing for R*. R package
 version 0.4.0, <https://cudaverse.github.io/cudaverse/>.
