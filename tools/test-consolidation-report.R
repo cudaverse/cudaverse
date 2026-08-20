@@ -45,6 +45,18 @@ run_checker <- function(value) {
 stopifnot(is.null(run_checker(legacy)))
 stopifnot(is.null(run_checker(fixture)))
 
+fixture_0_4 <- fixture
+fixture_0_4$software$cudaverse <- "0.4.0.9000"
+stopifnot(is.null(run_checker(fixture_0_4)))
+
+unsupported <- fixture
+unsupported$software$cudaverse <- "0.5.0.9000"
+error <- run_checker(unsupported)
+stopifnot(
+  inherits(error, "error"),
+  grepl("unexpected cudaverse version", conditionMessage(error), fixed = TRUE)
+)
+
 bad <- fixture
 bad$benchmark_regression$release_gate <- TRUE
 error <- run_checker(bad)

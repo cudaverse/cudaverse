@@ -30,7 +30,7 @@ require_gate(
 )
 version <- scalar(report$software$cudaverse)
 legacy_contract <- identical(version, "0.2.0.9000")
-candidate_contract <- grepl("^0\\.3\\.0(\\.9000)?$", version)
+candidate_contract <- grepl("^0\\.(3|4)\\.0(\\.9000)?$", version)
 require_gate(legacy_contract || candidate_contract,
              "unexpected cudaverse version")
 require_gate(
@@ -139,7 +139,7 @@ if (legacy_contract) {
   require_gate(
     identical(scalar(size$baseline_definition),
               "legacy Phase 3 installed footprint baseline"),
-    "0.3 advisory installed-footprint definition is invalid"
+    "candidate advisory installed-footprint definition is invalid"
   )
 }
 require_gate(logical_value(report$overall_pass), "overall report gate failed")
