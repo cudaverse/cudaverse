@@ -1241,3 +1241,115 @@ Evidence:
   report atomically; and
 - the exact installed benchmark source tarball has SHA-256
   `8B123AD1F948710A920415A63BAAD748D722BC622D35DF2613D963F98865058E`.
+
+## CP-07C: bounded stable top-k bottleneck closure
+
+Status: complete at exact implementation commits
+`bdbf46466236a7c7c6432d34388d0a2820af2b67` (torch) and
+`1f265201936ac4a56d39d4decf082252358edc0b` (base), merged through
+`a6eded20f4dac93f9728aab7ac19f720ac818a7e` and
+`aa17b8050c89b1900092f72390b5e48f78edd833`.
+
+Review:
+
+- PRs: <https://github.com/cudaverse/cudaverse/pull/47> and
+  <https://github.com/cudaverse/cudaverse/pull/48>;
+- target: `develop/0.4` (not `main`);
+- no tag, release, CRAN/Bioconductor submission, or Pages deployment; and
+- the retained timings describe only their exact source, RTX 2000 host,
+  runtime, workload, and provenance.
+
+Scope:
+
+- keep torch distance blocks and stable top-k selection on the selected CUDA
+  device, transferring only the final `n`-by-`k` result;
+- replace base per-row full stable ordering with bounded C++ top-k selection;
+- preserve exact one-based indices, distance-then-original-row tie order,
+  distance parity, public provenance, and backend fallback semantics; and
+- retain same-machine old/new evidence when cross-date timing drift makes an
+  older benchmark an invalid sole performance comparator.
+
+Evidence:
+
+- torch gate `PR47-TORCH-KNN-GATE.json` identifies exact clean source
+  `bdbf464`, passes 5 warmups plus 10 timed runs, exact indices, stable ties,
+  provenance, relative distance error `7.02e-16`, zero repeated-run allocator
+  difference, zero OOMs, and an 11.45-second median versus the provenance-bound
+  126.32-second CP-07B sample; its SHA-256 is
+  `CA4AED3A1DCA87BEDCB15150061E058C703BABCB0095EAD0C23363740A88B436`;
+- the exact torch source tarball SHA-256 is
+  `D2071064915BB065BCE95449CC5DB13FC983770896396171B2F8A485BB585E9A`;
+- base same-session comparison `PR48-BASE-TOPK-COMPARISON.json` records the
+  same package, input, PCA scores, host, R, BLAS, and public API, with only the
+  selection registration changed; its old/new medians are 23.00 and 15.93
+  seconds, every correctness gate passes, and its SHA-256 is
+  `1475F7D16062A80716F1299C70ACC37767AEFCEFC54459D2EF29A95A7314A452`;
+- the exact base source tarball SHA-256 is
+  `17AA24086E869ACE3E9E71DFE736271C2F370BE5B914B5178E03565E6BF36DB6`;
+  and
+- both PRs passed Windows, macOS, Ubuntu, R-devel, CPU contract, pkgdown,
+  supply-chain, no-CUDA artifact, CUDA 12.8.1 ABI, and PTX gates, with PR
+  deployment and non-RTX hardware jobs skipped as designed.
+
+## CP-08B: exact independent-session candidate binding
+
+Status: complete at implementation commits
+`d2c73faf05a7aaf7a1dcac6560ff6b71b00a4b1e` and
+`f5942b8bcbcdbb896831497d5546c671fbf40445`, merged through
+`1b7c2c37108ebca1c3fd8af1734ab3162db70e2b`.
+
+Review:
+
+- PR: <https://github.com/cudaverse/cudaverse/pull/51>;
+- target: `develop/0.4` (not `main`);
+- no tag, release, CRAN/Bioconductor submission, or Pages deployment; and
+- the historical exact 0.3 manifest remains valid without the new 0.4-only
+  evidence member.
+
+Scope:
+
+- bind an independently hashed `cudaverse-native-session/1` report into every
+  0.4 candidate manifest;
+- require exact candidate commit/version and matching RTX 2000 hardware;
+- require two distinct isolated R processes, native selection, injected OOM
+  recovery, resident dense/sparse/PCA-kNN coverage, exact allocator cleanup,
+  clean process exit, and absence from the NVIDIA process table; and
+- share one validator between the standalone session gate and final candidate
+  checker so their requirements cannot drift independently.
+
+Evidence:
+
+- candidate positive/rejection self-tests pass for legacy 0.3 and current 0.4
+  policy, including missing-session and failed-cleanup rejection;
+- the retained real 0.3 candidate manifest revalidates exact source
+  `b0ab90f8547d42a5244963bc6b15d0ba223382ff` unchanged;
+- the retained checkpoint RTX session report passes the shared validator; and
+- R-CMD-check run `32340904341`, pkgdown run `32340904309`, integration run
+  `32340904909`, and native-integrity run `32340904316` pass the complete
+  cross-platform, documentation, CPU, supply-chain, artifact, ABI, and PTX
+  gates; deployment and non-RTX hardware jobs skip as designed.
+
+## CP-11A: maintainer-only generated Pages authorship
+
+Status: complete at implementation commit
+`c16e6a49e1ca1cf54395d5904aca19068c0682c3`, merged through
+`bcb0229299690cdb5ecd995b1993d4c043a4b23c`.
+
+Review:
+
+- PR: <https://github.com/cudaverse/cudaverse/pull/50>;
+- target: `develop/0.4` (not `main`);
+- no Pages deployment occurred on the development PR; and
+- the change affects generated-commit identity and release-boundary checking,
+  not package behavior.
+
+Scope and evidence:
+
+- pkgdown deployment explicitly configures `YaoxiangLi` and
+  `YaoxiangLi@users.noreply.github.com` as the generated commit identity;
+- the workflow-boundary checker fails if either value is removed or changed;
+- all R, pkgdown, CPU, supply-chain, artifact, ABI, and PTX checks pass on PR
+  #50, including R-CMD-check run `32338761930` attempt 2 after the first
+  runner stalled during dependency setup; and
+- the GitHub contributors endpoint continues to list only `YaoxiangLi`; no
+  AI, bot, or automation identity authored or co-authored an outgoing commit.
