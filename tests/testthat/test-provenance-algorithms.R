@@ -185,6 +185,64 @@ test_that("automatic fallback is visible and explicit CUDA remains strict", {
   )
 })
 
+test_that("torch stable top-k is recorded as one CUDA compute path", {
+  skip_if_not(torch_cpu_runtime_available())
+
+  values <- rbind(
+    c(0, 0), c(1, 0), c(-1, 0), c(0, 1), c(0, -1), c(0, 0)
+  )
+  reference <- cuda_knn(values, k = 3L, batch_size = 2L, device = "cpu")
+
+  factory <- cudaverse:::.torch_backend_factory()
+  factory$name <- "torch-resident-contract"
+  factory$algorithm_knn_prepare <- function(values, ...) {
+    torch::torch_tensor(
+      values,
+      dtype = torch::torch_float64(),
+      device = "cpu"
+    )
+  }
+  factory$algorithm_knn_block <- function(...) {
+    stop("unexpected host-selection compatibility path", call. = FALSE)
+  }
+  cudaverse:::.backend_register(factory, replace = TRUE)
+  on.exit(
+    rm(
+      list = factory$name,
+      envir = cudaverse:::.cudaverse_backends
+    ),
+    add = TRUE
+  )
+  testthat::local_mocked_bindings(
+    cuda_select_device = function(device) list(
+      requested_device = device,
+      device = "cuda",
+      backend = factory$name,
+      selection_reason = "explicit_cuda",
+      fallback = FALSE
+    ),
+    .package = "cudaverse"
+  )
+
+  result <- cuda_knn(values, k = 3L, batch_size = 2L, device = "cuda")
+  provenance <- cuda_provenance(result)
+
+  expect_identical(result$index, reference$index)
+  expect_equal(result$distance, reference$distance, tolerance = 1e-12)
+  expect_identical(
+    provenance$stage,
+    c("distance", "neighbor_selection")
+  )
+  expect_identical(
+    provenance$backend,
+    rep(factory$name, 2L)
+  )
+  expect_identical(provenance$device, c("cuda", "cuda"))
+  expect_identical(provenance$output_device, c("cuda", "cpu"))
+  expect_false(any(provenance$fallback))
+  expect_identical(result$backend, factory$name)
+})
+
 test_that("print methods disclose hybrid-aware compute metadata", {
   svd_fit <- cuda_svd(.provenance_matrix(), device = "cpu")
   pca_fit <- cuda_pca(.provenance_matrix(), device = "cpu")

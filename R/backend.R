@@ -359,8 +359,65 @@
   )
 }
 
+.torch_stable_sort_available <- function() {
+  .cuda_torch_installed() &&
+    "stable" %in% names(formals(torch::torch_sort))
+}
+
+.torch_algorithm_knn_select <- function(storage, values, k, metric,
+                                        batch_size) {
+  n_observations <- as.integer(storage$shape[[1L]])
+  index <- matrix(NA_integer_, n_observations, k)
+  distance <- matrix(NA_real_, n_observations, k)
+  column_ids <- torch::torch_arange(
+    1L,
+    n_observations,
+    dtype = torch::torch_int64(),
+    device = storage$device
+  )$unsqueeze(1L)
+
+  starts <- seq.int(1L, n_observations, by = batch_size)
+  for (start in starts) {
+    rows <- seq.int(
+      start,
+      length.out = min(batch_size, n_observations - start + 1L)
+    )
+    query <- storage[rows, , drop = FALSE]
+    block <- if (identical(metric, "euclidean")) {
+      torch::torch_cdist(query, storage, p = 2)
+    } else {
+      (1 - query$matmul(storage$t()))$clamp(min = 0, max = 2)
+    }
+    row_ids <- torch::torch_tensor(
+      rows,
+      dtype = torch::torch_int64(),
+      device = storage$device
+    )$unsqueeze(2L)
+    block <- block$masked_fill(row_ids == column_ids, Inf)
+    ordered <- torch::torch_sort(
+      block,
+      dim = 2L,
+      descending = FALSE,
+      stable = TRUE
+    )
+    selected <- seq_len(k)
+    distance[rows, ] <- matrix(
+      .torch_array(ordered[[1L]][, selected, drop = FALSE]),
+      nrow = length(rows),
+      ncol = k
+    )
+    index[rows, ] <- matrix(
+      .torch_array(ordered[[2L]][, selected, drop = FALSE]),
+      nrow = length(rows),
+      ncol = k
+    )
+  }
+
+  list(index = index, distance = distance)
+}
+
 .torch_backend_factory <- function() {
-  list(
+  factory <- list(
     name = "torch",
     device = "cuda",
     diagnostics = function() {
@@ -404,11 +461,17 @@
         detection_error = detection_error
       )
     },
-    capabilities = function() c(
-      "transfer", "cast", "arithmetic", "matmul", "reduce",
-      "reshape", "broadcast", "transpose", "svd", "pca", "distance",
-      "distance-batched", "pca-predict", "knn", "sparse"
-    ),
+    capabilities = function() {
+      capabilities <- c(
+        "transfer", "cast", "arithmetic", "matmul", "reduce",
+        "reshape", "broadcast", "transpose", "svd", "pca", "distance",
+        "distance-batched", "pca-predict", "knn", "sparse"
+      )
+      if (.torch_stable_sort_available()) {
+        capabilities <- c(capabilities, "stable-topk")
+      }
+      capabilities
+    },
     from_host = function(x, dtype, shape, dimnames = NULL) {
       torch::torch_tensor(x, dtype = .torch_dtype(dtype), device = "cuda")
     },
@@ -577,6 +640,10 @@
     release = function(storage) invisible(TRUE),
     error_translate = .backend_default_error_translate("torch")
   )
+  if (.torch_stable_sort_available()) {
+    factory$algorithm_knn_select <- .torch_algorithm_knn_select
+  }
+  factory
 }
 
 .backend_register_builtins <- function() {
