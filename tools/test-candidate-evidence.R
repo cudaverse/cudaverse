@@ -572,14 +572,12 @@ manifest$rtx$report_sha256 <- sha_for("rtx")
 
 write_session(final_bytes = 1L)
 manifest$rtx$session_report_sha256 <- sha_for("session")
-manifest$rtx$session_passed <- FALSE
 write_manifest()
 expect_error_message(
-  run_checker(), "RTX independent-session isolation contract is incomplete"
+  run_checker(), "RTX independent-session report: session contract did not pass"
 )
 write_session()
 manifest$rtx$session_report_sha256 <- sha_for("session")
-manifest$rtx$session_passed <- TRUE
 
 write_package_tests(skips = 1L)
 manifest$rtx$package_test_report_sha256 <- sha_for("package_tests")

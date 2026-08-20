@@ -8,6 +8,10 @@ sys.source(
   envir = environment()
 )
 sys.source(
+  file.path("tools", "native-session-report-io.R"),
+  envir = environment()
+)
+sys.source(
   file.path("tools", "candidate-policy.R"),
   envir = environment()
 )
@@ -418,7 +422,6 @@ if (!is.null(package_test_report)) {
   )
 }
 if (!is.null(session_report)) {
-  session_source <- session_report$source
   require_gate(
     identical(text_value(session_report$schema),
               "cudaverse-native-session/1") &&
@@ -426,65 +429,21 @@ if (!is.null(session_report)) {
                 "cudaverse-native-session/1"),
     "RTX independent-session report schema is invalid"
   )
-  require_gate(
-    identical(text_value(session_source$commit), commit) &&
-      !logical_value(session_source$tracked_dirty) &&
-      identical(text_value(session_source$version), version),
-    "RTX independent-session report does not match the clean candidate"
+  require_gate(logical_value(manifest$rtx$session_passed),
+               "RTX independent-session manifest gate did not pass")
+  expected_hardware <- if (is.null(package_test_report)) {
+    NULL
+  } else {
+    text_value(package_test_report$hardware$nvidia_smi)
+  }
+  session_failures <- validate_native_session_report(
+    session_report,
+    expected_commit = commit,
+    expected_version = version,
+    expected_hardware = expected_hardware
   )
-  require_gate(
-    grepl(
-      "RTX 2000",
-      text_value(session_report$hardware$nvidia_smi),
-      fixed = TRUE
-    ),
-    "RTX independent-session report does not identify the RTX 2000"
-  )
-  session_contract <- session_report$contract
-  require_gate(
-    logical_value(session_report$passed) &&
-      logical_value(manifest$rtx$session_passed) &&
-      logical_value(session_contract$isolated_install) &&
-      identical(number(session_contract$vanilla_sessions), 2) &&
-      logical_value(session_contract$distinct_processes) &&
-      logical_value(session_contract$native_backend_required) &&
-      identical(text_value(session_contract$injected_error),
-                "CUDA_ERROR_OUT_OF_MEMORY") &&
-      logical_value(session_contract$exact_allocator_cleanup) &&
-      logical_value(session_contract$exited_process_check),
-    "RTX independent-session isolation contract is incomplete"
-  )
-  sessions <- session_report$sessions
-  require_gate(length(sessions) == 2L,
-               "RTX independent-session report must contain two sessions")
-  required_workflow <- c(
-    "native-self-test", "dense-shared-view", "sparse-normalize",
-    "resident-pca-knn", "memory-telemetry", "injected-oom",
-    "post-error-matmul", "allocator-cleanup", "clean-exit"
-  )
-  pids <- integer()
-  if (length(sessions) == 2L) {
-    for (index in seq_along(sessions)) {
-      session <- sessions[[index]]
-      pid <- number(session$pid)
-      pids <- c(pids, as.integer(pid))
-      workflow <- as.character(unlist(
-        session$workflow, recursive = TRUE, use.names = FALSE
-      ))
-      require_gate(
-        identical(number(session$session), as.numeric(index)) &&
-          is.finite(pid) && pid > 0 &&
-          identical(text_value(session$commit), commit) &&
-          identical(text_value(session$version), version) &&
-          identical(number(session$baseline_bytes), 0) &&
-          identical(number(session$final_bytes), 0) &&
-          logical_value(session$process_absent_after_exit) &&
-          identical(workflow, required_workflow),
-        paste("RTX independent session", index, "is incomplete")
-      )
-    }
-    require_gate(!anyDuplicated(pids),
-                 "RTX independent-session process ids are not distinct")
+  for (failure in session_failures) {
+    require_gate(FALSE, paste("RTX independent-session report:", failure))
   }
 }
 require_gate(
@@ -507,15 +466,6 @@ if (!is.null(consolidation_report) && !is.null(package_test_report)) {
       text_value(package_test_report$software$R)
     ),
     "RTX input reports do not identify the same hardware and R runtime"
-  )
-}
-if (!is.null(session_report) && !is.null(package_test_report)) {
-  require_gate(
-    identical(
-      text_value(session_report$hardware$nvidia_smi),
-      text_value(package_test_report$hardware$nvidia_smi)
-    ),
-    "RTX independent-session and package-test reports identify different hardware"
   )
 }
 for (gate in c("parity", "structured_recovery", "interruption",
