@@ -1,13 +1,13 @@
 ## New submission
 
-This is the first CRAN submission of `cudaverse`. It consolidates five former
-development repositories into one user-facing package; none of those component
-packages was released on CRAN.
+This is the first CRAN submission of `cudaverse`.
 
-CUDA is optional. `torch` is listed only in `Suggests`, all torch-dependent code
-is conditional, and the documented automatic path uses portable R backends when
-a usable CUDA backend is unavailable. An explicit `device = "cuda"` request
-fails with an actionable error instead of silently using the CPU.
+CUDA is optional. The lightweight native backend discovers user-provided NVIDIA
+runtime libraries only when requested and does not bundle or download them.
+`torch` is listed only in `Suggests`, all torch-dependent code is conditional,
+and the documented automatic path uses the portable R backend when no usable
+CUDA backend is available. An explicit `device = "cuda"` request fails with an
+actionable error instead of silently using the CPU.
 
 ## Test environments
 

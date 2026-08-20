@@ -2,12 +2,12 @@
   "bomFormat": "CycloneDX",
   "specVersion": "1.6",
   "serialNumber": "urn:uuid:be1a9f8b-d4f0-4bc4-b4f4-0a2bbfd5b9c1",
-  "version": 7,
+  "version": 8,
   "metadata": {
     "component": {
       "type": "library",
       "name": "cudaverse",
-      "version": "0.4.0.9000",
+      "version": "0.4.0",
       "licenses": [{"license": {"id": "MIT"}}]
     }
   },

@@ -1,4 +1,4 @@
-# cudaverse 0.4.0.9000
+# cudaverse 0.4.0
 
 - Replaced the base kNN backend's full per-row stable ordering with bounded
   C++ stable top-k selection while preserving exact indices, deterministic

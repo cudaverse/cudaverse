@@ -1,4 +1,4 @@
-# Internal CRAN release checklist for cudaverse 0.1.0
+# Internal CRAN release checklist for cudaverse 0.4.0
 
 This is the first CRAN submission of `cudaverse`.
 
@@ -7,9 +7,9 @@ This is the first CRAN submission of `cudaverse`.
 - [x] Confirm that `cudaverse` conflicts with neither current nor archived CRAN
       packages nor current Bioconductor packages.
 - [x] Confirm that `DESCRIPTION`, `NEWS.md`, documentation, examples, and
-      vignettes describe version 0.1.0 exactly.
-- [x] Build a local preflight source tarball and record its SHA-256.
-- [x] Run local `R CMD check --as-cran` on the preflight source tarball:
+      vignettes describe version 0.4.0 exactly.
+- [ ] Build a local preflight source tarball and record its SHA-256.
+- [ ] Run local `R CMD check --as-cran` on the preflight source tarball:
       0 errors, 0 warnings, and the expected new-submission note.
 - [ ] Run the GitHub R CMD check matrix on Windows, macOS, Ubuntu release, and
       Ubuntu R-devel.

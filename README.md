@@ -10,7 +10,7 @@ The public API is organized by topic:
 - weighted kNN graphs, Louvain, and Leiden clustering;
 - UMAP, t-SNE, and diffusion-map-style embeddings.
 
-CUDA is optional. The development line includes a lightweight native backend
+CUDA is optional. The package includes a lightweight native backend
 and can also use a supported CUDA-enabled `torch` installation. NVIDIA
 libraries are discovered only when CUDA diagnostics or selection is requested.
 When neither CUDA path is available, functions use their documented portable
@@ -18,7 +18,7 @@ backend and record what actually ran.
 
 ## Lightweight native CUDA
 
-The 0.4 development line builds on the validated backend registry and its
+The 0.4 release builds on the validated backend registry and its
 built-in native CUDA implementation behind the same public R API. Native
 execution covers
 dense tensor operations, shared-ownership COO/CSR sparse storage, sparse
@@ -46,7 +46,7 @@ back.
 Reproducible PTX, RTX 2000 parity and lifecycle evidence, the CycloneDX SBOM,
 and the third-party redistribution inventory are kept in this repository. See
 the [0.4 roadmap](.github/CUDAVERSE-0.4-ROADMAP.md) for ordered milestones, the
-[benchmark contract](https://github.com/cudaverse/cudaverse/blob/develop/0.4/inst/benchmarks/README.md)
+[benchmark contract](https://github.com/cudaverse/cudaverse/blob/0a422fad7744da4116915037fc7134075a65e2a0/inst/benchmarks/README.md)
 for performance evidence, and the
 [GPU setup and troubleshooting article](https://cudaverse.github.io/cudaverse/articles/gpu-setup.html)
 for runtime setup. The
@@ -55,11 +55,11 @@ lists intentional native, compatibility, hybrid, and CPU boundaries.
 
 ## Installation
 
-Install the current 0.4 development line from GitHub:
+Install the 0.4 release from GitHub:
 
 ```r
 # install.packages("pak")
-pak::pak("cudaverse/cudaverse@develop/0.4")
+pak::pak("cudaverse/cudaverse@v0.4.0")
 ```
 
 The native backend is included but remains runtime-lazy, so installing
@@ -97,7 +97,7 @@ workflows on both CUDA backends rather than maintaining separate hand-written
 feature lists.
 
 The versioned
-[benchmark contract](https://github.com/cudaverse/cudaverse/blob/develop/0.4/inst/benchmarks/README.md)
+[benchmark contract](https://github.com/cudaverse/cudaverse/blob/0a422fad7744da4116915037fc7134075a65e2a0/inst/benchmarks/README.md)
 defines separate
 smoke and full profiles. Full evidence uses five warmups and ten timed runs for
 base, torch, and native, reports raw times plus median/p95, distinguishes
@@ -106,7 +106,7 @@ peak-memory source, installed footprint, numerical error, and provenance.
 Results are interpreted per workload; cudaverse does not claim that GPU
 execution is universally faster.
 
-On the 0.4 development line, native CUDA subsetting and replacement keep tensor
+In the 0.4 release, native CUDA subsetting and replacement keep tensor
 values on the GPU. Only index metadata is evaluated in R. Missing subscripts
 and compatibility backends without indexing operations use an explicit,
 provenance-visible host path.

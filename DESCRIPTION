@@ -1,6 +1,6 @@
 Package: cudaverse
 Title: GPU-Aware Numerical Computing for R
-Version: 0.4.0.9000
+Version: 0.4.0
 Authors@R:
     person("Yaoxiang", "Li", email = "liyaoxiang@outlook.com",
            role = c("aut", "cre"))
