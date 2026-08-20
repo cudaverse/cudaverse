@@ -20,7 +20,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">cudaverse</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.0.9000</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.4.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -62,7 +62,7 @@
       <h1>Getting started with cudaverse</h1>
             
       
-      <small class="dont-index">Source: <a href="https://github.com/cudaverse/cudaverse/blob/develop/native-cuda/vignettes/getting-started.Rmd" class="external-link"><code>vignettes/getting-started.Rmd</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/cudaverse/cudaverse/blob/main/vignettes/getting-started.Rmd" class="external-link"><code>vignettes/getting-started.Rmd</code></a></small>
       <div class="d-none name"><code>getting-started.Rmd</code></div>
     </div>
 
@@ -146,13 +146,28 @@ functions report a clear installation message when the relevant optional
 backend is missing.</p>
 </div>
 <div class="section level2">
-<h2 id="single-cell-extension">Single-cell extension<a class="anchor" aria-label="anchor" href="#single-cell-extension"></a>
+<h2 id="optional-single-cell-inputs">Optional single-cell inputs<a class="anchor" aria-label="anchor" href="#optional-single-cell-inputs"></a>
 </h2>
-<p>Single-cell normalization, feature selection, and native
-SingleCellExperiment/Seurat mapping remain in <code>cudacellr</code>.
-That package depends on <code>cudaverse</code>, so a single-cell user
-installs two packages while a general numerical user installs only this
-one.</p>
+<p>When <code>SingleCellExperiment</code> is installed,
+<code><a href="../reference/cuda_umap.html">cuda_umap()</a></code>, <code><a href="../reference/cuda_tsne.html">cuda_tsne()</a></code>, and
+<code><a href="../reference/cuda_diffusion_map.html">cuda_diffusion_map()</a></code> can consume one of its reduced
+dimensions directly. Select the dimension explicitly unless there is
+exactly one reduced dimension named <code>"PCA"</code>:</p>
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cuda_diffusion_map.html">cuda_diffusion_map</a></span><span class="op">(</span></span>
+<span>  <span class="va">sce</span>,</span>
+<span>  reduced_dim <span class="op">=</span> <span class="st">"PCA"</span>,</span>
+<span>  n_components <span class="op">=</span> <span class="fl">2</span>,</span>
+<span>  device <span class="op">=</span> <span class="st">"auto"</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+<p>The selected reduced dimension is materialized as a host matrix. UMAP
+and t-SNE then run on their documented CPU backends. Diffusion maps may
+upload the matrix for the distance stage, while kernel construction and
+eigendecomposition remain on CPU; <code>cuda_provenance(fit)</code>
+reports this boundary. Seurat objects are not currently a public input
+type, so pass a finite matrix or a <code>SingleCellExperiment</code>
+reduced dimension instead. These optional integrations do not add
+Bioconductor or Seurat to an ordinary cudaverse installation.</p>
 </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside>

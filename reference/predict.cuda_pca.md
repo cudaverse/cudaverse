@@ -40,7 +40,9 @@ predict(object, newdata, device = c("model", "auto", "cuda", "cpu"), ...)
 A numeric matrix of component scores. New observation names and stable
 component names are retained. A recomputed prediction includes
 stage-level provenance and is materialized as an R matrix on the CPU.
-Omitting `newdata` returns the validated stored training scores
+The native backend also retains shared device storage so a subsequent
+native distance or kNN operation can reuse the scores without uploading
+them. Omitting `newdata` returns the validated stored training scores
 unchanged; that retrieval does not create a prediction stage.
 
 ## See also

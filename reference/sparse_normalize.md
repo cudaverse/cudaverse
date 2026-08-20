@@ -3,7 +3,13 @@
 Each selected row or column is divided by its sum and multiplied by
 `scale_factor`. Optionally, [`log1p()`](https://rdrr.io/r/base/Log.html)
 is applied to stored non-zero values. The operation preserves sparse
-structure and dimension labels.
+structure and dimension labels. The native CUDA backend retains
+normalized storage on the device and updates the public host COO mirror
+from metadata already held by the object. It does not download the
+normalized values or the complete margin-sum vector; only a small
+device-validation flag crosses back before the result is returned.
+Native results share immutable sparse index storage with their source
+while retaining independent value storage and release-safe ownership.
 
 ## Usage
 

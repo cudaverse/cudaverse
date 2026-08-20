@@ -9,7 +9,7 @@ accepted and their source device is retained in the result metadata."></head><bo
 
     <a class="navbar-brand me-2" href="../index.html">cudaverse</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.0.9000</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.4.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -38,7 +38,7 @@ accepted and their source device is retained in the result metadata."></head><bo
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>UMAP embedding</h1>
-      <small class="dont-index">Source: <a href="https://github.com/cudaverse/cudaverse/blob/develop/native-cuda/R/embeddings.R" class="external-link"><code>R/embeddings.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/cudaverse/cudaverse/blob/main/R/embeddings.R" class="external-link"><code>R/embeddings.R</code></a></small>
       <div class="d-none name"><code>cuda_umap.Rd</code></div>
     </div>
 
@@ -101,8 +101,9 @@ or a <code>SingleCellExperiment</code> with a reduced dimension.</p></dd>
 
 <dt id="arg-reduced-dim">reduced_dim<a class="anchor" aria-label="anchor" href="#arg-reduced-dim"></a></dt>
 <dd><p>For a <code>SingleCellExperiment</code>, the reduced-dimension name
-to embed. When <code>NULL</code>, a cudacellr metadata choice is used first, followed
-by a uniquely named <code>"PCA"</code>. Other names must be selected explicitly.</p></dd>
+to embed. When <code>NULL</code>, a compatible recorded metadata choice is used
+first, followed by a uniquely named <code>"PCA"</code>. Other names must be selected
+explicitly.</p></dd>
 
 </dl></div>
     <div class="section level2">

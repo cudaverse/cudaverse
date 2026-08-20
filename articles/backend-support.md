@@ -38,14 +38,15 @@ algorithm, graph, or embedding.
 | as_coo | sparse | sparse | metadata | metadata | metadata | same_device | Changes the logical public format view without numerical work |
 | as_csr | sparse | sparse | metadata | metadata | metadata | same_device | Changes the logical public format view without numerical work |
 | cuda_available | diagnostics | diagnostics | probe | probe | probe | host | Reports whether native or torch can satisfy an explicit CUDA request |
-| cuda_diagnostics | diagnostics | diagnostics | probe | probe | probe | host | Reports legacy torch fields plus registered and selected backends |
-| cuda_diffusion_map | embedding | embedding | direct | hybrid | hybrid | host | GPU backends cover distance only while kernel and eigendecomposition are CPU |
+| cuda_diagnostics | diagnostics | diagnostics | probe | probe | probe | host | Reports compatibility fields plus backend health summary status table and actionable next steps |
+| cuda_diffusion_map | embedding | embedding | direct | hybrid | hybrid | host | Native reuses device-resident PCA scores for distance while kernel construction and eigendecomposition are CPU; optional SingleCellExperiment reduced dimensions begin at a host boundary |
 | cuda_distance | algorithm | algorithm | direct | direct | direct | host | Distance kernels use the selected backend and return an R matrix |
 | cuda_kmeans | algorithm | algorithm | direct | hybrid | direct | host | Native keeps repeated distance assignment accumulation and centre updates on device; torch retains CPU updates |
-| cuda_knn | algorithm | algorithm | direct | hybrid | direct | host | Torch transfers distance blocks for CPU stable top-k while native selects on device |
+| cuda_knn | algorithm | algorithm | direct | direct | direct | host | Native and torch with stable-sort support select deterministic top-k on device and transfer only final indices and distances; older torch APIs use the recorded compatibility path |
 | cuda_knn_graph | graph | graph | direct | cpu_only | cpu_only | host | Graph assembly always uses Matrix on CPU from a completed kNN result |
 | cuda_leiden | graph | graph | direct | cpu_only | cpu_only | host | Community detection always uses igraph on CPU |
 | cuda_louvain | graph | graph | direct | cpu_only | cpu_only | host | Community detection always uses igraph on CPU |
+| cuda_memory_info | diagnostics | diagnostics | metadata | direct | direct | host | Reports native driver and package allocator bytes or torch allocator bytes without estimating unsupported counters; first selection can run the cached self-test |
 | cuda_pca | algorithm | algorithm | direct | hybrid | direct | host_with_native_cache | Torch sparse input materializes before dense PCA while native has a sparse path |
 | cuda_provenance | provenance | diagnostics | metadata | metadata | metadata | host | Returns the recorded stage table without new numerical work |
 | cuda_select_device | diagnostics | diagnostics | probe | probe | probe | host | Selects native then torch for auto and records CPU fallback |
@@ -53,8 +54,8 @@ algorithm, graph, or embedding.
 | cuda_stage | provenance | diagnostics | metadata | metadata | metadata | host | Validates and constructs one provenance stage |
 | cuda_svd | algorithm | algorithm | direct | direct | direct | host | SVD uses the selected backend and materializes the public result |
 | cuda_tensor | tensor | tensor | direct | direct | direct | same_device | Constructs storage in the selected backend |
-| cuda_tsne | embedding | embedding | direct | cpu_only | cpu_only | host | Always uses Rtsne on CPU and preserves upstream provenance |
-| cuda_umap | embedding | embedding | direct | cpu_only | cpu_only | host | Always uses uwot on CPU and preserves upstream provenance |
+| cuda_tsne | embedding | embedding | direct | cpu_only | cpu_only | host | Always uses Rtsne on CPU and preserves upstream provenance; optional SingleCellExperiment reduced dimensions are materialized on the host |
+| cuda_umap | embedding | embedding | direct | cpu_only | cpu_only | host | Always uses uwot on CPU and preserves upstream provenance; optional SingleCellExperiment reduced dimensions are materialized on the host |
 | embedding_coordinates | embedding | embedding | metadata | metadata | metadata | host | Returns coordinates already stored in the embedding result |
 | sparse_col_sums | sparse | sparse | direct | cpu_only | direct | host | Torch uses the host metadata mirror while native reduces on device |
 | sparse_info | sparse | sparse | metadata | metadata | metadata | host | Returns public sparse metadata only |
@@ -98,11 +99,23 @@ more packages:
 - native CUDA k-means keeps distance, stable assignment, accumulation,
   and centre updates on the device; the torch compatibility path uses
   GPU distance and CPU assignment/centre updates;
+- exact kNN keeps each distance block and stable top-k selection on the
+  native backend, and does the same on torch versions that expose stable
+  device sort; only the final index and distance matrices cross the host
+  boundary;
 - kNN graph construction uses `Matrix`, while Louvain and Leiden use
   `igraph`;
 - UMAP and t-SNE use `uwot` and `Rtsne` on CPU; and
 - diffusion maps may calculate distance on CUDA, but construct the
   kernel and eigendecomposition on CPU.
+
+`SingleCellExperiment` support is optional. Embedding entry points
+materialize the selected reduced dimension as a host matrix and retain
+its cell names and compatible source provenance. UMAP and t-SNE remain
+CPU operations. Diffusion maps can move that matrix through the
+documented CUDA distance stage, followed by the intentional CPU kernel
+and eigendecomposition stages. Seurat objects are not currently a public
+input type.
 
 Use
 [`cuda_provenance()`](https://cudaverse.github.io/cudaverse/reference/cuda_provenance.md)
@@ -142,35 +155,40 @@ diagnostics <- cuda_diagnostics()
 diagnostics$selected_backend
 #> [1] "base"
 diagnostics$backend_diagnostics$native$capabilities
-#>  [1] "driver-detection"  "allocation"        "transfer"         
-#>  [4] "cast"              "matmul"            "reduce"           
-#>  [7] "arithmetic"        "reshape"           "broadcast"        
-#> [10] "transpose"         "subset"            "replacement"      
-#> [13] "svd"               "pca"               "pca-predict"      
-#> [16] "distance"          "kmeans"            "knn"              
-#> [19] "stable-topk"       "sparse"            "sparse-coo"       
-#> [22] "sparse-csr"        "sparse-transpose"  "sparse-normalize" 
-#> [25] "sparse-matmul"     "sparse-reduce"     "sparse-pca"       
-#> [28] "sparse-knn"        "synchronize"       "shared-ownership" 
-#> [31] "dtype-float32"     "dtype-float64"     "runtime-self-test"
+#>  [1] "driver-detection"     "allocation"           "transfer"            
+#>  [4] "cast"                 "matmul"               "reduce"              
+#>  [7] "arithmetic"           "reshape"              "broadcast"           
+#> [10] "transpose"            "subset"               "replacement"         
+#> [13] "matrix-validation"    "svd"                  "svd-resident"        
+#> [16] "pca"                  "pca-resident"         "pca-predict"         
+#> [19] "distance"             "distance-batched"     "kmeans"              
+#> [22] "kmeans-batched"       "knn"                  "stable-topk"         
+#> [25] "sparse"               "sparse-coo"           "sparse-csr"          
+#> [28] "sparse-transpose"     "sparse-normalize"     "sparse-matmul"       
+#> [31] "sparse-reduce"        "sparse-pca"           "sparse-knn"          
+#> [34] "synchronize"          "shared-ownership"     "memory-observability"
+#> [37] "dtype-float32"        "dtype-float64"        "runtime-self-test"
 diagnostics$backend_diagnostics$native$operations
-#>  [1] "algorithm_distance"           "algorithm_kmeans"            
-#>  [3] "algorithm_knn_block"          "algorithm_knn_prepare"       
-#>  [5] "algorithm_knn_select"         "algorithm_pca"               
-#>  [7] "algorithm_pca_predict"        "algorithm_sparse_knn_prepare"
-#>  [9] "algorithm_sparse_pca"         "algorithm_svd"               
-#> [11] "binary"                       "broadcast"                   
-#> [13] "cast"                         "from_host"                   
-#> [15] "matmul"                       "reduce"                      
-#> [17] "release"                      "replace"                     
-#> [19] "reshape"                      "sparse_from_coo"             
-#> [21] "sparse_matmul_dense"          "sparse_normalize"            
-#> [23] "sparse_reduce"                "sparse_release"              
-#> [25] "sparse_share"                 "sparse_to_dense"             
-#> [27] "sparse_to_host"               "sparse_transpose"            
-#> [29] "subset"                       "synchronize"                 
-#> [31] "test_inject_cuda_error"       "to_host"                     
-#> [33] "transpose"
+#>  [1] "algorithm_distance"           "algorithm_distance_batched"  
+#>  [3] "algorithm_kmeans"             "algorithm_kmeans_batched"    
+#>  [5] "algorithm_knn_block"          "algorithm_knn_prepare"       
+#>  [7] "algorithm_knn_select"         "algorithm_matrix_validate"   
+#>  [9] "algorithm_pca"                "algorithm_pca_predict"       
+#> [11] "algorithm_pca_storage"        "algorithm_sparse_knn_prepare"
+#> [13] "algorithm_sparse_pca"         "algorithm_svd"               
+#> [15] "algorithm_svd_storage"        "binary"                      
+#> [17] "broadcast"                    "cast"                        
+#> [19] "from_host"                    "matmul"                      
+#> [21] "memory_info"                  "reduce"                      
+#> [23] "release"                      "replace"                     
+#> [25] "reshape"                      "sparse_from_coo"             
+#> [27] "sparse_matmul_dense"          "sparse_normalize"            
+#> [29] "sparse_reduce"                "sparse_release"              
+#> [31] "sparse_share"                 "sparse_to_dense"             
+#> [33] "sparse_to_host"               "sparse_transpose"            
+#> [35] "subset"                       "synchronize"                 
+#> [37] "test_inject_cuda_error"       "to_host"                     
+#> [39] "transpose"
 ```
 
 `capabilities` are user-facing feature declarations. `operations` are

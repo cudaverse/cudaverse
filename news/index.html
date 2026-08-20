@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">cudaverse</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.0.9000</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.4.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -36,9 +36,35 @@
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Changelog</h1>
-      <small>Source: <a href="https://github.com/cudaverse/cudaverse/blob/develop/native-cuda/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
+      <small>Source: <a href="https://github.com/cudaverse/cudaverse/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.4.0" id="cudaverse-040">cudaverse 0.4.0<a class="anchor" aria-label="anchor" href="#cudaverse-040"></a></h2>
+<ul><li>Replaced the base kNN backend’s full per-row stable ordering with bounded C++ stable top-k selection while preserving exact indices, deterministic distance-then-row ties, provenance, and numerical parity.</li>
+<li>Kept torch kNN distance blocks and deterministic stable top-k selection on the selected torch device when the installed torch API supports stable sort; only the final <code>n</code>-by-<code>k</code> indices and distances are transferred to R.</li>
+<li>Bound final 0.4 candidate evidence to two independent, isolated native R sessions with exact source, hardware, injected-error recovery, allocator cleanup, workflow, process-exit, and SHA-256 checks.</li>
+<li>Pinned generated pkgdown Pages commits to Yaoxiang Li’s GitHub-linked identity and made that authorship configuration a release-boundary gate.</li>
+<li>Unified benchmark memory collection with the public <code><a href="../reference/cuda_memory_info.html">cuda_memory_info()</a></code> contract while retaining native peak reset as an untimed maintainer-only measurement action.</li>
+<li>Added a maintainer native-session contract that installs the exact source in an isolated library, runs two fresh R processes through dense, sparse, PCA/kNN, injected-error recovery, exact allocator cleanup, backend reuse, and clean process exit.</li>
+<li>Added <code><a href="../reference/cuda_memory_info.html">cuda_memory_info()</a></code> for backend-aware memory observability. Native reports CUDA-driver totals plus cudaverse-owned current and peak bytes; torch reports allocated and reserved allocator bytes, while unsupported counters remain explicit <code>NA</code> values.</li>
+<li>Diffusion maps now retain the device-resident input stage in provenance. Native PCA scores are reused directly by CUDA distance instead of being uploaded again; kernel construction and eigendecomposition remain explicit CPU stages.</li>
+<li>Started the isolated 0.4 development line from the exact review-ready 0.3 candidate while keeping the 0.3 source and evidence unchanged.</li>
+<li>Extended <code><a href="../reference/cuda_diagnostics.html">cuda_diagnostics()</a></code> with a concise health <code>status</code>, human-readable <code>summary</code>, actionable <code>next_steps</code>, and a backend comparison table. Strict CUDA-unavailable conditions now retain the same reason and guidance.</li>
+<li>Added the ordered 0.4 roadmap and enabled development-line CI coverage.</li>
+<li>Made native CUDA reshape allocation-free by separating dense view metadata from shared device-allocation ownership. Nested reshape views remain valid after their sources are released and free the allocation exactly once.</li>
+<li>Kept same-backend CUDA tensor replacement device-resident when the replacement needs a compatible floating dtype cast, with the cast recorded in provenance.</li>
+<li>Made <code><a href="../reference/cuda_tensor.html">cuda_tensor()</a></code> cast an existing tensor through its current backend when the requested device is unchanged, avoiding a download/upload round trip.</li>
+<li>Made contiguous native CUDA subsets allocation-free shared views while retaining device gather for non-contiguous selections.</li>
+<li>Added explicit, provenance-recorded distance batching across base, torch, and native backends. Native execution retains input/reference storage and cached reference norms across blocks, bounding peak device memory.</li>
+<li>Added explicit k-means batching with a backward-compatible backend contract. Native Lloyd iterations now keep data, centres, assignments, and updates on the GPU while bounding temporary distance storage by observation batch.</li>
+<li>Kept native PCA prediction scores in shared device storage after returning their compatible R matrix, allowing following distance and kNN stages to reuse the scores without an upload.</li>
+<li>Added device-side finite/constant validation and resident SVD/PCA dispatch for native <code>cudatensor</code> inputs. Float32 and integer inputs cast on the GPU; the full input matrix is no longer downloaded and uploaded for decomposition.</li>
+<li>Kept native sparse-normalization output resident without downloading the margin-sum or normalized-value vectors. The required public COO mirror is updated from its existing host metadata, while device validation returns only one small status flag.</li>
+<li>Made native sparse normalization share immutable CSR/COO index allocations with its source through independent reference counting. Normalized results allocate only new values, remain valid after either release order, and free shared pattern storage exactly once.</li>
+<li>Made <code><a href="../reference/cuda_sparse.html">cuda_sparse()</a></code> rematerialize an existing <code>cudasparse</code> object directly from its stable COO mirror. Same-device format changes share storage, while cross-device transfers and zero filtering avoid a temporary Matrix object, summary pass, and redundant coordinate sort.</li>
+<li>Removed Matrix construction from sparse PCA preprocessing and sparse algorithm transfers. Constant-column checks run directly on the COO mirror only when scaling is requested; unscaled PCA skips that scan entirely.</li>
+</ul></div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.3.0.9000" id="cudaverse-0309000">cudaverse 0.3.0.9000<a class="anchor" aria-label="anchor" href="#cudaverse-0309000"></a></h2>
 <ul><li>Added reproducible full-benchmark Markdown generation and validation. The retained assessment is bound to the exact machine-readable report by its SHA-256 and source commit, and incomplete drafts cannot pass the final summary gate.</li>
@@ -63,7 +89,7 @@
 <li>Adds dense tensor and sparse matrix functionality.</li>
 <li>Adds numerical algorithms, graph workflows, and embedding workflows.</li>
 <li>Preserves the canonical <code><a href="../reference/cuda_provenance.html">cuda_provenance()</a></code> protocol across all modules.</li>
-<li>Keeps single-cell-specific workflows in the separate <code>cudacellr</code> package.</li>
+<li>Keeps SingleCellExperiment support optional and accepts its reduced dimensions at the embedding boundary without making Bioconductor or Seurat required dependencies.</li>
 <li>Fixes CUDA indexing, R column-major reshape semantics, and exact self-distance diagonals for compatibility with R torch 0.17.</li>
 <li>Documents the measured, benchmark-gated roadmap toward a lightweight native CUDA backend while retaining the current portable CPU fallback.</li>
 </ul></div>

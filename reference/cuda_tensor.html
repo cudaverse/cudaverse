@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">cudaverse</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.0.9000</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.4.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -36,7 +36,7 @@
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Create a GPU-aware tensor</h1>
-      <small class="dont-index">Source: <a href="https://github.com/cudaverse/cudaverse/blob/develop/native-cuda/R/tensor.R" class="external-link"><code>R/tensor.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/cudaverse/cudaverse/blob/main/R/tensor.R" class="external-link"><code>R/tensor.R</code></a></small>
       <div class="d-none name"><code>cuda_tensor.Rd</code></div>
     </div>
 
@@ -69,7 +69,10 @@ retained as R metadata on both CPU and CUDA tensors.
 Floating dtypes accept IEEE <code>Inf</code>, <code>-Inf</code>, <code>NaN</code>, and R's floating <code>NA</code>;
 torch backends may normalize <code>NA</code> to <code>NaN</code>. Integer dtype rejects
 non-finite or fractional values because they have no exact integer
-representation.</p></dd>
+representation. When <code>x</code> is already a tensor on the selected device,
+compatible floating dtype changes use its current backend without
+materializing the tensor on the host. Conversion to integer still validates
+exact representability on the host.</p></dd>
 
 </dl></div>
     <div class="section level2">

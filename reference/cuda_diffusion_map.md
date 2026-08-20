@@ -56,7 +56,8 @@ cuda_diffusion_map(
 
 A `cuda_embedding` with the stable fields documented by
 [`cuda_umap()`](https://cudaverse.github.io/cudaverse/reference/cuda_umap.md),
-stage-level distance/kernel/eigendecomposition provenance, and an
+stage-level distance/kernel/eigendecomposition provenance, an optional
+`distance_input` stage when resident native storage is reused, and an
 additional `eigenvalues` element.
 
 ## Examples

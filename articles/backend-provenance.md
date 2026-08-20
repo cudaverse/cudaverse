@@ -19,18 +19,23 @@ library(cudaverse)
 
 diagnostics <- cuda_diagnostics()
 diagnostics
-#> <cuda_diagnostics available=FALSE devices=NA selected=base torch=0.17.0 reason=backend_error>
+#> <cuda_diagnostics status=cpu_only available=FALSE devices=NA selected=base torch=0.17.0 reason=backend_error>
+#> CUDA is unavailable; automatic requests will use the base CPU backend (backend_error).
+#> Next steps:
+#> - Inspect backend_status$error and backend_diagnostics for the failing runtime probe before retrying CUDA.
 ```
 
 [`cuda_diagnostics()`](https://cudaverse.github.io/cudaverse/reference/cuda_diagnostics.md)
-never installs torch or a CUDA runtime. `available_backends`,
-`auto_eligible_backends`, `auto_selection_reason`, `selected_backend`,
-and `backend_diagnostics` describe the registry. The first native
-diagnostic in a session runs and caches a small transfer, float32 and
-float64 matmul/reduction, arithmetic/broadcast/reshape/transpose, and
-sparse normalization self-test. The legacy fields `torch_installed`,
+never installs torch or a CUDA runtime. `status`, `summary`,
+`next_steps`, and `backend_status` provide the concise user-facing
+result. `available_backends`, `auto_eligible_backends`,
+`auto_selection_reason`, `selected_backend`, and `backend_diagnostics`
+retain the complete registry evidence. The first native diagnostic in a
+session runs and caches a small transfer, float32 and float64
+matmul/reduction, arithmetic/broadcast/reshape/transpose, and sparse
+normalization self-test. The legacy fields `torch_installed`,
 `torch_version`, `cuda_available`, `cuda_device_count`, `reason`, and
-`detection_error` remain available throughout the 0.3 compatibility
+`detection_error` remain available throughout the 0.4 compatibility
 cycle.
 
 Native is eligible for `"auto"` only when all four gates pass:
@@ -211,9 +216,11 @@ complete result in host memory. Mixed-device binary operations move the
 right operand to the left operand’s device. Native CUDA subsetting and
 replacement evaluate index metadata in R but gather or replace tensor
 values on the GPU. Missing indices and backends without indexing
-operations use a recorded CPU round trip. Matrix arithmetic,
-broadcasting, reductions, reshape, and transpose use the tensor’s
-backend.
+operations use a recorded CPU round trip. Native reshape creates an
+allocation-free metadata view over shared device storage, so releasing
+the source does not invalidate the view and the allocation is freed
+after its final owner. Matrix arithmetic, broadcasting, reductions, and
+transpose use the tensor’s backend.
 
 Large operations can temporarily require input, output, and intermediate
 allocations at once. The package does not currently provide out-of-core

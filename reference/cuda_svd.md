@@ -32,6 +32,13 @@ cuda_svd(
 A list with `d`, `u`, `v`, and the actual `device`. Matrix row and
 column names are retained on the corresponding singular vectors.
 
+## Details
+
+A native CUDA `cudatensor` selected on the same backend is validated for
+finite values on the device and passed directly to cuSOLVER. Float32 and
+integer storage is converted to float64 on the device. Only the
+requested decomposition results are materialized in R.
+
 ## Examples
 
 ``` r

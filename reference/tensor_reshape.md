@@ -22,6 +22,14 @@ tensor_reshape(x, shape)
 
 A `cudatensor` on the same device with the requested shape.
 
+## Details
+
+The native CUDA backend creates an allocation-free metadata view that
+shares the source device allocation. The source and reshaped tensor have
+independent external-pointer lifetimes, and the allocation is freed only
+after the final view is released. Compatibility backends retain their
+established reshape behavior.
+
 ## Examples
 
 ``` r

@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">cudaverse</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.0.9000</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.4.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -36,7 +36,7 @@
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>k-nearest neighbours</h1>
-      <small class="dont-index">Source: <a href="https://github.com/cudaverse/cudaverse/blob/develop/native-cuda/R/algorithms.R" class="external-link"><code>R/algorithms.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/cudaverse/cudaverse/blob/main/R/algorithms.R" class="external-link"><code>R/algorithms.R</code></a></small>
       <div class="d-none name"><code>cuda_knn.Rd</code></div>
     </div>
 
@@ -97,9 +97,10 @@ deterministically in favour of the smaller row index.</p>
 <p>The implementation constructs at most a
 <code>min(batch_size, nrow(x))</code>-by-<code>nrow(x)</code> dense distance block instead of a
 complete pairwise distance matrix. The native CUDA backend keeps distance
-blocks and deterministic top-k selection on the GPU, then transfers only the
-final <code>n</code>-by-<code>k</code> index and distance matrices. Compatibility backends without
-device-side selection transfer each distance block to the CPU for stable
+blocks and deterministic top-k selection on the GPU. A torch backend with
+stable-sort support follows the same residency contract. Both transfer only
+the final <code>n</code>-by-<code>k</code> index and distance matrices. Compatibility backends
+without device-side selection transfer each distance block to the CPU for stable
 ordering. On CPU, Euclidean blocks use the same guarded
 translated-and-scaled implementation as <code><a href="cuda_distance.html">cuda_distance()</a></code>.</p>
     </div>

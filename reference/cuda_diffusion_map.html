@@ -9,7 +9,7 @@ and eigendecomposition currently run on the CPU."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">cudaverse</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.0.9000</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.4.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -38,7 +38,7 @@ and eigendecomposition currently run on the CPU."></head><body>
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Diffusion-map-style embedding</h1>
-      <small class="dont-index">Source: <a href="https://github.com/cudaverse/cudaverse/blob/develop/native-cuda/R/embeddings.R" class="external-link"><code>R/embeddings.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/cudaverse/cudaverse/blob/main/R/embeddings.R" class="external-link"><code>R/embeddings.R</code></a></small>
       <div class="d-none name"><code>cuda_diffusion_map.Rd</code></div>
     </div>
 
@@ -99,6 +99,7 @@ to embed. See <code><a href="cuda_umap.html">cuda_umap()</a></code> for automati
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>A <code>cuda_embedding</code> with the stable fields documented by
 <code><a href="cuda_umap.html">cuda_umap()</a></code>, stage-level distance/kernel/eigendecomposition provenance,
+an optional <code>distance_input</code> stage when resident native storage is reused,
 and an additional <code>eigenvalues</code> element.</p>
     </div>
 

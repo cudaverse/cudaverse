@@ -47,8 +47,9 @@ cuda_tsne(
 - reduced_dim:
 
   For a `SingleCellExperiment`, the reduced-dimension name to embed.
-  When `NULL`, a cudacellr metadata choice is used first, followed by a
-  uniquely named `"PCA"`. Other names must be selected explicitly.
+  When `NULL`, a compatible recorded metadata choice is used first,
+  followed by a uniquely named `"PCA"`. Other names must be selected
+  explicitly.
 
 ## Value
 

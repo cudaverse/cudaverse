@@ -6,6 +6,8 @@
   : Detect a usable CUDA backend
 - [`cuda_diagnostics()`](https://cudaverse.github.io/cudaverse/reference/cuda_diagnostics.md)
   : Diagnose the optional CUDA runtime
+- [`cuda_memory_info()`](https://cudaverse.github.io/cudaverse/reference/cuda_memory_info.md)
+  : Inspect CUDA memory
 - [`cuda_select_device()`](https://cudaverse.github.io/cudaverse/reference/cuda_select_device.md)
   : Select a computation device without hiding fallback
 - [`cuda_stage()`](https://cudaverse.github.io/cudaverse/reference/cuda_stage.md)

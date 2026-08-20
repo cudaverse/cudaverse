@@ -20,7 +20,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">cudaverse</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.0.9000</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.4.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -62,7 +62,7 @@
       <h1>Backend selection and compute provenance</h1>
             
       
-      <small class="dont-index">Source: <a href="https://github.com/cudaverse/cudaverse/blob/develop/native-cuda/vignettes/backend-provenance.Rmd" class="external-link"><code>vignettes/backend-provenance.Rmd</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/cudaverse/cudaverse/blob/main/vignettes/backend-provenance.Rmd" class="external-link"><code>vignettes/backend-provenance.Rmd</code></a></small>
       <div class="d-none name"><code>backend-provenance.Rmd</code></div>
     </div>
 
@@ -88,18 +88,23 @@ backend is usable.</p>
 <span></span>
 <span><span class="va">diagnostics</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cuda_diagnostics.html">cuda_diagnostics</a></span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="va">diagnostics</span></span>
-<span><span class="co">#&gt; &lt;cuda_diagnostics available=FALSE devices=NA selected=base torch=0.17.0 reason=backend_error&gt;</span></span></code></pre></div>
+<span><span class="co">#&gt; &lt;cuda_diagnostics status=cpu_only available=FALSE devices=NA selected=base torch=0.17.0 reason=backend_error&gt;</span></span>
+<span><span class="co">#&gt; CUDA is unavailable; automatic requests will use the base CPU backend (backend_error).</span></span>
+<span><span class="co">#&gt; Next steps:</span></span>
+<span><span class="co">#&gt; - Inspect backend_status$error and backend_diagnostics for the failing runtime probe before retrying CUDA.</span></span></code></pre></div>
 <p><code><a href="../reference/cuda_diagnostics.html">cuda_diagnostics()</a></code> never installs torch or a CUDA
-runtime. <code>available_backends</code>,
+runtime. <code>status</code>, <code>summary</code>,
+<code>next_steps</code>, and <code>backend_status</code> provide the
+concise user-facing result. <code>available_backends</code>,
 <code>auto_eligible_backends</code>, <code>auto_selection_reason</code>,
 <code>selected_backend</code>, and <code>backend_diagnostics</code>
-describe the registry. The first native diagnostic in a session runs and
-caches a small transfer, float32 and float64 matmul/reduction,
-arithmetic/broadcast/reshape/transpose, and sparse normalization
-self-test. The legacy fields <code>torch_installed</code>,
+retain the complete registry evidence. The first native diagnostic in a
+session runs and caches a small transfer, float32 and float64
+matmul/reduction, arithmetic/broadcast/reshape/transpose, and sparse
+normalization self-test. The legacy fields <code>torch_installed</code>,
 <code>torch_version</code>, <code>cuda_available</code>,
 <code>cuda_device_count</code>, <code>reason</code>, and
-<code>detection_error</code> remain available throughout the 0.3
+<code>detection_error</code> remain available throughout the 0.4
 compatibility cycle.</p>
 <p>Native is eligible for <code>"auto"</code> only when all four gates
 pass:</p>
@@ -334,9 +339,11 @@ complete result in host memory. Mixed-device binary operations move the
 right operand to the left operand’s device. Native CUDA subsetting and
 replacement evaluate index metadata in R but gather or replace tensor
 values on the GPU. Missing indices and backends without indexing
-operations use a recorded CPU round trip. Matrix arithmetic,
-broadcasting, reductions, reshape, and transpose use the tensor’s
-backend.</p>
+operations use a recorded CPU round trip. Native reshape creates an
+allocation-free metadata view over shared device storage, so releasing
+the source does not invalidate the view and the allocation is freed
+after its final owner. Matrix arithmetic, broadcasting, reductions, and
+transpose use the tensor’s backend.</p>
 <p>Large operations can temporarily require input, output, and
 intermediate allocations at once. The package does not currently provide
 out-of-core execution or automatic chunking. Printing a tensor with more

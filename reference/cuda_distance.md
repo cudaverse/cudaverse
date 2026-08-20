@@ -9,7 +9,8 @@ cuda_distance(
   x,
   y = NULL,
   metric = c("euclidean", "cosine"),
-  device = c("auto", "cuda", "cpu")
+  device = c("auto", "cuda", "cpu"),
+  batch_size = 256L
 )
 ```
 
@@ -28,6 +29,11 @@ cuda_distance(
 
   One of `"auto"`, `"cuda"`, or `"cpu"`.
 
+- batch_size:
+
+  Maximum number of query rows in each compute block. The final dense
+  result is still allocated in host memory.
+
 ## Value
 
 A dense numeric distance matrix with a `device` attribute. Input
@@ -40,7 +46,11 @@ before a vectorized calculation. Pairs at risk of cancellation or
 non-finite intermediate results are recomputed from direct observation
 differences with a scale-first norm. This avoids cancellation from large
 shared offsets and avoids avoidable overflow and underflow for extreme
-finite values.
+finite values. All built-in backends honor `batch_size`. The native CUDA
+backend uploads each input once, keeps the reference matrix and its
+norms device-resident, and transfers only completed distance blocks to
+R. This bounds operation-owned device memory without silently changing
+backend.
 
 ## Examples
 
@@ -87,6 +97,12 @@ cuda_distance(matrix(1:12, 4, 3), device = "cpu")
 #> attr(,"parameters")
 #> attr(,"parameters")$metric
 #> [1] "euclidean"
+#> 
+#> attr(,"parameters")$batch_size
+#> [1] 4
+#> 
+#> attr(,"parameters")$batches
+#> [1] 1
 #> 
 #> attr(,"source_device")
 #> [1] "cpu"

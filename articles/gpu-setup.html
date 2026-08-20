@@ -20,7 +20,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">cudaverse</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.0.9000</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.4.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -62,7 +62,7 @@
       <h1>GPU setup and troubleshooting</h1>
             
       
-      <small class="dont-index">Source: <a href="https://github.com/cudaverse/cudaverse/blob/develop/native-cuda/vignettes/gpu-setup.Rmd" class="external-link"><code>vignettes/gpu-setup.Rmd</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/cudaverse/cudaverse/blob/main/vignettes/gpu-setup.Rmd" class="external-link"><code>vignettes/gpu-setup.Rmd</code></a></small>
       <div class="d-none name"><code>gpu-setup.Rmd</code></div>
     </div>
 
@@ -79,7 +79,7 @@ torch remains an optional compatibility backend.</p>
 works on CPU before changing the runtime:</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># install.packages("pak")</span></span>
-<span><span class="fu">pak</span><span class="fu">::</span><span class="fu"><a href="https://pak.r-lib.org/reference/pak.html" class="external-link">pak</a></span><span class="op">(</span><span class="st">"cudaverse/cudaverse@develop/native-cuda"</span><span class="op">)</span></span></code></pre></div>
+<span><span class="fu">pak</span><span class="fu">::</span><span class="fu"><a href="https://pak.r-lib.org/reference/pak.html" class="external-link">pak</a></span><span class="op">(</span><span class="st">"cudaverse/cudaverse@develop/0.4"</span><span class="op">)</span></span></code></pre></div>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://cudaverse.github.io/cudaverse/">cudaverse</a></span><span class="op">)</span></span>
 <span></span>
@@ -145,6 +145,21 @@ backend remains available.</p>
 library path:</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">diagnostics</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cuda_diagnostics.html">cuda_diagnostics</a></span><span class="op">(</span><span class="op">)</span></span>
+<span><span class="va">diagnostics</span><span class="op">$</span><span class="va">status</span></span>
+<span><span class="co">#&gt; [1] "cpu_only"</span></span>
+<span><span class="va">diagnostics</span><span class="op">$</span><span class="va">summary</span></span>
+<span><span class="co">#&gt; [1] "CUDA is unavailable; automatic requests will use the base CPU backend (backend_error)."</span></span>
+<span><span class="va">diagnostics</span><span class="op">$</span><span class="va">next_steps</span></span>
+<span><span class="co">#&gt; [1] "Inspect backend_status$error and backend_diagnostics for the failing runtime probe before retrying CUDA."</span></span>
+<span><span class="va">diagnostics</span><span class="op">$</span><span class="va">backend_status</span></span>
+<span><span class="co">#&gt;        backend device installed available auto_eligible selected        reason</span></span>
+<span><span class="co">#&gt; base      base    cpu      TRUE      TRUE         FALSE     TRUE cpu_available</span></span>
+<span><span class="co">#&gt; torch    torch   cuda      TRUE     FALSE         FALSE    FALSE backend_error</span></span>
+<span><span class="co">#&gt; native  native   cuda      TRUE     FALSE         FALSE    FALSE backend_error</span></span>
+<span><span class="co">#&gt;                                                                                          error</span></span>
+<span><span class="co">#&gt; base                                                                                      &lt;NA&gt;</span></span>
+<span><span class="co">#&gt; torch  Lantern is not loaded. Please use `install_torch()` to install additional dependencies.</span></span>
+<span><span class="co">#&gt; native               CUDA error 100 (CUDA_ERROR_NO_DEVICE): no CUDA-capable device is detected</span></span>
 <span><span class="va">diagnostics</span><span class="op">$</span><span class="va">available_backends</span></span>
 <span><span class="co">#&gt; [1] "base"</span></span>
 <span><span class="va">diagnostics</span><span class="op">$</span><span class="va">auto_eligible_backends</span></span>
@@ -211,7 +226,10 @@ device count:</p>
 <p>Native is eligible for automatic selection only when the versioned
 <code>cudaverse-backend/1</code> contract, required operations, runtime
 components, and cached self-test all pass. A detected GPU alone is
-insufficient.</p>
+insufficient. When CUDA is unavailable, <code>next_steps</code> maps the
+stable selection reason to a concrete action. The strict
+<code>cudaverse_cuda_unavailable</code> condition retains the same
+reason, diagnostics, and guidance for programmatic error handling.</p>
 </div>
 <div class="section level2">
 <h2 id="prove-strict-native-execution">Prove strict native execution<a class="anchor" aria-label="anchor" href="#prove-strict-native-execution"></a>
@@ -290,6 +308,20 @@ boundaries.</p>
 <div class="section level2">
 <h2 id="memory-and-transfer-guidance">Memory and transfer guidance<a class="anchor" aria-label="anchor" href="#memory-and-transfer-guidance"></a>
 </h2>
+<p>Inspect memory without retaining a user tensor:</p>
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">memory</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cuda_memory_info.html">cuda_memory_info</a></span><span class="op">(</span><span class="st">"auto"</span><span class="op">)</span></span>
+<span><span class="va">memory</span></span>
+<span><span class="co">#&gt; &lt;cuda_memory_info available=FALSE device=cpu backend=base reason=cpu_backend_selected&gt;</span></span></code></pre></div>
+<p>The native report distinguishes whole-device
+<code>total_bytes</code>, <code>free_bytes</code>, and
+<code>used_bytes</code> from cudaverse-owned
+<code>allocated_bytes</code> and <code>allocated_peak_bytes</code>. The
+torch compatibility report exposes its allocator’s allocated and
+reserved counters. Unsupported counters stay <code>NA</code>; they are
+not guessed from another backend’s allocator. On the first CUDA
+selection in a session, native peak bytes can include the released
+temporary allocations from the runtime self-test.</p>
 <ul>
 <li>Exact <code><a href="../reference/cuda_knn.html">cuda_knn()</a></code> is quadratic in time.
 <code>batch_size</code> bounds the resident distance block; lower it
@@ -354,12 +386,13 @@ intentionally use CPU packages in the current surface.</p>
 <h2 id="report-a-reproducible-problem">Report a reproducible problem<a class="anchor" aria-label="anchor" href="#report-a-reproducible-problem"></a>
 </h2>
 <p>Include the following without redacting backend failure reasons:</p>
-<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/sessionInfo.html" class="external-link">sessionInfo</a></span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="va">diagnostics</span> <span class="op">&lt;-</span> <span class="fu">cudaverse</span><span class="fu">::</span><span class="fu"><a href="../reference/cuda_diagnostics.html">cuda_diagnostics</a></span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="va">diagnostics</span><span class="op">$</span><span class="va">selected_backend</span></span>
 <span><span class="va">diagnostics</span><span class="op">$</span><span class="va">auto_selection_reason</span></span>
 <span><span class="va">diagnostics</span><span class="op">$</span><span class="va">backend_diagnostics</span></span>
+<span><span class="fu">cudaverse</span><span class="fu">::</span><span class="fu"><a href="../reference/cuda_memory_info.html">cuda_memory_info</a></span><span class="op">(</span><span class="st">"auto"</span><span class="op">)</span></span>
 <span><span class="fu">cudaverse</span><span class="fu">::</span><span class="fu"><a href="../reference/cuda_provenance.html">cuda_provenance</a></span><span class="op">(</span><span class="va">result</span><span class="op">)</span></span></code></pre></div>
 <p>Also include a small input, the requested device, whether the CPU
 call passes, the exact cudaverse commit or version, operating system,

@@ -20,7 +20,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">cudaverse</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.0.9000</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.4.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -62,7 +62,7 @@
       <h1>Backend support and release boundaries</h1>
             
       
-      <small class="dont-index">Source: <a href="https://github.com/cudaverse/cudaverse/blob/develop/native-cuda/vignettes/backend-support.Rmd" class="external-link"><code>vignettes/backend-support.Rmd</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/cudaverse/cudaverse/blob/main/vignettes/backend-support.Rmd" class="external-link"><code>vignettes/backend-support.Rmd</code></a></small>
       <div class="d-none name"><code>backend-support.Rmd</code></div>
     </div>
 
@@ -109,14 +109,14 @@ executable public-API workflows: diagnostics, tensor, sparse, algorithm,
 graph, or embedding.</p>
 <table class="table">
 <colgroup>
-<col width="10%">
-<col width="5%">
-<col width="6%">
+<col width="7%">
 <col width="4%">
-<col width="5%">
-<col width="5%">
-<col width="10%">
-<col width="51%">
+<col width="4%">
+<col width="3%">
+<col width="3%">
+<col width="4%">
+<col width="7%">
+<col width="64%">
 </colgroup>
 <thead><tr class="header">
 <th align="left">api</th>
@@ -181,8 +181,8 @@ CUDA request</td>
 <td align="left">probe</td>
 <td align="left">probe</td>
 <td align="left">host</td>
-<td align="left">Reports legacy torch fields plus registered and
-selected backends</td>
+<td align="left">Reports compatibility fields plus backend health
+summary status table and actionable next steps</td>
 </tr>
 <tr class="even">
 <td align="left">cuda_diffusion_map</td>
@@ -192,8 +192,9 @@ selected backends</td>
 <td align="left">hybrid</td>
 <td align="left">hybrid</td>
 <td align="left">host</td>
-<td align="left">GPU backends cover distance only while kernel and
-eigendecomposition are CPU</td>
+<td align="left">Native reuses device-resident PCA scores for distance
+while kernel construction and eigendecomposition are CPU; optional
+SingleCellExperiment reduced dimensions begin at a host boundary</td>
 </tr>
 <tr class="odd">
 <td align="left">cuda_distance</td>
@@ -222,11 +223,12 @@ and centre updates on device; torch retains CPU updates</td>
 <td align="left">algorithm</td>
 <td align="left">algorithm</td>
 <td align="left">direct</td>
-<td align="left">hybrid</td>
+<td align="left">direct</td>
 <td align="left">direct</td>
 <td align="left">host</td>
-<td align="left">Torch transfers distance blocks for CPU stable top-k
-while native selects on device</td>
+<td align="left">Native and torch with stable-sort support select
+deterministic top-k on device and transfer only final indices and
+distances; older torch APIs use the recorded compatibility path</td>
 </tr>
 <tr class="even">
 <td align="left">cuda_knn_graph</td>
@@ -260,6 +262,18 @@ completed kNN result</td>
 <td align="left">Community detection always uses igraph on CPU</td>
 </tr>
 <tr class="odd">
+<td align="left">cuda_memory_info</td>
+<td align="left">diagnostics</td>
+<td align="left">diagnostics</td>
+<td align="left">metadata</td>
+<td align="left">direct</td>
+<td align="left">direct</td>
+<td align="left">host</td>
+<td align="left">Reports native driver and package allocator bytes or
+torch allocator bytes without estimating unsupported counters; first
+selection can run the cached self-test</td>
+</tr>
+<tr class="even">
 <td align="left">cuda_pca</td>
 <td align="left">algorithm</td>
 <td align="left">algorithm</td>
@@ -270,7 +284,7 @@ completed kNN result</td>
 <td align="left">Torch sparse input materializes before dense PCA while
 native has a sparse path</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left">cuda_provenance</td>
 <td align="left">provenance</td>
 <td align="left">diagnostics</td>
@@ -281,7 +295,7 @@ native has a sparse path</td>
 <td align="left">Returns the recorded stage table without new numerical
 work</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left">cuda_select_device</td>
 <td align="left">diagnostics</td>
 <td align="left">diagnostics</td>
@@ -292,7 +306,7 @@ work</td>
 <td align="left">Selects native then torch for auto and records CPU
 fallback</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left">cuda_sparse</td>
 <td align="left">sparse</td>
 <td align="left">sparse</td>
@@ -303,7 +317,7 @@ fallback</td>
 <td align="left">Constructs Matrix torch COO or native shared
 storage</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left">cuda_stage</td>
 <td align="left">provenance</td>
 <td align="left">diagnostics</td>
@@ -313,7 +327,7 @@ storage</td>
 <td align="left">host</td>
 <td align="left">Validates and constructs one provenance stage</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left">cuda_svd</td>
 <td align="left">algorithm</td>
 <td align="left">algorithm</td>
@@ -324,7 +338,7 @@ storage</td>
 <td align="left">SVD uses the selected backend and materializes the
 public result</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left">cuda_tensor</td>
 <td align="left">tensor</td>
 <td align="left">tensor</td>
@@ -334,7 +348,7 @@ public result</td>
 <td align="left">same_device</td>
 <td align="left">Constructs storage in the selected backend</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left">cuda_tsne</td>
 <td align="left">embedding</td>
 <td align="left">embedding</td>
@@ -343,9 +357,10 @@ public result</td>
 <td align="left">cpu_only</td>
 <td align="left">host</td>
 <td align="left">Always uses Rtsne on CPU and preserves upstream
-provenance</td>
+provenance; optional SingleCellExperiment reduced dimensions are
+materialized on the host</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left">cuda_umap</td>
 <td align="left">embedding</td>
 <td align="left">embedding</td>
@@ -354,9 +369,10 @@ provenance</td>
 <td align="left">cpu_only</td>
 <td align="left">host</td>
 <td align="left">Always uses uwot on CPU and preserves upstream
-provenance</td>
+provenance; optional SingleCellExperiment reduced dimensions are
+materialized on the host</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left">embedding_coordinates</td>
 <td align="left">embedding</td>
 <td align="left">embedding</td>
@@ -367,7 +383,7 @@ provenance</td>
 <td align="left">Returns coordinates already stored in the embedding
 result</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left">sparse_col_sums</td>
 <td align="left">sparse</td>
 <td align="left">sparse</td>
@@ -378,7 +394,7 @@ result</td>
 <td align="left">Torch uses the host metadata mirror while native
 reduces on device</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left">sparse_info</td>
 <td align="left">sparse</td>
 <td align="left">sparse</td>
@@ -388,7 +404,7 @@ reduces on device</td>
 <td align="left">host</td>
 <td align="left">Returns public sparse metadata only</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left">sparse_matmul_dense</td>
 <td align="left">sparse</td>
 <td align="left">sparse</td>
@@ -399,7 +415,7 @@ reduces on device</td>
 <td align="left">Torch computes on CUDA then returns CPU while native
 keeps a dense tensor resident</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left">sparse_matvec</td>
 <td align="left">sparse</td>
 <td align="left">sparse</td>
@@ -410,7 +426,7 @@ keeps a dense tensor resident</td>
 <td align="left">GPU multiplication is followed by explicit host vector
 materialization</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left">sparse_normalize</td>
 <td align="left">sparse</td>
 <td align="left">sparse</td>
@@ -421,7 +437,7 @@ materialization</td>
 <td align="left">Torch normalizes the host mirror then uploads while
 native normalizes device storage</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left">sparse_row_sums</td>
 <td align="left">sparse</td>
 <td align="left">sparse</td>
@@ -432,7 +448,7 @@ native normalizes device storage</td>
 <td align="left">Torch uses the host metadata mirror while native
 reduces on device</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left">tensor_broadcast_to</td>
 <td align="left">tensor</td>
 <td align="left">tensor</td>
@@ -442,7 +458,7 @@ reduces on device</td>
 <td align="left">same_device</td>
 <td align="left">Uses the selected tensor backend</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left">tensor_device</td>
 <td align="left">tensor</td>
 <td align="left">tensor</td>
@@ -452,7 +468,7 @@ reduces on device</td>
 <td align="left">host</td>
 <td align="left">Returns tensor metadata only</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left">tensor_matmul</td>
 <td align="left">tensor</td>
 <td align="left">tensor</td>
@@ -462,7 +478,7 @@ reduces on device</td>
 <td align="left">same_device</td>
 <td align="left">Uses the selected tensor backend</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left">tensor_mean</td>
 <td align="left">tensor</td>
 <td align="left">tensor</td>
@@ -472,7 +488,7 @@ reduces on device</td>
 <td align="left">same_device</td>
 <td align="left">Uses the selected tensor backend</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left">tensor_reshape</td>
 <td align="left">tensor</td>
 <td align="left">tensor</td>
@@ -482,7 +498,7 @@ reduces on device</td>
 <td align="left">same_device</td>
 <td align="left">Native reshape shares storage ownership</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left">tensor_shape</td>
 <td align="left">tensor</td>
 <td align="left">tensor</td>
@@ -492,7 +508,7 @@ reduces on device</td>
 <td align="left">host</td>
 <td align="left">Returns tensor metadata only</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left">tensor_sum</td>
 <td align="left">tensor</td>
 <td align="left">tensor</td>
@@ -502,7 +518,7 @@ reduces on device</td>
 <td align="left">same_device</td>
 <td align="left">Uses the selected tensor backend</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left">to_cpu</td>
 <td align="left">transfer</td>
 <td align="left">tensor</td>
@@ -512,7 +528,7 @@ reduces on device</td>
 <td align="left">host</td>
 <td align="left">Explicitly materializes a base R object</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left">to_device</td>
 <td align="left">transfer</td>
 <td align="left">tensor</td>
@@ -523,7 +539,7 @@ reduces on device</td>
 <td align="left">CPU uses base while CUDA uses the selected compatible
 backend</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left">to_dgCMatrix</td>
 <td align="left">transfer</td>
 <td align="left">sparse</td>
@@ -562,6 +578,10 @@ compatibility backends rebuild from the stable public COO metadata;</li>
 <li>native CUDA k-means keeps distance, stable assignment, accumulation,
 and centre updates on the device; the torch compatibility path uses GPU
 distance and CPU assignment/centre updates;</li>
+<li>exact kNN keeps each distance block and stable top-k selection on
+the native backend, and does the same on torch versions that expose
+stable device sort; only the final index and distance matrices cross the
+host boundary;</li>
 <li>kNN graph construction uses <code>Matrix</code>, while Louvain and
 Leiden use <code>igraph</code>;</li>
 <li>UMAP and t-SNE use <code>uwot</code> and <code>Rtsne</code> on CPU;
@@ -569,6 +589,13 @@ and</li>
 <li>diffusion maps may calculate distance on CUDA, but construct the
 kernel and eigendecomposition on CPU.</li>
 </ul>
+<p><code>SingleCellExperiment</code> support is optional. Embedding
+entry points materialize the selected reduced dimension as a host matrix
+and retain its cell names and compatible source provenance. UMAP and
+t-SNE remain CPU operations. Diffusion maps can move that matrix through
+the documented CUDA distance stage, followed by the intentional CPU
+kernel and eigendecomposition stages. Seurat objects are not currently a
+public input type.</p>
 <p>Use <code><a href="../reference/cuda_provenance.html">cuda_provenance()</a></code> on a result to inspect each actual
 compute and transfer stage. A hybrid result is not presented as fully
 GPU-resident.</p>
@@ -610,35 +637,40 @@ inferred from this checkpoint.</p>
 <span><span class="va">diagnostics</span><span class="op">$</span><span class="va">selected_backend</span></span>
 <span><span class="co">#&gt; [1] "base"</span></span>
 <span><span class="va">diagnostics</span><span class="op">$</span><span class="va">backend_diagnostics</span><span class="op">$</span><span class="va">native</span><span class="op">$</span><span class="va">capabilities</span></span>
-<span><span class="co">#&gt;  [1] "driver-detection"  "allocation"        "transfer"         </span></span>
-<span><span class="co">#&gt;  [4] "cast"              "matmul"            "reduce"           </span></span>
-<span><span class="co">#&gt;  [7] "arithmetic"        "reshape"           "broadcast"        </span></span>
-<span><span class="co">#&gt; [10] "transpose"         "subset"            "replacement"      </span></span>
-<span><span class="co">#&gt; [13] "svd"               "pca"               "pca-predict"      </span></span>
-<span><span class="co">#&gt; [16] "distance"          "kmeans"            "knn"              </span></span>
-<span><span class="co">#&gt; [19] "stable-topk"       "sparse"            "sparse-coo"       </span></span>
-<span><span class="co">#&gt; [22] "sparse-csr"        "sparse-transpose"  "sparse-normalize" </span></span>
-<span><span class="co">#&gt; [25] "sparse-matmul"     "sparse-reduce"     "sparse-pca"       </span></span>
-<span><span class="co">#&gt; [28] "sparse-knn"        "synchronize"       "shared-ownership" </span></span>
-<span><span class="co">#&gt; [31] "dtype-float32"     "dtype-float64"     "runtime-self-test"</span></span>
+<span><span class="co">#&gt;  [1] "driver-detection"     "allocation"           "transfer"            </span></span>
+<span><span class="co">#&gt;  [4] "cast"                 "matmul"               "reduce"              </span></span>
+<span><span class="co">#&gt;  [7] "arithmetic"           "reshape"              "broadcast"           </span></span>
+<span><span class="co">#&gt; [10] "transpose"            "subset"               "replacement"         </span></span>
+<span><span class="co">#&gt; [13] "matrix-validation"    "svd"                  "svd-resident"        </span></span>
+<span><span class="co">#&gt; [16] "pca"                  "pca-resident"         "pca-predict"         </span></span>
+<span><span class="co">#&gt; [19] "distance"             "distance-batched"     "kmeans"              </span></span>
+<span><span class="co">#&gt; [22] "kmeans-batched"       "knn"                  "stable-topk"         </span></span>
+<span><span class="co">#&gt; [25] "sparse"               "sparse-coo"           "sparse-csr"          </span></span>
+<span><span class="co">#&gt; [28] "sparse-transpose"     "sparse-normalize"     "sparse-matmul"       </span></span>
+<span><span class="co">#&gt; [31] "sparse-reduce"        "sparse-pca"           "sparse-knn"          </span></span>
+<span><span class="co">#&gt; [34] "synchronize"          "shared-ownership"     "memory-observability"</span></span>
+<span><span class="co">#&gt; [37] "dtype-float32"        "dtype-float64"        "runtime-self-test"</span></span>
 <span><span class="va">diagnostics</span><span class="op">$</span><span class="va">backend_diagnostics</span><span class="op">$</span><span class="va">native</span><span class="op">$</span><span class="va">operations</span></span>
-<span><span class="co">#&gt;  [1] "algorithm_distance"           "algorithm_kmeans"            </span></span>
-<span><span class="co">#&gt;  [3] "algorithm_knn_block"          "algorithm_knn_prepare"       </span></span>
-<span><span class="co">#&gt;  [5] "algorithm_knn_select"         "algorithm_pca"               </span></span>
-<span><span class="co">#&gt;  [7] "algorithm_pca_predict"        "algorithm_sparse_knn_prepare"</span></span>
-<span><span class="co">#&gt;  [9] "algorithm_sparse_pca"         "algorithm_svd"               </span></span>
-<span><span class="co">#&gt; [11] "binary"                       "broadcast"                   </span></span>
-<span><span class="co">#&gt; [13] "cast"                         "from_host"                   </span></span>
-<span><span class="co">#&gt; [15] "matmul"                       "reduce"                      </span></span>
-<span><span class="co">#&gt; [17] "release"                      "replace"                     </span></span>
-<span><span class="co">#&gt; [19] "reshape"                      "sparse_from_coo"             </span></span>
-<span><span class="co">#&gt; [21] "sparse_matmul_dense"          "sparse_normalize"            </span></span>
-<span><span class="co">#&gt; [23] "sparse_reduce"                "sparse_release"              </span></span>
-<span><span class="co">#&gt; [25] "sparse_share"                 "sparse_to_dense"             </span></span>
-<span><span class="co">#&gt; [27] "sparse_to_host"               "sparse_transpose"            </span></span>
-<span><span class="co">#&gt; [29] "subset"                       "synchronize"                 </span></span>
-<span><span class="co">#&gt; [31] "test_inject_cuda_error"       "to_host"                     </span></span>
-<span><span class="co">#&gt; [33] "transpose"</span></span></code></pre></div>
+<span><span class="co">#&gt;  [1] "algorithm_distance"           "algorithm_distance_batched"  </span></span>
+<span><span class="co">#&gt;  [3] "algorithm_kmeans"             "algorithm_kmeans_batched"    </span></span>
+<span><span class="co">#&gt;  [5] "algorithm_knn_block"          "algorithm_knn_prepare"       </span></span>
+<span><span class="co">#&gt;  [7] "algorithm_knn_select"         "algorithm_matrix_validate"   </span></span>
+<span><span class="co">#&gt;  [9] "algorithm_pca"                "algorithm_pca_predict"       </span></span>
+<span><span class="co">#&gt; [11] "algorithm_pca_storage"        "algorithm_sparse_knn_prepare"</span></span>
+<span><span class="co">#&gt; [13] "algorithm_sparse_pca"         "algorithm_svd"               </span></span>
+<span><span class="co">#&gt; [15] "algorithm_svd_storage"        "binary"                      </span></span>
+<span><span class="co">#&gt; [17] "broadcast"                    "cast"                        </span></span>
+<span><span class="co">#&gt; [19] "from_host"                    "matmul"                      </span></span>
+<span><span class="co">#&gt; [21] "memory_info"                  "reduce"                      </span></span>
+<span><span class="co">#&gt; [23] "release"                      "replace"                     </span></span>
+<span><span class="co">#&gt; [25] "reshape"                      "sparse_from_coo"             </span></span>
+<span><span class="co">#&gt; [27] "sparse_matmul_dense"          "sparse_normalize"            </span></span>
+<span><span class="co">#&gt; [29] "sparse_reduce"                "sparse_release"              </span></span>
+<span><span class="co">#&gt; [31] "sparse_share"                 "sparse_to_dense"             </span></span>
+<span><span class="co">#&gt; [33] "sparse_to_host"               "sparse_transpose"            </span></span>
+<span><span class="co">#&gt; [35] "subset"                       "synchronize"                 </span></span>
+<span><span class="co">#&gt; [37] "test_inject_cuda_error"       "to_host"                     </span></span>
+<span><span class="co">#&gt; [39] "transpose"</span></span></code></pre></div>
 <p><code>capabilities</code> are user-facing feature declarations.
 <code>operations</code> are the callable internal registry entries.
 Native automatic selection additionally requires the compatible contract

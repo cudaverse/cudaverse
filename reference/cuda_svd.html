@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">cudaverse</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.0.9000</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.4.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -36,7 +36,7 @@
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>GPU-aware singular value decomposition</h1>
-      <small class="dont-index">Source: <a href="https://github.com/cudaverse/cudaverse/blob/develop/native-cuda/R/algorithms.R" class="external-link"><code>R/algorithms.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/cudaverse/cudaverse/blob/main/R/algorithms.R" class="external-link"><code>R/algorithms.R</code></a></small>
       <div class="d-none name"><code>cuda_svd.Rd</code></div>
     </div>
 
@@ -74,6 +74,13 @@
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>A list with <code>d</code>, <code>u</code>, <code>v</code>, and the actual <code>device</code>. Matrix row and
 column names are retained on the corresponding singular vectors.</p>
+    </div>
+    <div class="section level2">
+    <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
+    <p>A native CUDA <code>cudatensor</code> selected on the same backend is validated
+for finite values on the device and passed directly to cuSOLVER. Float32
+and integer storage is converted to float64 on the device. Only the
+requested decomposition results are materialized in R.</p>
     </div>
 
     <div class="section level2">

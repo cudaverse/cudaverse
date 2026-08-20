@@ -40,6 +40,12 @@ integer `shape`, matrix `dimnames`, logical `format`, actual `device`,
 and `backend`. `storage` is backend-internal and should not be accessed
 directly.
 
+## Details
+
+Existing `cudasparse` inputs use their stable sorted COO mirror
+directly. Same-device format changes share backend storage; transfers
+and zero filtering do not construct an intermediate Matrix object.
+
 ## Examples
 
 ``` r

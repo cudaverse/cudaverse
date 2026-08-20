@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">cudaverse</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.0.9000</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.4.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -36,7 +36,7 @@
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Pairwise distances with an optional CUDA backend</h1>
-      <small class="dont-index">Source: <a href="https://github.com/cudaverse/cudaverse/blob/develop/native-cuda/R/algorithms.R" class="external-link"><code>R/algorithms.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/cudaverse/cudaverse/blob/main/R/algorithms.R" class="external-link"><code>R/algorithms.R</code></a></small>
       <div class="d-none name"><code>cuda_distance.Rd</code></div>
     </div>
 
@@ -50,7 +50,8 @@
 <span>  <span class="va">x</span>,</span>
 <span>  y <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  metric <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"euclidean"</span>, <span class="st">"cosine"</span><span class="op">)</span>,</span>
-<span>  device <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"auto"</span>, <span class="st">"cuda"</span>, <span class="st">"cpu"</span><span class="op">)</span></span>
+<span>  device <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"auto"</span>, <span class="st">"cuda"</span>, <span class="st">"cpu"</span><span class="op">)</span>,</span>
+<span>  batch_size <span class="op">=</span> <span class="fl">256L</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -70,6 +71,11 @@ computes all pairwise distances within <code>x</code>.</p></dd>
 <dt id="arg-device">device<a class="anchor" aria-label="anchor" href="#arg-device"></a></dt>
 <dd><p>One of <code>"auto"</code>, <code>"cuda"</code>, or <code>"cpu"</code>.</p></dd>
 
+
+<dt id="arg-batch-size">batch_size<a class="anchor" aria-label="anchor" href="#arg-batch-size"></a></dt>
+<dd><p>Maximum number of query rows in each compute block. The
+final dense result is still allocated in host memory.</p></dd>
+
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
@@ -83,7 +89,10 @@ scaling before a vectorized calculation. Pairs at risk of cancellation or
 non-finite intermediate results are recomputed from direct observation
 differences with a scale-first norm. This avoids cancellation from large
 shared offsets and avoids avoidable overflow and underflow for extreme
-finite values.</p>
+finite values. All built-in backends honor <code>batch_size</code>. The native CUDA
+backend uploads each input once, keeps the reference matrix and its norms
+device-resident, and transfers only completed distance blocks to R. This
+bounds operation-owned device memory without silently changing backend.</p>
     </div>
 
     <div class="section level2">
@@ -130,6 +139,12 @@ finite values.</p>
 <span class="r-out co"><span class="r-pr">#&gt;</span> attr(,"parameters")</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> attr(,"parameters")$metric</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> [1] "euclidean"</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> attr(,"parameters")$batch_size</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 4</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> attr(,"parameters")$batches</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 1</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> attr(,"source_device")</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> [1] "cpu"</span>

@@ -44,6 +44,17 @@ deviations, centring/scaling values, and actual device. Observation
 names, feature names, and stable `PC1`, `PC2`, ... component names are
 preserved on every backend.
 
+## Details
+
+A native CUDA `cudatensor` selected on the same backend is validated on
+the device and passed directly into preprocessing and cuSOLVER without
+downloading its input matrix. Float32 and integer tensors are converted
+to float64 on the device. PCA scores retain shared native storage for
+direct composition with native distance and kNN operations. Sparse
+inputs transfer directly from their stable COO mirror. Constant features
+are scanned from that mirror only when `scale. = TRUE`; unscaled sparse
+PCA does not build or scan an intermediate Matrix object.
+
 ## Examples
 
 ``` r

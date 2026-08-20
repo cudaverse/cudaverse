@@ -29,7 +29,10 @@ cuda_tensor(x, device = c("auto", "cuda", "cpu"), dtype = NULL)
   dtypes accept IEEE `Inf`, `-Inf`, `NaN`, and R's floating `NA`; torch
   backends may normalize `NA` to `NaN`. Integer dtype rejects non-finite
   or fractional values because they have no exact integer
-  representation.
+  representation. When `x` is already a tensor on the selected device,
+  compatible floating dtype changes use its current backend without
+  materializing the tensor on the host. Conversion to integer still
+  validates exact representability on the host.
 
 ## Value
 

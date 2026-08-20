@@ -85,9 +85,31 @@ UMAP, t-SNE, Louvain, and Leiden use optional packages. Their functions
 report a clear installation message when the relevant optional backend
 is missing.
 
-## Single-cell extension
+## Optional single-cell inputs
 
-Single-cell normalization, feature selection, and native
-SingleCellExperiment/Seurat mapping remain in `cudacellr`. That package
-depends on `cudaverse`, so a single-cell user installs two packages
-while a general numerical user installs only this one.
+When `SingleCellExperiment` is installed,
+[`cuda_umap()`](https://cudaverse.github.io/cudaverse/reference/cuda_umap.md),
+[`cuda_tsne()`](https://cudaverse.github.io/cudaverse/reference/cuda_tsne.md),
+and
+[`cuda_diffusion_map()`](https://cudaverse.github.io/cudaverse/reference/cuda_diffusion_map.md)
+can consume one of its reduced dimensions directly. Select the dimension
+explicitly unless there is exactly one reduced dimension named `"PCA"`:
+
+``` r
+
+fit <- cuda_diffusion_map(
+  sce,
+  reduced_dim = "PCA",
+  n_components = 2,
+  device = "auto"
+)
+```
+
+The selected reduced dimension is materialized as a host matrix. UMAP
+and t-SNE then run on their documented CPU backends. Diffusion maps may
+upload the matrix for the distance stage, while kernel construction and
+eigendecomposition remain on CPU; `cuda_provenance(fit)` reports this
+boundary. Seurat objects are not currently a public input type, so pass
+a finite matrix or a `SingleCellExperiment` reduced dimension instead.
+These optional integrations do not add Bioconductor or Seurat to an
+ordinary cudaverse installation.

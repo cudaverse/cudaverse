@@ -9,7 +9,7 @@ torch. The returned reason is suitable for logs and provenance."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">cudaverse</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.0.9000</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.4.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -38,7 +38,7 @@ torch. The returned reason is suitable for logs and provenance."></head><body>
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Diagnose the optional CUDA runtime</h1>
-      <small class="dont-index">Source: <a href="https://github.com/cudaverse/cudaverse/blob/develop/native-cuda/R/provenance.R" class="external-link"><code>R/provenance.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/cudaverse/cudaverse/blob/main/R/provenance.R" class="external-link"><code>R/provenance.R</code></a></small>
       <div class="d-none name"><code>cuda_diagnostics.Rd</code></div>
     </div>
 
@@ -58,17 +58,23 @@ torch. The returned <code>reason</code> is suitable for logs and provenance.</p>
 <code>torch_version</code>, <code>cuda_available</code>, <code>cuda_device_count</code>, <code>reason</code>, and
 <code>detection_error</code>, plus <code>available_backends</code>, <code>auto_eligible_backends</code>,
 <code>auto_selection_reason</code>, <code>selected_backend</code>, and per-backend diagnostic
-details. Each backend detail distinguishes advertised <code>capabilities</code> from
-callable internal <code>operations</code>. Native automatic eligibility requires a compatible backend
-contract, the complete tensor/algorithm capability set, all runtime
+details. The additive <code>status</code>, <code>summary</code>, <code>next_steps</code>, and
+<code>backend_status</code> fields provide a user-facing health result without
+removing the machine-readable details. Each backend detail distinguishes
+advertised <code>capabilities</code> from callable internal <code>operations</code>. Native
+automatic eligibility requires a compatible backend contract, the
+complete tensor/algorithm capability set, all runtime
 components, and a passing cached self-test. The legacy fields are retained
-throughout the 0.3 compatibility cycle.</p>
+throughout the 0.4 compatibility cycle.</p>
     </div>
 
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="fu">cuda_diagnostics</span><span class="op">(</span><span class="op">)</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> &lt;cuda_diagnostics available=FALSE devices=NA selected=base torch=0.17.0 reason=backend_error&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> &lt;cuda_diagnostics status=cpu_only available=FALSE devices=NA selected=base torch=0.17.0 reason=backend_error&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> CUDA is unavailable; automatic requests will use the base CPU backend (backend_error).</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Next steps:</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> - Inspect backend_status$error and backend_diagnostics for the failing runtime probe before retrying CUDA.</span>
 </code></pre></div>
     </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

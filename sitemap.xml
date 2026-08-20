@@ -1,6 +1,7 @@
 <urlset xmlns = 'http://www.sitemaps.org/schemas/sitemap/0.9'>
 <url><loc>https://cudaverse.github.io/cudaverse/404.html</loc></url>
 <url><loc>https://cudaverse.github.io/cudaverse/CUDAVERSE-0.3-ROADMAP.html</loc></url>
+<url><loc>https://cudaverse.github.io/cudaverse/CUDAVERSE-0.4-ROADMAP.html</loc></url>
 <url><loc>https://cudaverse.github.io/cudaverse/LICENSE-text.html</loc></url>
 <url><loc>https://cudaverse.github.io/cudaverse/articles/backend-provenance.html</loc></url>
 <url><loc>https://cudaverse.github.io/cudaverse/articles/backend-support.html</loc></url>
@@ -21,6 +22,7 @@
 <url><loc>https://cudaverse.github.io/cudaverse/reference/cuda_knn_graph.html</loc></url>
 <url><loc>https://cudaverse.github.io/cudaverse/reference/cuda_leiden.html</loc></url>
 <url><loc>https://cudaverse.github.io/cudaverse/reference/cuda_louvain.html</loc></url>
+<url><loc>https://cudaverse.github.io/cudaverse/reference/cuda_memory_info.html</loc></url>
 <url><loc>https://cudaverse.github.io/cudaverse/reference/cuda_pca.html</loc></url>
 <url><loc>https://cudaverse.github.io/cudaverse/reference/cuda_provenance.html</loc></url>
 <url><loc>https://cudaverse.github.io/cudaverse/reference/cuda_select_device.html</loc></url>

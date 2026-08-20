@@ -11,6 +11,7 @@ cuda_kmeans(
   iter.max = 100L,
   tolerance = 1e-06,
   seed = NULL,
+  batch_size = 256L,
   device = c("auto", "cuda", "cpu")
 )
 ```
@@ -36,6 +37,13 @@ cuda_kmeans(
 - seed:
 
   Optional random seed used for initial centres.
+
+- batch_size:
+
+  Maximum number of observations whose centre-distance block is
+  materialized at once. The native backend keeps observations, centres,
+  assignments, and updates on the GPU while bounding temporary distance
+  storage to approximately `batch_size * n_centers` values.
 
 - device:
 

@@ -55,8 +55,9 @@ deterministically in favour of the smaller row index.
 The implementation constructs at most a
 `min(batch_size, nrow(x))`-by-`nrow(x)` dense distance block instead of
 a complete pairwise distance matrix. The native CUDA backend keeps
-distance blocks and deterministic top-k selection on the GPU, then
-transfers only the final `n`-by-`k` index and distance matrices.
+distance blocks and deterministic top-k selection on the GPU. A torch
+backend with stable-sort support follows the same residency contract.
+Both transfer only the final `n`-by-`k` index and distance matrices.
 Compatibility backends without device-side selection transfer each
 distance block to the CPU for stable ordering. On CPU, Euclidean blocks
 use the same guarded translated-and-scaled implementation as

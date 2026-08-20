@@ -13,7 +13,7 @@ be assigned to an integer tensor."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">cudaverse</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.0.9000</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.4.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -42,7 +42,7 @@ be assigned to an integer tensor."></head><body>
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Subset and replace tensor values</h1>
-      <small class="dont-index">Source: <a href="https://github.com/cudaverse/cudaverse/blob/develop/native-cuda/R/tensor.R" class="external-link"><code>R/tensor.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/cudaverse/cudaverse/blob/main/R/tensor.R" class="external-link"><code>R/tensor.R</code></a></small>
       <div class="d-none name"><code>cudatensor-subset.Rd</code></div>
     </div>
 
@@ -90,9 +90,14 @@ be assigned to an integer tensor.</p>
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
     <p>Backends may implement value gathering and replacement directly. The native
 CUDA backend evaluates only R index metadata on the host and keeps tensor
-values on the device. Compatibility backends without indexing operations
-use a recorded CPU round trip. Subscripts containing <code>NA</code> currently use the
-compatibility path.</p>
+values on the device. A selection whose linear indices form one increasing
+contiguous range becomes an allocation-free view that shares the source
+device allocation; other supported selections use a device gather.
+Compatibility backends without indexing operations use a recorded CPU round
+trip. Subscripts containing <code>NA</code> currently use the compatibility path. A
+replacement tensor on the same device and backend is cast to the target
+floating dtype on that device before replacement. Integer targets retain
+exact host validation for non-integer replacement values.</p>
     </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

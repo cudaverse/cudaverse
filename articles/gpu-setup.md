@@ -13,7 +13,7 @@ on CPU before changing the runtime:
 ``` r
 
 # install.packages("pak")
-pak::pak("cudaverse/cudaverse@develop/native-cuda")
+pak::pak("cudaverse/cudaverse@develop/0.4")
 ```
 
 ``` r
@@ -91,6 +91,21 @@ path:
 ``` r
 
 diagnostics <- cuda_diagnostics()
+diagnostics$status
+#> [1] "cpu_only"
+diagnostics$summary
+#> [1] "CUDA is unavailable; automatic requests will use the base CPU backend (backend_error)."
+diagnostics$next_steps
+#> [1] "Inspect backend_status$error and backend_diagnostics for the failing runtime probe before retrying CUDA."
+diagnostics$backend_status
+#>        backend device installed available auto_eligible selected        reason
+#> base      base    cpu      TRUE      TRUE         FALSE     TRUE cpu_available
+#> torch    torch   cuda      TRUE     FALSE         FALSE    FALSE backend_error
+#> native  native   cuda      TRUE     FALSE         FALSE    FALSE backend_error
+#>                                                                                          error
+#> base                                                                                      <NA>
+#> torch  Lantern is not loaded. Please use `install_torch()` to install additional dependencies.
+#> native               CUDA error 100 (CUDA_ERROR_NO_DEVICE): no CUDA-capable device is detected
 diagnostics$available_backends
 #> [1] "base"
 diagnostics$auto_eligible_backends
@@ -163,6 +178,10 @@ native$missing_auto_capabilities
 Native is eligible for automatic selection only when the versioned
 `cudaverse-backend/1` contract, required operations, runtime components,
 and cached self-test all pass. A detected GPU alone is insufficient.
+When CUDA is unavailable, `next_steps` maps the stable selection reason
+to a concrete action. The strict `cudaverse_cuda_unavailable` condition
+retains the same reason, diagnostics, and guidance for programmatic
+error handling.
 
 ## Prove strict native execution
 
@@ -230,6 +249,23 @@ lists those boundaries.
 
 ## Memory and transfer guidance
 
+Inspect memory without retaining a user tensor:
+
+``` r
+
+memory <- cuda_memory_info("auto")
+memory
+#> <cuda_memory_info available=FALSE device=cpu backend=base reason=cpu_backend_selected>
+```
+
+The native report distinguishes whole-device `total_bytes`,
+`free_bytes`, and `used_bytes` from cudaverse-owned `allocated_bytes`
+and `allocated_peak_bytes`. The torch compatibility report exposes its
+allocator’s allocated and reserved counters. Unsupported counters stay
+`NA`; they are not guessed from another backend’s allocator. On the
+first CUDA selection in a session, native peak bytes can include the
+released temporary allocations from the runtime self-test.
+
 - Exact
   [`cuda_knn()`](https://cudaverse.github.io/cudaverse/reference/cuda_knn.md)
   is quadratic in time. `batch_size` bounds the resident distance block;
@@ -294,6 +330,7 @@ diagnostics <- cudaverse::cuda_diagnostics()
 diagnostics$selected_backend
 diagnostics$auto_selection_reason
 diagnostics$backend_diagnostics
+cudaverse::cuda_memory_info("auto")
 cudaverse::cuda_provenance(result)
 ```
 

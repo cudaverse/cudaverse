@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">cudaverse</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.0.9000</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.4.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -36,7 +36,7 @@
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Create a GPU-aware sparse matrix</h1>
-      <small class="dont-index">Source: <a href="https://github.com/cudaverse/cudaverse/blob/develop/native-cuda/R/sparse.R" class="external-link"><code>R/sparse.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/cudaverse/cudaverse/blob/main/R/sparse.R" class="external-link"><code>R/sparse.R</code></a></small>
       <div class="d-none name"><code>cuda_sparse.Rd</code></div>
     </div>
 
@@ -82,6 +82,12 @@
 integer <code>shape</code>, matrix <code>dimnames</code>, logical <code>format</code>, actual <code>device</code>, and
 <code>backend</code>. <code>storage</code> is backend-internal and should not be accessed
 directly.</p>
+    </div>
+    <div class="section level2">
+    <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
+    <p>Existing <code>cudasparse</code> inputs use their stable sorted COO mirror
+directly. Same-device format changes share backend storage; transfers and
+zero filtering do not construct an intermediate Matrix object.</p>
     </div>
 
     <div class="section level2">
