@@ -1,8 +1,16 @@
 # cudaverse 0.4.0.9000
 
+- Replaced the base kNN backend's full per-row stable ordering with bounded
+  C++ stable top-k selection while preserving exact indices, deterministic
+  distance-then-row ties, provenance, and numerical parity.
 - Kept torch kNN distance blocks and deterministic stable top-k selection on
   the selected torch device when the installed torch API supports stable sort;
   only the final `n`-by-`k` indices and distances are transferred to R.
+- Bound final 0.4 candidate evidence to two independent, isolated native R
+  sessions with exact source, hardware, injected-error recovery, allocator
+  cleanup, workflow, process-exit, and SHA-256 checks.
+- Pinned generated pkgdown Pages commits to Yaoxiang Li's GitHub-linked
+  identity and made that authorship configuration a release-boundary gate.
 - Unified benchmark memory collection with the public `cuda_memory_info()`
   contract while retaining native peak reset as an untimed maintainer-only
   measurement action.
