@@ -8,6 +8,10 @@ sys.source(
   envir = environment()
 )
 sys.source(
+  file.path("tools", "native-session-report-io.R"),
+  envir = environment()
+)
+sys.source(
   file.path("tools", "candidate-policy.R"),
   envir = environment()
 )
@@ -114,6 +118,8 @@ branch <- text_value(manifest$candidate$branch)
 policy <- candidate_release_policy(version, branch)
 require_gate(!is.null(policy),
              "candidate branch/version is not a supported release line")
+requires_session_report <- !is.null(policy) &&
+  identical(policy$line, "0.4")
 require_gate(logical_value(manifest$candidate$clean),
              "candidate source tree is not recorded as clean")
 require_gate(
@@ -318,6 +324,19 @@ package_tests_path <- check_evidence_file(
   manifest$rtx$package_test_report_sha256,
   "RTX package-test report"
 )
+session_path <- NULL
+session_file <- text_value(manifest$rtx$session_report_file)
+require_gate(
+  !requires_session_report || nzchar(session_file),
+  "0.4 candidate is missing the RTX independent-session report"
+)
+if (nzchar(session_file)) {
+  session_path <- check_evidence_file(
+    manifest$rtx$session_report_file,
+    manifest$rtx$session_report_sha256,
+    "RTX independent-session report"
+  )
+}
 rtx_report <- if (file.exists(rtx_path)) {
   read_evidence_json(rtx_path, "RTX report")
 }
@@ -326,6 +345,9 @@ consolidation_report <- if (file.exists(consolidation_path)) {
 }
 package_test_report <- if (file.exists(package_tests_path)) {
   read_evidence_json(package_tests_path, "RTX package-test report")
+}
+session_report <- if (!is.null(session_path) && file.exists(session_path)) {
+  read_evidence_json(session_path, "RTX independent-session report")
 }
 if (!is.null(rtx_report)) {
   rtx_failures <- validate_native_candidate_report(
@@ -399,6 +421,35 @@ if (!is.null(package_test_report)) {
     "RTX package-test report does not match the passing no-skip candidate"
   )
 }
+if (!is.null(session_report)) {
+  require_gate(
+    identical(text_value(session_report$schema),
+              "cudaverse-native-session/1") &&
+      identical(text_value(manifest$rtx$session_schema),
+                "cudaverse-native-session/1"),
+    "RTX independent-session report schema is invalid"
+  )
+  require_gate(logical_value(manifest$rtx$session_passed),
+               "RTX independent-session manifest gate did not pass")
+  expected_hardware <- if (is.null(package_test_report)) {
+    NULL
+  } else {
+    text_value(package_test_report$hardware$nvidia_smi)
+  }
+  session_failures <- validate_native_session_report(
+    session_report,
+    expected_commit = commit,
+    expected_version = version,
+    expected_hardware = expected_hardware
+  )
+  for (failure in session_failures) {
+    require_gate(FALSE, paste("RTX independent-session report:", failure))
+  }
+}
+require_gate(
+  !requires_session_report || !is.null(session_report),
+  "0.4 candidate lacks readable independent-session evidence"
+)
 if (!is.null(consolidation_report) && !is.null(package_test_report)) {
   require_gate(
     identical(
