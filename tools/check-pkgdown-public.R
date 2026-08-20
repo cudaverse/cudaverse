@@ -74,8 +74,8 @@ index <- if (file.exists(index_path)) {
   ""
 }
 required_home <- c(
-  "cudaverse/cudaverse@develop/0.4",
-  "https://github.com/cudaverse/cudaverse/blob/develop/0.4/inst/benchmarks/README.md",
+  "cudaverse/cudaverse@v0.4.0",
+  "https://github.com/cudaverse/cudaverse/blob/0a422fad7744da4116915037fc7134075a65e2a0/inst/benchmarks/README.md",
   "https://cudaverse.github.io/cudaverse/articles/gpu-setup.html",
   "https://cudaverse.github.io/cudaverse/articles/backend-support.html"
 )
