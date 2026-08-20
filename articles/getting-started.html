@@ -5,12 +5,12 @@
 <meta charset="utf-8">
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-<title>Getting started with cudaverse • cudaverse</title>
+<title>Your first CUDA workflow with cudaverse • cudaverse</title>
 <script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 <link href="../deps/bootstrap-5.3.8/bootstrap.min.css" rel="stylesheet">
 <script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
 <link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
-<script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Getting started with cudaverse">
+<script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Your first CUDA workflow with cudaverse">
 </head>
 <body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
@@ -20,7 +20,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">cudaverse</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.4.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.4.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -33,10 +33,11 @@
 <li class="active nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
-<li><a class="dropdown-item" href="../articles/getting-started.html">Getting started with cudaverse</a></li>
-    <li><a class="dropdown-item" href="../articles/gpu-setup.html">GPU setup and troubleshooting</a></li>
-    <li><a class="dropdown-item" href="../articles/backend-provenance.html">Backend selection and compute provenance</a></li>
-    <li><a class="dropdown-item" href="../articles/backend-support.html">Backend support and release boundaries</a></li>
+<li><a class="dropdown-item" href="../articles/getting-started.html">Your first CUDA workflow with cudaverse</a></li>
+    <li><a class="dropdown-item" href="../articles/gpu-setup.html">Set up CUDA for cudaverse</a></li>
+    <li><a class="dropdown-item" href="../articles/backend-provenance.html">Keep an R workflow on the GPU</a></li>
+    <li><a class="dropdown-item" href="../articles/backend-support.html">What runs on CUDA?</a></li>
+    <li><a class="dropdown-item" href="../articles/performance.html">Performance and package size</a></li>
   </ul>
 </li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
@@ -58,7 +59,7 @@
 
 <div class="row">
   <main id="main" class="col-md-9"><div class="page-header">
-      <img src="../logo.svg" class="logo" alt=""><h1>Getting started with cudaverse</h1>
+      <img src="../logo.svg" class="logo" alt=""><h1>Your first CUDA workflow with cudaverse</h1>
             
       
       <small class="dont-index">Source: <a href="https://github.com/cudaverse/cudaverse/blob/main/vignettes/getting-started.Rmd" class="external-link"><code>vignettes/getting-started.Rmd</code></a></small>
@@ -67,106 +68,170 @@
 
     
     
-<p><code>cudaverse</code> is a single entry point for dense tensors,
-sparse matrices, numerical algorithms, graphs, and embeddings. CUDA is
-optional: every result records the backend and device that actually
-performed each stage.</p>
+<p>This guide takes you from an ordinary R matrix to PCA and
+nearest-neighbour results computed with CUDA. You stay in R, use
+familiar data structures, and do not need a deep-learning framework.</p>
 <div class="section level2">
-<h2 id="dense-and-sparse-data">Dense and sparse data<a class="anchor" aria-label="anchor" href="#dense-and-sparse-data"></a>
+<h2 id="before-you-start">Before you start<a class="anchor" aria-label="anchor" href="#before-you-start"></a>
 </h2>
+<p>Before opening R, make sure you have:</p>
+<ol style="list-style-type: decimal">
+<li>Windows or Linux;</li>
+<li>a CUDA-capable NVIDIA GPU and working NVIDIA driver;</li>
+<li>a CUDA 12.x installation from NVIDIA; and</li>
+<li>the current cudaverse release.</li>
+</ol>
+<p>Follow the <a href="gpu-setup.html">GPU setup guide</a> first if
+<code>nvidia-smi</code> does not show a GPU or the diagnostic call below
+reports missing libraries.</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://cudaverse.github.io/cudaverse/">cudaverse</a></span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="co"># install.packages("pak")</span></span>
+<span><span class="fu">pak</span><span class="fu">::</span><span class="fu"><a href="https://pak.r-lib.org/reference/pak.html" class="external-link">pak</a></span><span class="op">(</span><span class="st">"cudaverse/cudaverse@v0.4.1"</span><span class="op">)</span></span>
 <span></span>
-<span><span class="va">dense</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cuda_tensor.html">cuda_tensor</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">matrix</a></span><span class="op">(</span><span class="fl">1</span><span class="op">:</span><span class="fl">12</span>, nrow <span class="op">=</span> <span class="fl">4</span><span class="op">)</span>, device <span class="op">=</span> <span class="st">"cpu"</span><span class="op">)</span></span>
-<span><span class="fu"><a href="../reference/tensor_shape.html">tensor_shape</a></span><span class="op">(</span><span class="va">dense</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] 4 3</span></span>
+<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://cudaverse.github.io/cudaverse/">cudaverse</a></span><span class="op">)</span></span>
 <span></span>
-<span><span class="va">sparse</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cuda_sparse.html">cuda_sparse</a></span><span class="op">(</span><span class="fu">Matrix</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/Matrix/man/Diagonal.html" class="external-link">Diagonal</a></span><span class="op">(</span><span class="fl">4</span><span class="op">)</span>, device <span class="op">=</span> <span class="st">"cpu"</span><span class="op">)</span></span>
-<span><span class="fu"><a href="../reference/sparse_info.html">sparse_info</a></span><span class="op">(</span><span class="va">sparse</span><span class="op">)</span></span>
-<span><span class="co">#&gt; $shape</span></span>
-<span><span class="co">#&gt; [1] 4 4</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; $nnz</span></span>
-<span><span class="co">#&gt; [1] 4</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; $density</span></span>
-<span><span class="co">#&gt; [1] 0.25</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; $format</span></span>
-<span><span class="co">#&gt; [1] "csr"</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; $device</span></span>
-<span><span class="co">#&gt; [1] "cpu"</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; $backend</span></span>
-<span><span class="co">#&gt; [1] "Matrix"</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; $provenance_schema</span></span>
-<span><span class="co">#&gt; [1] "cudaverse-stage/1"</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; $compute_device</span></span>
-<span><span class="co">#&gt; [1] "cpu"</span></span></code></pre></div>
-<p>Sparse normalization keeps the zero pattern and composes with the
-same PCA and kNN entry points:</p>
-<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">counts</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">matrix</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">0</span>, <span class="fl">3</span>, <span class="fl">2</span>, <span class="fl">4</span>, <span class="fl">1</span>, <span class="fl">0</span>, <span class="fl">2</span>, <span class="fl">5</span>, <span class="fl">1</span>, <span class="fl">3</span>, <span class="fl">2</span><span class="op">)</span>, nrow <span class="op">=</span> <span class="fl">4</span><span class="op">)</span></span>
-<span><span class="va">sparse_counts</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cuda_sparse.html">cuda_sparse</a></span><span class="op">(</span><span class="va">counts</span>, device <span class="op">=</span> <span class="st">"cpu"</span><span class="op">)</span></span>
-<span><span class="va">normalized</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/sparse_normalize.html">sparse_normalize</a></span><span class="op">(</span></span>
-<span>  <span class="va">sparse_counts</span>, margin <span class="op">=</span> <span class="st">"rows"</span>, scale_factor <span class="op">=</span> <span class="fl">100</span>, log1p <span class="op">=</span> <span class="cn">TRUE</span></span>
-<span><span class="op">)</span></span>
-<span><span class="va">sparse_pca</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cuda_pca.html">cuda_pca</a></span><span class="op">(</span><span class="va">normalized</span>, n_components <span class="op">=</span> <span class="fl">2</span>, device <span class="op">=</span> <span class="st">"cpu"</span><span class="op">)</span></span>
-<span><span class="va">sparse_neighbors</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cuda_knn.html">cuda_knn</a></span><span class="op">(</span><span class="va">sparse_pca</span><span class="op">$</span><span class="va">x</span>, k <span class="op">=</span> <span class="fl">2</span>, device <span class="op">=</span> <span class="st">"cpu"</span><span class="op">)</span></span></code></pre></div>
+<span><span class="va">check</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cuda_diagnostics.html">cuda_diagnostics</a></span><span class="op">(</span><span class="op">)</span></span>
+<span><span class="va">check</span><span class="op">$</span><span class="va">summary</span></span>
+<span><span class="va">check</span><span class="op">$</span><span class="va">next_steps</span></span>
+<span></span>
+<span><span class="co"># Stop here with a useful explanation if CUDA is not ready.</span></span>
+<span><span class="fu"><a href="../reference/cuda_select_device.html">cuda_select_device</a></span><span class="op">(</span><span class="st">"cuda"</span><span class="op">)</span></span></code></pre></div>
+<p>If the last command succeeds, cudaverse is ready to use the GPU. If
+it fails, follow the printed next step; the requested CUDA task is never
+silently run somewhere else.</p>
 </div>
 <div class="section level2">
-<h2 id="algorithms-compose-directly">Algorithms compose directly<a class="anchor" aria-label="anchor" href="#algorithms-compose-directly"></a>
+<h2 id="pca-and-exact-nearest-neighbours-on-cuda">PCA and exact nearest neighbours on CUDA<a class="anchor" aria-label="anchor" href="#pca-and-exact-nearest-neighbours-on-cuda"></a>
 </h2>
-<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<p>This is the most useful first workflow. A numeric R matrix enters the
+package, PCA reduces it to 20 components, and exact kNN finds 15
+neighbours per row.</p>
+<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">1</span><span class="op">)</span></span>
-<span><span class="va">x</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">matrix</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="fl">120</span><span class="op">)</span>, nrow <span class="op">=</span> <span class="fl">30</span><span class="op">)</span></span>
+<span><span class="va">x</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">matrix</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="fl">10000</span> <span class="op">*</span> <span class="fl">100</span><span class="op">)</span>, nrow <span class="op">=</span> <span class="fl">10000</span>, ncol <span class="op">=</span> <span class="fl">100</span><span class="op">)</span></span>
 <span></span>
-<span><span class="va">pca</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cuda_pca.html">cuda_pca</a></span><span class="op">(</span><span class="va">x</span>, n_components <span class="op">=</span> <span class="fl">4</span>, device <span class="op">=</span> <span class="st">"cpu"</span><span class="op">)</span></span>
-<span><span class="va">neighbors</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cuda_knn.html">cuda_knn</a></span><span class="op">(</span><span class="va">pca</span><span class="op">$</span><span class="va">x</span>, k <span class="op">=</span> <span class="fl">4</span>, device <span class="op">=</span> <span class="st">"cpu"</span><span class="op">)</span></span>
-<span><span class="va">graph</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cuda_knn_graph.html">cuda_knn_graph</a></span><span class="op">(</span><span class="va">neighbors</span><span class="op">)</span></span>
+<span><span class="va">pca</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cuda_pca.html">cuda_pca</a></span><span class="op">(</span></span>
+<span>  <span class="va">x</span>,</span>
+<span>  n_components <span class="op">=</span> <span class="fl">20</span>,</span>
+<span>  center <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  scale. <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  device <span class="op">=</span> <span class="st">"cuda"</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">neighbors</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cuda_knn.html">cuda_knn</a></span><span class="op">(</span></span>
+<span>  <span class="va">pca</span><span class="op">$</span><span class="va">x</span>,</span>
+<span>  k <span class="op">=</span> <span class="fl">15</span>,</span>
+<span>  metric <span class="op">=</span> <span class="st">"euclidean"</span>,</span>
+<span>  device <span class="op">=</span> <span class="st">"cuda"</span></span>
+<span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/dim.html" class="external-link">dim</a></span><span class="op">(</span><span class="va">pca</span><span class="op">$</span><span class="va">x</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] 30  4</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/dim.html" class="external-link">dim</a></span><span class="op">(</span><span class="fu"><a href="../reference/as_adjacency_matrix.html">as_adjacency_matrix</a></span><span class="op">(</span><span class="va">graph</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] 30 30</span></span>
-<span><span class="fu"><a href="../reference/cuda_provenance.html">cuda_provenance</a></span><span class="op">(</span><span class="va">pca</span><span class="op">)</span></span>
-<span><span class="co">#&gt; &lt;cuda_provenance schema=cudaverse-stage/1 stages=2 compute=cpu&gt;</span></span>
-<span><span class="co">#&gt;          stage requested_device device backend selection_reason fallback</span></span>
-<span><span class="co">#&gt;  preprocessing              cpu    cpu   stats     explicit_cpu    FALSE</span></span>
-<span><span class="co">#&gt;  decomposition              cpu    cpu   stats     explicit_cpu    FALSE</span></span>
-<span><span class="co">#&gt;  output_device</span></span>
-<span><span class="co">#&gt;            cpu</span></span>
-<span><span class="co">#&gt;            cpu</span></span></code></pre></div>
-<p>UMAP, t-SNE, Louvain, and Leiden use optional packages. Their
-functions report a clear installation message when the relevant optional
-backend is missing.</p>
+<span><span class="fu"><a href="https://rdrr.io/r/base/dim.html" class="external-link">dim</a></span><span class="op">(</span><span class="va">neighbors</span><span class="op">$</span><span class="va">index</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">neighbors</span><span class="op">$</span><span class="va">index</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">neighbors</span><span class="op">$</span><span class="va">distance</span><span class="op">)</span></span></code></pre></div>
+<p>The PCA scores can stay on the GPU while kNN uses them. You can
+confirm where the work ran:</p>
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="../reference/cuda_provenance.html">cuda_provenance</a></span><span class="op">(</span><span class="va">pca</span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/cuda_provenance.html">cuda_provenance</a></span><span class="op">(</span><span class="va">neighbors</span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/cuda_memory_info.html">cuda_memory_info</a></span><span class="op">(</span><span class="st">"cuda"</span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level2">
-<h2 id="optional-single-cell-inputs">Optional single-cell inputs<a class="anchor" aria-label="anchor" href="#optional-single-cell-inputs"></a>
+<h2 id="gpu-resident-matrix-operations">GPU-resident matrix operations<a class="anchor" aria-label="anchor" href="#gpu-resident-matrix-operations"></a>
 </h2>
-<p>When <code>SingleCellExperiment</code> is installed,
-<code><a href="../reference/cuda_umap.html">cuda_umap()</a></code>, <code><a href="../reference/cuda_tsne.html">cuda_tsne()</a></code>, and
-<code><a href="../reference/cuda_diffusion_map.html">cuda_diffusion_map()</a></code> can consume one of its reduced
-dimensions directly. Select the dimension explicitly unless there is
-exactly one reduced dimension named <code>"PCA"</code>:</p>
+<p>Use a <code>cudatensor</code> when you want several matrix operations
+to reuse the same data on the GPU. <code><a href="../reference/to_cpu.html">to_cpu()</a></code> brings the
+final result back as an ordinary R object.</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cuda_diffusion_map.html">cuda_diffusion_map</a></span><span class="op">(</span></span>
-<span>  <span class="va">sce</span>,</span>
-<span>  reduced_dim <span class="op">=</span> <span class="st">"PCA"</span>,</span>
-<span>  n_components <span class="op">=</span> <span class="fl">2</span>,</span>
-<span>  device <span class="op">=</span> <span class="st">"auto"</span></span>
+<code class="sourceCode R"><span><span class="va">x_gpu</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cuda_tensor.html">cuda_tensor</a></span><span class="op">(</span><span class="va">x</span>, device <span class="op">=</span> <span class="st">"cuda"</span>, dtype <span class="op">=</span> <span class="st">"float32"</span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">centered_gpu</span> <span class="op">&lt;-</span> <span class="va">x_gpu</span> <span class="op">-</span> <span class="fu"><a href="../reference/tensor_sum.html">tensor_mean</a></span><span class="op">(</span><span class="va">x_gpu</span>, dim <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></span>
+<span><span class="va">gram_gpu</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/tensor_matmul.html">tensor_matmul</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/t.html" class="external-link">t</a></span><span class="op">(</span><span class="va">centered_gpu</span><span class="op">)</span>, <span class="va">centered_gpu</span><span class="op">)</span></span>
+<span><span class="va">column_totals_gpu</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/tensor_sum.html">tensor_sum</a></span><span class="op">(</span><span class="va">x_gpu</span>, dim <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></span>
+<span></span>
+<span><span class="fu"><a href="../reference/tensor_device.html">tensor_device</a></span><span class="op">(</span><span class="va">gram_gpu</span><span class="op">)</span></span>
+<span><span class="va">gram</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/to_cpu.html">to_cpu</a></span><span class="op">(</span><span class="va">gram_gpu</span><span class="op">)</span></span>
+<span><span class="va">column_totals</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/to_cpu.html">to_cpu</a></span><span class="op">(</span><span class="va">column_totals_gpu</span><span class="op">)</span></span></code></pre></div>
+<p>Subsetting, transpose, arithmetic, matrix multiplication, and
+summaries follow familiar R conventions while supported results remain
+on the GPU.</p>
+</div>
+<div class="section level2">
+<h2 id="sparse-normalization-pca-and-knn">Sparse normalization, PCA, and kNN<a class="anchor" aria-label="anchor" href="#sparse-normalization-pca-and-knn"></a>
+</h2>
+<p>Sparse inputs begin as <code>Matrix</code> objects. The same workflow
+can normalize the matrix, run PCA, and find neighbours without making
+the user learn another API.</p>
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">counts</span> <span class="op">&lt;-</span> <span class="fu">Matrix</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/Matrix/man/rsparsematrix.html" class="external-link">rsparsematrix</a></span><span class="op">(</span><span class="fl">10000</span>, <span class="fl">100</span>, density <span class="op">=</span> <span class="fl">0.03</span><span class="op">)</span></span>
+<span><span class="va">counts</span><span class="op">@</span><span class="va">x</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">abs</a></span><span class="op">(</span><span class="va">counts</span><span class="op">@</span><span class="va">x</span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">counts_gpu</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cuda_sparse.html">cuda_sparse</a></span><span class="op">(</span><span class="va">counts</span>, device <span class="op">=</span> <span class="st">"cuda"</span><span class="op">)</span></span>
+<span><span class="va">normalized_gpu</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/sparse_normalize.html">sparse_normalize</a></span><span class="op">(</span></span>
+<span>  <span class="va">counts_gpu</span>,</span>
+<span>  margin <span class="op">=</span> <span class="st">"rows"</span>,</span>
+<span>  scale_factor <span class="op">=</span> <span class="fl">10000</span>,</span>
+<span>  log1p <span class="op">=</span> <span class="cn">TRUE</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">sparse_pca</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cuda_pca.html">cuda_pca</a></span><span class="op">(</span></span>
+<span>  <span class="va">normalized_gpu</span>,</span>
+<span>  n_components <span class="op">=</span> <span class="fl">20</span>,</span>
+<span>  device <span class="op">=</span> <span class="st">"cuda"</span></span>
+<span><span class="op">)</span></span>
+<span><span class="va">sparse_neighbors</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cuda_knn.html">cuda_knn</a></span><span class="op">(</span></span>
+<span>  <span class="va">sparse_pca</span><span class="op">$</span><span class="va">x</span>,</span>
+<span>  k <span class="op">=</span> <span class="fl">15</span>,</span>
+<span>  device <span class="op">=</span> <span class="st">"cuda"</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="fu"><a href="../reference/sparse_info.html">sparse_info</a></span><span class="op">(</span><span class="va">normalized_gpu</span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/cuda_provenance.html">cuda_provenance</a></span><span class="op">(</span><span class="va">sparse_neighbors</span><span class="op">)</span></span></code></pre></div>
+</div>
+<div class="section level2">
+<h2 id="other-cuda-tasks">Other CUDA tasks<a class="anchor" aria-label="anchor" href="#other-cuda-tasks"></a>
+</h2>
+<p>The same strict device argument applies to decompositions, distances,
+and k-means:</p>
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">svd_fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cuda_svd.html">cuda_svd</a></span><span class="op">(</span><span class="va">x</span>, nu <span class="op">=</span> <span class="fl">20</span>, nv <span class="op">=</span> <span class="fl">20</span>, device <span class="op">=</span> <span class="st">"cuda"</span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">distances</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cuda_distance.html">cuda_distance</a></span><span class="op">(</span></span>
+<span>  <span class="va">x</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">1000</span>, <span class="op">]</span>,</span>
+<span>  <span class="va">x</span><span class="op">[</span><span class="fl">1001</span><span class="op">:</span><span class="fl">2000</span>, <span class="op">]</span>,</span>
+<span>  batch_size <span class="op">=</span> <span class="fl">256</span>,</span>
+<span>  device <span class="op">=</span> <span class="st">"cuda"</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">clusters</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cuda_kmeans.html">cuda_kmeans</a></span><span class="op">(</span></span>
+<span>  <span class="va">pca</span><span class="op">$</span><span class="va">x</span>,</span>
+<span>  centers <span class="op">=</span> <span class="fl">20</span>,</span>
+<span>  seed <span class="op">=</span> <span class="fl">1</span>,</span>
+<span>  device <span class="op">=</span> <span class="st">"cuda"</span></span>
 <span><span class="op">)</span></span></code></pre></div>
-<p>The selected reduced dimension is materialized as a host matrix. UMAP
-and t-SNE then run on their documented CPU backends. Diffusion maps may
-upload the matrix for the distance stage, while kernel construction and
-eigendecomposition remain on CPU; <code>cuda_provenance(fit)</code>
-reports this boundary. Seurat objects are not currently a public input
-type, so pass a finite matrix or a <code>SingleCellExperiment</code>
-reduced dimension instead. These optional integrations do not add
-Bioconductor or Seurat to an ordinary cudaverse installation.</p>
+<p><code><a href="../reference/cuda_distance.html">cuda_distance()</a></code> returns a complete dense matrix, so its
+host output grows as <code>nrow(x) * nrow(y)</code>. Prefer
+<code><a href="../reference/cuda_knn.html">cuda_knn()</a></code> when only the nearest neighbours are needed.</p>
+</div>
+<div class="section level2">
+<h2 id="where-to-go-next">Where to go next<a class="anchor" aria-label="anchor" href="#where-to-go-next"></a>
+</h2>
+<ul>
+<li>
+<a href="gpu-setup.html">GPU setup and troubleshooting</a> provides
+exact Windows and Linux dependency checks.</li>
+<li>
+<a href="backend-provenance.html">GPU residency and provenance</a>
+shows how to avoid unnecessary transfers.</li>
+<li>
+<a href="backend-support.html">CUDA operation coverage</a> shows
+which tasks run fully on the GPU and which currently include an R
+stage.</li>
+<li>
+<a href="performance.html">Performance</a> explains the retained
+comparisons with base R and the optional R <code>torch</code>
+backend.</li>
+</ul>
 </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside>

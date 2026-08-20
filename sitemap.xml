@@ -1,13 +1,12 @@
 <urlset xmlns = 'http://www.sitemaps.org/schemas/sitemap/0.9'>
 <url><loc>https://cudaverse.github.io/cudaverse/404.html</loc></url>
-<url><loc>https://cudaverse.github.io/cudaverse/CUDAVERSE-0.3-ROADMAP.html</loc></url>
-<url><loc>https://cudaverse.github.io/cudaverse/CUDAVERSE-0.4-ROADMAP.html</loc></url>
 <url><loc>https://cudaverse.github.io/cudaverse/LICENSE-text.html</loc></url>
 <url><loc>https://cudaverse.github.io/cudaverse/articles/backend-provenance.html</loc></url>
 <url><loc>https://cudaverse.github.io/cudaverse/articles/backend-support.html</loc></url>
 <url><loc>https://cudaverse.github.io/cudaverse/articles/getting-started.html</loc></url>
 <url><loc>https://cudaverse.github.io/cudaverse/articles/gpu-setup.html</loc></url>
 <url><loc>https://cudaverse.github.io/cudaverse/articles/index.html</loc></url>
+<url><loc>https://cudaverse.github.io/cudaverse/articles/performance.html</loc></url>
 <url><loc>https://cudaverse.github.io/cudaverse/authors.html</loc></url>
 <url><loc>https://cudaverse.github.io/cudaverse/index.html</loc></url>
 <url><loc>https://cudaverse.github.io/cudaverse/news/index.html</loc></url>

@@ -5,12 +5,12 @@
 <meta charset="utf-8">
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-<title>Backend selection and compute provenance • cudaverse</title>
+<title>Keep an R workflow on the GPU • cudaverse</title>
 <script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 <link href="../deps/bootstrap-5.3.8/bootstrap.min.css" rel="stylesheet">
 <script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
 <link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
-<script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Backend selection and compute provenance">
+<script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Keep an R workflow on the GPU">
 </head>
 <body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
@@ -20,7 +20,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">cudaverse</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.4.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.4.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -33,10 +33,11 @@
 <li class="active nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
-<li><a class="dropdown-item" href="../articles/getting-started.html">Getting started with cudaverse</a></li>
-    <li><a class="dropdown-item" href="../articles/gpu-setup.html">GPU setup and troubleshooting</a></li>
-    <li><a class="dropdown-item" href="../articles/backend-provenance.html">Backend selection and compute provenance</a></li>
-    <li><a class="dropdown-item" href="../articles/backend-support.html">Backend support and release boundaries</a></li>
+<li><a class="dropdown-item" href="../articles/getting-started.html">Your first CUDA workflow with cudaverse</a></li>
+    <li><a class="dropdown-item" href="../articles/gpu-setup.html">Set up CUDA for cudaverse</a></li>
+    <li><a class="dropdown-item" href="../articles/backend-provenance.html">Keep an R workflow on the GPU</a></li>
+    <li><a class="dropdown-item" href="../articles/backend-support.html">What runs on CUDA?</a></li>
+    <li><a class="dropdown-item" href="../articles/performance.html">Performance and package size</a></li>
   </ul>
 </li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
@@ -58,7 +59,7 @@
 
 <div class="row">
   <main id="main" class="col-md-9"><div class="page-header">
-      <img src="../logo.svg" class="logo" alt=""><h1>Backend selection and compute provenance</h1>
+      <img src="../logo.svg" class="logo" alt=""><h1>Keep an R workflow on the GPU</h1>
             
       
       <small class="dont-index">Source: <a href="https://github.com/cudaverse/cudaverse/blob/main/vignettes/backend-provenance.Rmd" class="external-link"><code>vignettes/backend-provenance.Rmd</code></a></small>
@@ -67,323 +68,171 @@
 
     
     
-<p><code>cudaverse</code> separates four questions that are easy to
-conflate:</p>
-<ol style="list-style-type: decimal">
-<li>What device did the caller request?</li>
-<li>Where did each stage actually compute?</li>
-<li>Which concrete backend implemented that stage?</li>
-<li>On which device does the returned value live?</li>
-</ol>
-<p>The answers are recorded with the <code>cudaverse-stage/1</code>
-provenance schema. This tutorial runs completely on CPU. Its CUDA
-section is optional and runs only when a registered native or torch CUDA
-backend is usable.</p>
+<p>A GPU is most useful when data are not repeatedly copied between R
+and the GPU. This guide shows the simple pattern: upload once, run
+several CUDA tasks, and bring back only the result you need.</p>
 <div class="section level2">
-<h2 id="inspect-the-runtime">Inspect the runtime<a class="anchor" aria-label="anchor" href="#inspect-the-runtime"></a>
+<h2 id="require-cuda-at-the-start">Require CUDA at the start<a class="anchor" aria-label="anchor" href="#require-cuda-at-the-start"></a>
 </h2>
+<p>Use a strict selection before a long analysis:</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://cudaverse.github.io/cudaverse/">cudaverse</a></span><span class="op">)</span></span>
-<span></span>
-<span><span class="va">diagnostics</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cuda_diagnostics.html">cuda_diagnostics</a></span><span class="op">(</span><span class="op">)</span></span>
-<span><span class="va">diagnostics</span></span>
-<span><span class="co">#&gt; &lt;cuda_diagnostics status=cpu_only available=FALSE devices=NA selected=base torch=0.17.0 reason=backend_error&gt;</span></span>
-<span><span class="co">#&gt; CUDA is unavailable; automatic requests will use the base CPU backend (backend_error).</span></span>
-<span><span class="co">#&gt; Next steps:</span></span>
-<span><span class="co">#&gt; - Inspect backend_status$error and backend_diagnostics for the failing runtime probe before retrying CUDA.</span></span></code></pre></div>
-<p><code><a href="../reference/cuda_diagnostics.html">cuda_diagnostics()</a></code> never installs torch or a CUDA
-runtime. <code>status</code>, <code>summary</code>,
-<code>next_steps</code>, and <code>backend_status</code> provide the
-concise user-facing result. <code>available_backends</code>,
-<code>auto_eligible_backends</code>, <code>auto_selection_reason</code>,
-<code>selected_backend</code>, and <code>backend_diagnostics</code>
-retain the complete registry evidence. The first native diagnostic in a
-session runs and caches a small transfer, float32 and float64
-matmul/reduction, arithmetic/broadcast/reshape/transpose, and sparse
-normalization self-test. The legacy fields <code>torch_installed</code>,
-<code>torch_version</code>, <code>cuda_available</code>,
-<code>cuda_device_count</code>, <code>reason</code>, and
-<code>detection_error</code> remain available throughout the 0.4
-compatibility cycle.</p>
-<p>Native is eligible for <code>"auto"</code> only when all four gates
-pass:</p>
-<ol style="list-style-type: decimal">
-<li>backend contract schema <code>cudaverse-backend/1</code>
-matches;</li>
-<li>the complete tensor and resident PCA/kNN capability set is
-present;</li>
-<li>driver, cuBLAS, cuSOLVER, and package PTX components load; and</li>
-<li>the cached runtime self-test passes without retaining tracked device
-memory.</li>
-</ol>
-<p>If any gate fails, diagnostics preserve its reason and automatic
-selection tries the torch compatibility backend before using the
-observable CPU fallback. Setting
-<code>options(cudaverse.cuda_backends = ...)</code> can constrain test
-order, but cannot bypass these gates.</p>
-<p>Device requests have these semantics:</p>
-<table class="table">
-<colgroup>
-<col width="25%">
-<col width="25%">
-<col width="25%">
-<col width="25%">
-</colgroup>
-<thead><tr class="header">
-<th>Requested device</th>
-<th>Actual device</th>
-<th>Output device at construction</th>
-<th>Fallback</th>
-</tr></thead>
-<tbody>
-<tr class="odd">
-<td><code>"cpu"</code></td>
-<td>CPU</td>
-<td>CPU</td>
-<td><code>FALSE</code></td>
-</tr>
-<tr class="even">
-<td>
-<code>"auto"</code> with usable CUDA</td>
-<td>CUDA</td>
-<td>CUDA</td>
-<td><code>FALSE</code></td>
-</tr>
-<tr class="odd">
-<td>
-<code>"auto"</code> without usable CUDA</td>
-<td>CPU</td>
-<td>CPU</td>
-<td>
-<code>TRUE</code>, with a recorded reason</td>
-</tr>
-<tr class="even">
-<td><code>"cuda"</code></td>
-<td>CUDA, or an error</td>
-<td>CUDA when successful</td>
-<td>Never silent</td>
-</tr>
-</tbody>
-</table>
-<p>An explicit CUDA request is strict. If CUDA is unavailable,
-<code>cuda_tensor(..., device = "cuda")</code> signals a
-<code>cudaverse_cuda_unavailable</code> condition instead of returning a
-CPU tensor.</p>
+<span><span class="fu"><a href="../reference/cuda_select_device.html">cuda_select_device</a></span><span class="op">(</span><span class="st">"cuda"</span><span class="op">)</span></span></code></pre></div>
+<p>If CUDA is not ready, this call stops and explains what is missing.
+It never turns a requested GPU workflow into an unnoticed non-GPU
+run.</p>
 </div>
 <div class="section level2">
-<h2 id="a-portable-cpu-workflow">A portable CPU workflow<a class="anchor" aria-label="anchor" href="#a-portable-cpu-workflow"></a>
+<h2 id="upload-once-and-reuse-the-tensor">Upload once and reuse the tensor<a class="anchor" aria-label="anchor" href="#upload-once-and-reuse-the-tensor"></a>
 </h2>
-<p>Use <code>device = "cpu"</code> when reproducible portable execution
-matters more than automatic hardware selection.</p>
+<p>Construct a <code>cudatensor</code> once, then apply arithmetic,
+reshape, transpose, subsetting, reduction, and matrix multiplication
+without reconstructing the input for every call.</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">left_source</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">matrix</a></span><span class="op">(</span></span>
-<span>  <span class="fl">1</span><span class="op">:</span><span class="fl">6</span>,</span>
-<span>  nrow <span class="op">=</span> <span class="fl">2</span>,</span>
-<span>  dimnames <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
-<span>    sample <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"sample_a"</span>, <span class="st">"sample_b"</span><span class="op">)</span>,</span>
-<span>    feature <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"gene_a"</span>, <span class="st">"gene_b"</span>, <span class="st">"gene_c"</span><span class="op">)</span></span>
-<span>  <span class="op">)</span></span>
-<span><span class="op">)</span></span>
-<span><span class="va">right_source</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">matrix</a></span><span class="op">(</span></span>
-<span>  <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq_len</a></span><span class="op">(</span><span class="fl">6</span><span class="op">)</span> <span class="op">/</span> <span class="fl">10</span>,</span>
-<span>  nrow <span class="op">=</span> <span class="fl">3</span>,</span>
-<span>  dimnames <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
-<span>    feature <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"gene_a"</span>, <span class="st">"gene_b"</span>, <span class="st">"gene_c"</span><span class="op">)</span>,</span>
-<span>    component <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"component_1"</span>, <span class="st">"component_2"</span><span class="op">)</span></span>
-<span>  <span class="op">)</span></span>
-<span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">1</span><span class="op">)</span></span>
+<span><span class="va">x</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">matrix</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="fl">10000</span> <span class="op">*</span> <span class="fl">100</span><span class="op">)</span>, nrow <span class="op">=</span> <span class="fl">10000</span><span class="op">)</span></span>
+<span><span class="va">x_gpu</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cuda_tensor.html">cuda_tensor</a></span><span class="op">(</span><span class="va">x</span>, device <span class="op">=</span> <span class="st">"cuda"</span>, dtype <span class="op">=</span> <span class="st">"float32"</span><span class="op">)</span></span>
 <span></span>
-<span><span class="va">left</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cuda_tensor.html">cuda_tensor</a></span><span class="op">(</span><span class="va">left_source</span>, device <span class="op">=</span> <span class="st">"cpu"</span>, dtype <span class="op">=</span> <span class="st">"float64"</span><span class="op">)</span></span>
-<span><span class="va">right</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cuda_tensor.html">cuda_tensor</a></span><span class="op">(</span><span class="va">right_source</span>, device <span class="op">=</span> <span class="st">"cpu"</span>, dtype <span class="op">=</span> <span class="st">"float64"</span><span class="op">)</span></span>
-<span><span class="va">product</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/tensor_matmul.html">tensor_matmul</a></span><span class="op">(</span><span class="va">left</span>, <span class="va">right</span><span class="op">)</span></span>
+<span><span class="va">means_gpu</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/tensor_sum.html">tensor_mean</a></span><span class="op">(</span><span class="va">x_gpu</span>, dim <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></span>
+<span><span class="va">centered_gpu</span> <span class="op">&lt;-</span> <span class="va">x_gpu</span> <span class="op">-</span> <span class="va">means_gpu</span></span>
+<span><span class="va">selected_gpu</span> <span class="op">&lt;-</span> <span class="va">centered_gpu</span><span class="op">[</span>, <span class="fl">1</span><span class="op">:</span><span class="fl">50</span>, drop <span class="op">=</span> <span class="cn">FALSE</span><span class="op">]</span></span>
+<span><span class="va">gram_gpu</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/tensor_matmul.html">tensor_matmul</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/t.html" class="external-link">t</a></span><span class="op">(</span><span class="va">selected_gpu</span><span class="op">)</span>, <span class="va">selected_gpu</span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu"><a href="../reference/tensor_device.html">tensor_device</a></span><span class="op">(</span><span class="va">product</span><span class="op">)</span></span>
-<span><span class="co">#&gt;  device backend </span></span>
-<span><span class="co">#&gt;   "cpu"  "base"</span></span>
-<span><span class="fu"><a href="../reference/to_cpu.html">to_cpu</a></span><span class="op">(</span><span class="va">product</span><span class="op">)</span></span>
-<span><span class="co">#&gt;           component</span></span>
-<span><span class="co">#&gt; sample     component_1 component_2</span></span>
-<span><span class="co">#&gt;   sample_a         2.2         4.9</span></span>
-<span><span class="co">#&gt;   sample_b         2.8         6.4</span></span></code></pre></div>
-<p>Every returned <code>cudatensor</code> records the actual stage:</p>
+<span><span class="fu"><a href="../reference/tensor_device.html">tensor_device</a></span><span class="op">(</span><span class="va">gram_gpu</span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/cuda_provenance.html">cuda_provenance</a></span><span class="op">(</span><span class="va">gram_gpu</span><span class="op">)</span></span></code></pre></div>
+<p>Supported reshape and selection operations stay on the GPU, so they
+can feed the next calculation without downloading the full tensor.</p>
+<p>Only cross the host boundary when an ordinary R object is
+required:</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">construction_provenance</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cuda_provenance.html">cuda_provenance</a></span><span class="op">(</span><span class="va">left</span><span class="op">)</span></span>
-<span><span class="va">construction_provenance</span></span>
-<span><span class="co">#&gt; &lt;cuda_provenance schema=cudaverse-stage/1 stages=1 compute=cpu&gt;</span></span>
-<span><span class="co">#&gt;                   stage requested_device device backend selection_reason</span></span>
-<span><span class="co">#&gt;  tensor_materialization              cpu    cpu    base     explicit_cpu</span></span>
-<span><span class="co">#&gt;  fallback output_device</span></span>
-<span><span class="co">#&gt;     FALSE           cpu</span></span>
-<span></span>
-<span><span class="va">product_provenance</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cuda_provenance.html">cuda_provenance</a></span><span class="op">(</span><span class="va">product</span><span class="op">)</span></span>
-<span><span class="va">product_provenance</span></span>
-<span><span class="co">#&gt; &lt;cuda_provenance schema=cudaverse-stage/1 stages=1 compute=cpu&gt;</span></span>
-<span><span class="co">#&gt;            stage requested_device device backend selection_reason fallback</span></span>
-<span><span class="co">#&gt;  matrix_multiply        inherited    cpu    base inherited_device    FALSE</span></span>
-<span><span class="co">#&gt;  output_device</span></span>
-<span><span class="co">#&gt;            cpu</span></span>
-<span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/attr.html" class="external-link">attr</a></span><span class="op">(</span><span class="va">product_provenance</span>, <span class="st">"schema"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] "cudaverse-stage/1"</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/attr.html" class="external-link">attr</a></span><span class="op">(</span><span class="va">product_provenance</span>, <span class="st">"compute_device"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] "cpu"</span></span></code></pre></div>
-<p>The provenance table has one row per stage:</p>
-<ul>
-<li>
-<code>requested_device</code> is the caller’s policy
-(<code>"cpu"</code>, <code>"cuda"</code>, <code>"auto"</code>,
-<code>"fixed-cpu"</code>, or <code>"inherited"</code>);</li>
-<li>
-<code>device</code> is where that stage actually computed;</li>
-<li>
-<code>backend</code> names the implementation, such as
-<code>base</code>, <code>native</code>, or <code>torch</code>;</li>
-<li>
-<code>selection_reason</code> explains the resolution;</li>
-<li>
-<code>fallback</code> is only true when an automatic request
-selected CPU;</li>
-<li>
-<code>output_device</code> is where that stage placed its
-result.</li>
-</ul>
-<p>Do not infer the output location from <code>device</code>. A transfer
-or hybrid operation can compute on one device and return data on
-another.</p>
+<code class="sourceCode R"><span><span class="va">gram</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/to_cpu.html">to_cpu</a></span><span class="op">(</span><span class="va">gram_gpu</span><span class="op">)</span></span></code></pre></div>
+<p>Calling <code><a href="../reference/to_cpu.html">to_cpu()</a></code> inside each stage would add transfers
+and erase much of the reason to use the GPU.</p>
 </div>
 <div class="section level2">
-<h2 id="automatic-selection-is-observable">Automatic selection is observable<a class="anchor" aria-label="anchor" href="#automatic-selection-is-observable"></a>
+<h2 id="keep-pca-followed-by-knn-on-cuda">Keep PCA followed by kNN on CUDA<a class="anchor" aria-label="anchor" href="#keep-pca-followed-by-knn-on-cuda"></a>
 </h2>
-<p>The following call is portable. It chooses CUDA only when diagnostics
-report a usable device; otherwise it returns a CPU tensor and records
-the fallback.</p>
+<p>The native PCA object retains device storage for its scores, so exact
+kNN can consume <code>pca$x</code> directly.</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">automatic</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cuda_tensor.html">cuda_tensor</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">matrix</a></span><span class="op">(</span><span class="fl">1</span><span class="op">:</span><span class="fl">4</span>, <span class="fl">2</span><span class="op">)</span>, device <span class="op">=</span> <span class="st">"auto"</span><span class="op">)</span></span>
-<span><span class="fu"><a href="../reference/cuda_provenance.html">cuda_provenance</a></span><span class="op">(</span><span class="va">automatic</span><span class="op">)</span></span>
-<span><span class="co">#&gt; &lt;cuda_provenance schema=cudaverse-stage/1 stages=1 compute=cpu&gt;</span></span>
-<span><span class="co">#&gt;                   stage requested_device device backend selection_reason</span></span>
-<span><span class="co">#&gt;  tensor_materialization             auto    cpu    base    backend_error</span></span>
-<span><span class="co">#&gt;  fallback output_device</span></span>
-<span><span class="co">#&gt;      TRUE           cpu</span></span></code></pre></div>
-<p>This makes an automatic CPU result distinguishable from an explicit
-CPU request. For production runs that require a GPU, use
-<code>device = "cuda"</code> rather than <code>"auto"</code>.</p>
+<code class="sourceCode R"><span><span class="va">pca</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cuda_pca.html">cuda_pca</a></span><span class="op">(</span></span>
+<span>  <span class="va">x_gpu</span>,</span>
+<span>  n_components <span class="op">=</span> <span class="fl">20</span>,</span>
+<span>  device <span class="op">=</span> <span class="st">"cuda"</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">neighbors</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cuda_knn.html">cuda_knn</a></span><span class="op">(</span></span>
+<span>  <span class="va">pca</span><span class="op">$</span><span class="va">x</span>,</span>
+<span>  k <span class="op">=</span> <span class="fl">15</span>,</span>
+<span>  batch_size <span class="op">=</span> <span class="fl">256</span>,</span>
+<span>  device <span class="op">=</span> <span class="st">"cuda"</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="fu"><a href="../reference/cuda_provenance.html">cuda_provenance</a></span><span class="op">(</span><span class="va">pca</span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/cuda_provenance.html">cuda_provenance</a></span><span class="op">(</span><span class="va">neighbors</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">neighbors</span><span class="op">$</span><span class="va">index</span><span class="op">)</span></span></code></pre></div>
+<p>The public kNN result contains ordinary R index and distance matrices
+because those are normally the final analysis output. The expensive PCA,
+distance blocks, and stable top-k stages remain CUDA stages.</p>
 </div>
 <div class="section level2">
-<h2 id="optional-cuda-path">Optional CUDA path<a class="anchor" aria-label="anchor" href="#optional-cuda-path"></a>
+<h2 id="keep-sparse-preprocessing-on-cuda">Keep sparse preprocessing on CUDA<a class="anchor" aria-label="anchor" href="#keep-sparse-preprocessing-on-cuda"></a>
 </h2>
+<p>For sparse data, upload a <code>Matrix</code> object once and
+continue with normalization, PCA, and exact kNN:</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="../reference/cuda_available.html">cuda_available</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
-<span>  <span class="va">gpu</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cuda_tensor.html">cuda_tensor</a></span><span class="op">(</span><span class="va">left_source</span>, device <span class="op">=</span> <span class="st">"cuda"</span>, dtype <span class="op">=</span> <span class="st">"float64"</span><span class="op">)</span></span>
-<span>  <span class="va">gpu_result</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/tensor_sum.html">tensor_sum</a></span><span class="op">(</span><span class="va">gpu</span>, dim <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="va">counts</span> <span class="op">&lt;-</span> <span class="fu">Matrix</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/Matrix/man/rsparsematrix.html" class="external-link">rsparsematrix</a></span><span class="op">(</span><span class="fl">50000</span>, <span class="fl">128</span>, density <span class="op">=</span> <span class="fl">0.01</span><span class="op">)</span></span>
+<span><span class="va">counts</span><span class="op">@</span><span class="va">x</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">abs</a></span><span class="op">(</span><span class="va">counts</span><span class="op">@</span><span class="va">x</span><span class="op">)</span></span>
 <span></span>
-<span>  <span class="fu"><a href="../reference/tensor_device.html">tensor_device</a></span><span class="op">(</span><span class="va">gpu_result</span><span class="op">)</span></span>
-<span>  <span class="fu"><a href="../reference/cuda_provenance.html">cuda_provenance</a></span><span class="op">(</span><span class="va">gpu_result</span><span class="op">)</span></span>
+<span><span class="va">counts_gpu</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cuda_sparse.html">cuda_sparse</a></span><span class="op">(</span><span class="va">counts</span>, device <span class="op">=</span> <span class="st">"cuda"</span><span class="op">)</span></span>
+<span><span class="va">normalized_gpu</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/sparse_normalize.html">sparse_normalize</a></span><span class="op">(</span></span>
+<span>  <span class="va">counts_gpu</span>,</span>
+<span>  margin <span class="op">=</span> <span class="st">"rows"</span>,</span>
+<span>  scale_factor <span class="op">=</span> <span class="fl">10000</span>,</span>
+<span>  log1p <span class="op">=</span> <span class="cn">TRUE</span></span>
+<span><span class="op">)</span></span>
+<span><span class="va">sparse_pca</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cuda_pca.html">cuda_pca</a></span><span class="op">(</span><span class="va">normalized_gpu</span>, n_components <span class="op">=</span> <span class="fl">20</span>, device <span class="op">=</span> <span class="st">"cuda"</span><span class="op">)</span></span>
+<span><span class="va">sparse_neighbors</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cuda_knn.html">cuda_knn</a></span><span class="op">(</span></span>
+<span>  <span class="va">sparse_pca</span><span class="op">$</span><span class="va">x</span>,</span>
+<span>  k <span class="op">=</span> <span class="fl">15</span>,</span>
+<span>  device <span class="op">=</span> <span class="st">"cuda"</span></span>
+<span><span class="op">)</span></span>
 <span></span>
-<span>  <span class="co"># Native CUDA gathers values on-device. A compatibility backend may record</span></span>
-<span>  <span class="co"># materialization and upload stages instead.</span></span>
-<span>  <span class="va">gpu_subset</span> <span class="op">&lt;-</span> <span class="va">gpu</span><span class="op">[</span><span class="fl">1</span>, , drop <span class="op">=</span> <span class="cn">FALSE</span><span class="op">]</span></span>
-<span>  <span class="fu"><a href="../reference/cuda_provenance.html">cuda_provenance</a></span><span class="op">(</span><span class="va">gpu_subset</span><span class="op">)</span></span>
-<span><span class="op">}</span></span></code></pre></div>
-<p>The guard keeps this installed vignette runnable on machines without
-NVIDIA hardware. It is not evidence that the CUDA path was tested.</p>
+<span><span class="fu"><a href="../reference/sparse_info.html">sparse_info</a></span><span class="op">(</span><span class="va">normalized_gpu</span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/cuda_provenance.html">cuda_provenance</a></span><span class="op">(</span><span class="va">sparse_neighbors</span><span class="op">)</span></span></code></pre></div>
+<p>Use <code><a href="../reference/to_dgCMatrix.html">to_dgCMatrix()</a></code> only when a downstream R package
+specifically needs a host <code>dgCMatrix</code>.</p>
 </div>
 <div class="section level2">
-<h2 id="dense-memory-and-transfer-limits">Dense memory and transfer limits<a class="anchor" aria-label="anchor" href="#dense-memory-and-transfer-limits"></a>
+<h2 id="read-provenance">Read provenance<a class="anchor" aria-label="anchor" href="#read-provenance"></a>
 </h2>
-<p>Dense <code>cudaverse</code> tensors use dense storage. The payload
-alone is approximately <code>prod(shape) * bytes_per_value</code>,
-before outputs and temporary tensors. The CPU fallback uses ordinary R
-vectors, so its physical storage can differ from CUDA backends:</p>
+<p><code><a href="../reference/cuda_provenance.html">cuda_provenance()</a></code> shows where each part of a calculation
+ran. The most useful fields are:</p>
 <table class="table">
 <thead><tr class="header">
-<th>dtype</th>
-<th align="right">CPU base storage</th>
-<th align="right">CUDA native storage</th>
-<th align="right">CUDA torch storage</th>
+<th>Field</th>
+<th>Question answered</th>
 </tr></thead>
 <tbody>
 <tr class="odd">
-<td><code>float32</code></td>
-<td align="right">8 bytes</td>
-<td align="right">4 bytes</td>
-<td align="right">4 bytes</td>
+<td><code>operation</code></td>
+<td>What did this stage do?</td>
 </tr>
 <tr class="even">
-<td><code>float64</code></td>
-<td align="right">8 bytes</td>
-<td align="right">8 bytes</td>
-<td align="right">8 bytes</td>
+<td><code>device</code></td>
+<td>Where did the computation run?</td>
 </tr>
 <tr class="odd">
-<td><code>integer</code></td>
-<td align="right">4 bytes</td>
-<td align="right">4 bytes</td>
-<td align="right">8 bytes</td>
+<td><code>backend</code></td>
+<td>Which cudaverse implementation performed it?</td>
+</tr>
+<tr class="even">
+<td><code>output_device</code></td>
+<td>Where was the result left for the next step?</td>
 </tr>
 </tbody>
 </table>
-<p>CPU <code>float32</code> values are rounded to IEEE single precision
-when stored and after each public operation, but base R kernels
-accumulate in double precision. CUDA kernels compute in their backend’s
-native dtype. Results should therefore be compared with an explicit
-tolerance rather than expected to be bit-for-bit identical. Floating
-tensors may contain IEEE <code>Inf</code>, <code>-Inf</code>, and
-<code>NaN</code>; integer tensors reject values that cannot be
-represented exactly.</p>
-<p>Creating a CUDA tensor from an R object transfers the dense input
-from host memory to GPU memory. <code><a href="../reference/to_cpu.html">to_cpu()</a></code>,
-<code><a href="https://rdrr.io/r/base/array.html" class="external-link">as.array()</a></code>, and <code><a href="https://rdrr.io/r/base/matrix.html" class="external-link">as.matrix()</a></code> materialize the
-complete result in host memory. Mixed-device binary operations move the
-right operand to the left operand’s device. Native CUDA subsetting and
-replacement evaluate index metadata in R but gather or replace tensor
-values on the GPU. Missing indices and backends without indexing
-operations use a recorded CPU round trip. Native reshape creates an
-allocation-free metadata view over shared device storage, so releasing
-the source does not invalidate the view and the allocation is freed
-after its final owner. Matrix arithmetic, broadcasting, reductions, and
-transpose use the tensor’s backend.</p>
-<p>Large operations can temporarily require input, output, and
-intermediate allocations at once. The package does not currently provide
-out-of-core execution or automatic chunking. Printing a tensor with more
-than 100 values shows metadata without copying the full CUDA allocation;
-explicitly call <code><a href="../reference/to_cpu.html">to_cpu()</a></code> only when that transfer is
-intended.</p>
-<p>The built-in native pipeline stores COO and CSR metadata in shared
-device storage. Sparse normalization remains sparse; sparse-input PCA
-expands directly into a GPU dense buffer, attaches shared device storage
-to PCA’s ordinary R score matrix, and a following
-<code><a href="../reference/cuda_knn.html">cuda_knn()</a></code> call reuses that allocation. Exact distance
-blocks and stable top-k selection remain on the GPU, and only compact
-results are returned. <code><a href="../reference/cuda_provenance.html">cuda_provenance()</a></code> records
-normalization, <code>sparse_to_dense</code>,
-<code>scores_resident</code>, device-resident input materialization,
-CUDA distance, and final CPU output as separate stages.</p>
+<p>Multi-stage algorithms retain a stage list. Inspect it directly when
+checking residency:</p>
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">prov</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cuda_provenance.html">cuda_provenance</a></span><span class="op">(</span><span class="va">neighbors</span><span class="op">)</span></span>
+<span><span class="va">prov</span><span class="op">$</span><span class="va">stages</span></span></code></pre></div>
+<p>A strict <code>device = "cuda"</code> request cannot silently fall
+back. A hybrid high-level workflow can still contain a deliberately
+documented host stage; that stage has its own record rather than being
+described as GPU-resident.</p>
 </div>
 <div class="section level2">
-<h2 id="hardware-gated-validation">Hardware-gated validation<a class="anchor" aria-label="anchor" href="#hardware-gated-validation"></a>
+<h2 id="control-memory-and-transfer-costs">Control memory and transfer costs<a class="anchor" aria-label="anchor" href="#control-memory-and-transfer-costs"></a>
 </h2>
-<p>Portable examples and ordinary R CMD check jobs use CPU and may guard
-optional CUDA code with <code>if (cuda_available())</code>. The
-repository’s <code>cuda-parity</code> workflow is different: manual
-dispatch, or the organization variable
-<code>CUDAVERSE_NVIDIA_CI=enabled</code>, invokes a reusable job on a
-self-hosted runner labeled <code>cuda</code>.</p>
-<p>The main-package compatibility job:</p>
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="../reference/cuda_memory_info.html">cuda_memory_info</a></span><span class="op">(</span><span class="st">"cuda"</span><span class="op">)</span></span></code></pre></div>
 <ul>
-<li>sets <code>CUDAVERSE_REQUIRE_CUDA=true</code>;</li>
-<li>requires <code>nvidia-smi</code> to succeed;</li>
-<li>requires torch to report at least one CUDA device;</li>
-<li>runs required CPU/CUDA parity and provenance checks.</li>
+<li>Prefer <code>float32</code> when its numerical precision is
+sufficient; it halves the value storage compared with
+<code>float64</code>.</li>
+<li>Reuse <code>cudatensor</code> and <code>cudasparse</code> objects
+across operations.</li>
+<li>Use <code><a href="../reference/cuda_knn.html">cuda_knn()</a></code> instead of <code><a href="../reference/cuda_distance.html">cuda_distance()</a></code>
+when a full dense distance matrix is not needed.</li>
+<li>Lower <code>batch_size</code> when exact distance or kNN blocks
+approach the available device memory.</li>
+<li>Print or download large CUDA objects only when the host values are
+needed.</li>
 </ul>
-<p>The integrated native workflow compiles <code>cudaverse</code> on
-Windows, macOS, Ubuntu, and R-devel; reproducibly rebuilds its PTX in
-CUDA 12.8.1; and runs explicit native parity, structured-error,
-interruption, and 1,000-cycle VRAM contracts on the RTX 2000 development
-machine. The ordinary package checks do not need CUDA hardware or a CUDA
-toolkit.</p>
-<p>A missing CUDA runtime fails the hardware job. It is never converted
-into a successful skip.</p>
+</div>
+<div class="section level2">
+<h2 id="confirm-the-backend-used">Confirm the backend used<a class="anchor" aria-label="anchor" href="#confirm-the-backend-used"></a>
+</h2>
+<p>The lightweight path does not require R <code>torch</code>. A typical
+native result should show CUDA and native in its stage record:</p>
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">stages</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cuda_provenance.html">cuda_provenance</a></span><span class="op">(</span><span class="va">neighbors</span><span class="op">)</span><span class="op">$</span><span class="va">stages</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">vapply</a></span><span class="op">(</span><span class="va">stages</span>, <span class="va">`[[`</span>, <span class="fu"><a href="https://rdrr.io/r/base/character.html" class="external-link">character</a></span><span class="op">(</span><span class="fl">1</span><span class="op">)</span>, <span class="st">"device"</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">vapply</a></span><span class="op">(</span><span class="va">stages</span>, <span class="va">`[[`</span>, <span class="fu"><a href="https://rdrr.io/r/base/character.html" class="external-link">character</a></span><span class="op">(</span><span class="fl">1</span><span class="op">)</span>, <span class="st">"backend"</span><span class="op">)</span></span></code></pre></div>
+<p>Some records describe preparation or returning the final R object
+rather than a numerical calculation. The <a href="backend-support.html">operation coverage guide</a> explains what
+to expect for each task.</p>
 </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside>

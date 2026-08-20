@@ -1,115 +1,183 @@
-# Getting started with cudaverse
+# Your first CUDA workflow with cudaverse
 
-`cudaverse` is a single entry point for dense tensors, sparse matrices,
-numerical algorithms, graphs, and embeddings. CUDA is optional: every
-result records the backend and device that actually performed each
-stage.
+This guide takes you from an ordinary R matrix to PCA and
+nearest-neighbour results computed with CUDA. You stay in R, use
+familiar data structures, and do not need a deep-learning framework.
 
-## Dense and sparse data
+## Before you start
+
+Before opening R, make sure you have:
+
+1.  Windows or Linux;
+2.  a CUDA-capable NVIDIA GPU and working NVIDIA driver;
+3.  a CUDA 12.x installation from NVIDIA; and
+4.  the current cudaverse release.
+
+Follow the [GPU setup
+guide](https://cudaverse.github.io/cudaverse/articles/gpu-setup.md)
+first if `nvidia-smi` does not show a GPU or the diagnostic call below
+reports missing libraries.
 
 ``` r
+
+# install.packages("pak")
+pak::pak("cudaverse/cudaverse@v0.4.1")
 
 library(cudaverse)
 
-dense <- cuda_tensor(matrix(1:12, nrow = 4), device = "cpu")
-tensor_shape(dense)
-#> [1] 4 3
+check <- cuda_diagnostics()
+check$summary
+check$next_steps
 
-sparse <- cuda_sparse(Matrix::Diagonal(4), device = "cpu")
-sparse_info(sparse)
-#> $shape
-#> [1] 4 4
-#> 
-#> $nnz
-#> [1] 4
-#> 
-#> $density
-#> [1] 0.25
-#> 
-#> $format
-#> [1] "csr"
-#> 
-#> $device
-#> [1] "cpu"
-#> 
-#> $backend
-#> [1] "Matrix"
-#> 
-#> $provenance_schema
-#> [1] "cudaverse-stage/1"
-#> 
-#> $compute_device
-#> [1] "cpu"
+# Stop here with a useful explanation if CUDA is not ready.
+cuda_select_device("cuda")
 ```
 
-Sparse normalization keeps the zero pattern and composes with the same
-PCA and kNN entry points:
+If the last command succeeds, cudaverse is ready to use the GPU. If it
+fails, follow the printed next step; the requested CUDA task is never
+silently run somewhere else.
 
-``` r
+## PCA and exact nearest neighbours on CUDA
 
-counts <- matrix(c(1, 0, 3, 2, 4, 1, 0, 2, 5, 1, 3, 2), nrow = 4)
-sparse_counts <- cuda_sparse(counts, device = "cpu")
-normalized <- sparse_normalize(
-  sparse_counts, margin = "rows", scale_factor = 100, log1p = TRUE
-)
-sparse_pca <- cuda_pca(normalized, n_components = 2, device = "cpu")
-sparse_neighbors <- cuda_knn(sparse_pca$x, k = 2, device = "cpu")
-```
-
-## Algorithms compose directly
+This is the most useful first workflow. A numeric R matrix enters the
+package, PCA reduces it to 20 components, and exact kNN finds 15
+neighbours per row.
 
 ``` r
 
 set.seed(1)
-x <- matrix(rnorm(120), nrow = 30)
+x <- matrix(rnorm(10000 * 100), nrow = 10000, ncol = 100)
 
-pca <- cuda_pca(x, n_components = 4, device = "cpu")
-neighbors <- cuda_knn(pca$x, k = 4, device = "cpu")
-graph <- cuda_knn_graph(neighbors)
+pca <- cuda_pca(
+  x,
+  n_components = 20,
+  center = TRUE,
+  scale. = FALSE,
+  device = "cuda"
+)
+
+neighbors <- cuda_knn(
+  pca$x,
+  k = 15,
+  metric = "euclidean",
+  device = "cuda"
+)
 
 dim(pca$x)
-#> [1] 30  4
-dim(as_adjacency_matrix(graph))
-#> [1] 30 30
-cuda_provenance(pca)
-#> <cuda_provenance schema=cudaverse-stage/1 stages=2 compute=cpu>
-#>          stage requested_device device backend selection_reason fallback
-#>  preprocessing              cpu    cpu   stats     explicit_cpu    FALSE
-#>  decomposition              cpu    cpu   stats     explicit_cpu    FALSE
-#>  output_device
-#>            cpu
-#>            cpu
+dim(neighbors$index)
+head(neighbors$index)
+head(neighbors$distance)
 ```
 
-UMAP, t-SNE, Louvain, and Leiden use optional packages. Their functions
-report a clear installation message when the relevant optional backend
-is missing.
-
-## Optional single-cell inputs
-
-When `SingleCellExperiment` is installed,
-[`cuda_umap()`](https://cudaverse.github.io/cudaverse/reference/cuda_umap.md),
-[`cuda_tsne()`](https://cudaverse.github.io/cudaverse/reference/cuda_tsne.md),
-and
-[`cuda_diffusion_map()`](https://cudaverse.github.io/cudaverse/reference/cuda_diffusion_map.md)
-can consume one of its reduced dimensions directly. Select the dimension
-explicitly unless there is exactly one reduced dimension named `"PCA"`:
+The PCA scores can stay on the GPU while kNN uses them. You can confirm
+where the work ran:
 
 ``` r
 
-fit <- cuda_diffusion_map(
-  sce,
-  reduced_dim = "PCA",
-  n_components = 2,
-  device = "auto"
+cuda_provenance(pca)
+cuda_provenance(neighbors)
+cuda_memory_info("cuda")
+```
+
+## GPU-resident matrix operations
+
+Use a `cudatensor` when you want several matrix operations to reuse the
+same data on the GPU.
+[`to_cpu()`](https://cudaverse.github.io/cudaverse/reference/to_cpu.md)
+brings the final result back as an ordinary R object.
+
+``` r
+
+x_gpu <- cuda_tensor(x, device = "cuda", dtype = "float32")
+
+centered_gpu <- x_gpu - tensor_mean(x_gpu, dim = 1)
+gram_gpu <- tensor_matmul(t(centered_gpu), centered_gpu)
+column_totals_gpu <- tensor_sum(x_gpu, dim = 1)
+
+tensor_device(gram_gpu)
+gram <- to_cpu(gram_gpu)
+column_totals <- to_cpu(column_totals_gpu)
+```
+
+Subsetting, transpose, arithmetic, matrix multiplication, and summaries
+follow familiar R conventions while supported results remain on the GPU.
+
+## Sparse normalization, PCA, and kNN
+
+Sparse inputs begin as `Matrix` objects. The same workflow can normalize
+the matrix, run PCA, and find neighbours without making the user learn
+another API.
+
+``` r
+
+counts <- Matrix::rsparsematrix(10000, 100, density = 0.03)
+counts@x <- abs(counts@x)
+
+counts_gpu <- cuda_sparse(counts, device = "cuda")
+normalized_gpu <- sparse_normalize(
+  counts_gpu,
+  margin = "rows",
+  scale_factor = 10000,
+  log1p = TRUE
+)
+
+sparse_pca <- cuda_pca(
+  normalized_gpu,
+  n_components = 20,
+  device = "cuda"
+)
+sparse_neighbors <- cuda_knn(
+  sparse_pca$x,
+  k = 15,
+  device = "cuda"
+)
+
+sparse_info(normalized_gpu)
+cuda_provenance(sparse_neighbors)
+```
+
+## Other CUDA tasks
+
+The same strict device argument applies to decompositions, distances,
+and k-means:
+
+``` r
+
+svd_fit <- cuda_svd(x, nu = 20, nv = 20, device = "cuda")
+
+distances <- cuda_distance(
+  x[1:1000, ],
+  x[1001:2000, ],
+  batch_size = 256,
+  device = "cuda"
+)
+
+clusters <- cuda_kmeans(
+  pca$x,
+  centers = 20,
+  seed = 1,
+  device = "cuda"
 )
 ```
 
-The selected reduced dimension is materialized as a host matrix. UMAP
-and t-SNE then run on their documented CPU backends. Diffusion maps may
-upload the matrix for the distance stage, while kernel construction and
-eigendecomposition remain on CPU; `cuda_provenance(fit)` reports this
-boundary. Seurat objects are not currently a public input type, so pass
-a finite matrix or a `SingleCellExperiment` reduced dimension instead.
-These optional integrations do not add Bioconductor or Seurat to an
-ordinary cudaverse installation.
+[`cuda_distance()`](https://cudaverse.github.io/cudaverse/reference/cuda_distance.md)
+returns a complete dense matrix, so its host output grows as
+`nrow(x) * nrow(y)`. Prefer
+[`cuda_knn()`](https://cudaverse.github.io/cudaverse/reference/cuda_knn.md)
+when only the nearest neighbours are needed.
+
+## Where to go next
+
+- [GPU setup and
+  troubleshooting](https://cudaverse.github.io/cudaverse/articles/gpu-setup.md)
+  provides exact Windows and Linux dependency checks.
+- [GPU residency and
+  provenance](https://cudaverse.github.io/cudaverse/articles/backend-provenance.md)
+  shows how to avoid unnecessary transfers.
+- [CUDA operation
+  coverage](https://cudaverse.github.io/cudaverse/articles/backend-support.md)
+  shows which tasks run fully on the GPU and which currently include an
+  R stage.
+- [Performance](https://cudaverse.github.io/cudaverse/articles/performance.md)
+  explains the retained comparisons with base R and the optional R
+  `torch` backend.

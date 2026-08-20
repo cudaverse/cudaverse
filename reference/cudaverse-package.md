@@ -1,11 +1,13 @@
-# cudaverse: GPU-aware numerical computing for R
+# cudaverse: Lightweight CUDA numerical computing for R
 
-Provides one coherent interface for experimental GPU-aware numerical
-computing in R. Includes dense tensors, sparse matrices, decompositions,
-distances, nearest neighbours, clustering, graph workflows, and
-embeddings. Includes a lightweight native CUDA backend that discovers
-NVIDIA runtime libraries lazily, plus portable R and optional 'torch'
-backends for development, testing, and reproducible fallback behavior.
+Provides a lightweight interface to CUDA-accelerated numerical computing
+in R. Dense tensors, sparse matrices, decompositions, distances, exact
+nearest neighbours, clustering, graph workflows, and embeddings use one
+consistent R API. The native backend discovers NVIDIA driver, cuBLAS,
+and cuSOLVER libraries at runtime without bundling LibTorch or a CUDA
+runtime. Stage-level provenance records the backend, device, and data
+transfers used by each result. A portable implementation supports
+package validation on systems without CUDA.
 
 ## See also
 

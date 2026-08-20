@@ -1,267 +1,178 @@
-# Backend selection and compute provenance
+# Keep an R workflow on the GPU
 
-`cudaverse` separates four questions that are easy to conflate:
+A GPU is most useful when data are not repeatedly copied between R and
+the GPU. This guide shows the simple pattern: upload once, run several
+CUDA tasks, and bring back only the result you need.
 
-1.  What device did the caller request?
-2.  Where did each stage actually compute?
-3.  Which concrete backend implemented that stage?
-4.  On which device does the returned value live?
+## Require CUDA at the start
 
-The answers are recorded with the `cudaverse-stage/1` provenance schema.
-This tutorial runs completely on CPU. Its CUDA section is optional and
-runs only when a registered native or torch CUDA backend is usable.
-
-## Inspect the runtime
+Use a strict selection before a long analysis:
 
 ``` r
 
 library(cudaverse)
-
-diagnostics <- cuda_diagnostics()
-diagnostics
-#> <cuda_diagnostics status=cpu_only available=FALSE devices=NA selected=base torch=0.17.0 reason=backend_error>
-#> CUDA is unavailable; automatic requests will use the base CPU backend (backend_error).
-#> Next steps:
-#> - Inspect backend_status$error and backend_diagnostics for the failing runtime probe before retrying CUDA.
+cuda_select_device("cuda")
 ```
 
-[`cuda_diagnostics()`](https://cudaverse.github.io/cudaverse/reference/cuda_diagnostics.md)
-never installs torch or a CUDA runtime. `status`, `summary`,
-`next_steps`, and `backend_status` provide the concise user-facing
-result. `available_backends`, `auto_eligible_backends`,
-`auto_selection_reason`, `selected_backend`, and `backend_diagnostics`
-retain the complete registry evidence. The first native diagnostic in a
-session runs and caches a small transfer, float32 and float64
-matmul/reduction, arithmetic/broadcast/reshape/transpose, and sparse
-normalization self-test. The legacy fields `torch_installed`,
-`torch_version`, `cuda_available`, `cuda_device_count`, `reason`, and
-`detection_error` remain available throughout the 0.4 compatibility
-cycle.
+If CUDA is not ready, this call stops and explains what is missing. It
+never turns a requested GPU workflow into an unnoticed non-GPU run.
 
-Native is eligible for `"auto"` only when all four gates pass:
+## Upload once and reuse the tensor
 
-1.  backend contract schema `cudaverse-backend/1` matches;
-2.  the complete tensor and resident PCA/kNN capability set is present;
-3.  driver, cuBLAS, cuSOLVER, and package PTX components load; and
-4.  the cached runtime self-test passes without retaining tracked device
-    memory.
-
-If any gate fails, diagnostics preserve its reason and automatic
-selection tries the torch compatibility backend before using the
-observable CPU fallback. Setting
-`options(cudaverse.cuda_backends = ...)` can constrain test order, but
-cannot bypass these gates.
-
-Device requests have these semantics:
-
-| Requested device | Actual device | Output device at construction | Fallback |
-|----|----|----|----|
-| `"cpu"` | CPU | CPU | `FALSE` |
-| `"auto"` with usable CUDA | CUDA | CUDA | `FALSE` |
-| `"auto"` without usable CUDA | CPU | CPU | `TRUE`, with a recorded reason |
-| `"cuda"` | CUDA, or an error | CUDA when successful | Never silent |
-
-An explicit CUDA request is strict. If CUDA is unavailable,
-`cuda_tensor(..., device = "cuda")` signals a
-`cudaverse_cuda_unavailable` condition instead of returning a CPU
-tensor.
-
-## A portable CPU workflow
-
-Use `device = "cpu"` when reproducible portable execution matters more
-than automatic hardware selection.
+Construct a `cudatensor` once, then apply arithmetic, reshape,
+transpose, subsetting, reduction, and matrix multiplication without
+reconstructing the input for every call.
 
 ``` r
 
-left_source <- matrix(
-  1:6,
-  nrow = 2,
-  dimnames = list(
-    sample = c("sample_a", "sample_b"),
-    feature = c("gene_a", "gene_b", "gene_c")
-  )
-)
-right_source <- matrix(
-  seq_len(6) / 10,
-  nrow = 3,
-  dimnames = list(
-    feature = c("gene_a", "gene_b", "gene_c"),
-    component = c("component_1", "component_2")
-  )
-)
+set.seed(1)
+x <- matrix(rnorm(10000 * 100), nrow = 10000)
+x_gpu <- cuda_tensor(x, device = "cuda", dtype = "float32")
 
-left <- cuda_tensor(left_source, device = "cpu", dtype = "float64")
-right <- cuda_tensor(right_source, device = "cpu", dtype = "float64")
-product <- tensor_matmul(left, right)
+means_gpu <- tensor_mean(x_gpu, dim = 1)
+centered_gpu <- x_gpu - means_gpu
+selected_gpu <- centered_gpu[, 1:50, drop = FALSE]
+gram_gpu <- tensor_matmul(t(selected_gpu), selected_gpu)
 
-tensor_device(product)
-#>  device backend 
-#>   "cpu"  "base"
-to_cpu(product)
-#>           component
-#> sample     component_1 component_2
-#>   sample_a         2.2         4.9
-#>   sample_b         2.8         6.4
+tensor_device(gram_gpu)
+cuda_provenance(gram_gpu)
 ```
 
-Every returned `cudatensor` records the actual stage:
+Supported reshape and selection operations stay on the GPU, so they can
+feed the next calculation without downloading the full tensor.
+
+Only cross the host boundary when an ordinary R object is required:
 
 ``` r
 
-construction_provenance <- cuda_provenance(left)
-construction_provenance
-#> <cuda_provenance schema=cudaverse-stage/1 stages=1 compute=cpu>
-#>                   stage requested_device device backend selection_reason
-#>  tensor_materialization              cpu    cpu    base     explicit_cpu
-#>  fallback output_device
-#>     FALSE           cpu
-
-product_provenance <- cuda_provenance(product)
-product_provenance
-#> <cuda_provenance schema=cudaverse-stage/1 stages=1 compute=cpu>
-#>            stage requested_device device backend selection_reason fallback
-#>  matrix_multiply        inherited    cpu    base inherited_device    FALSE
-#>  output_device
-#>            cpu
-
-attr(product_provenance, "schema")
-#> [1] "cudaverse-stage/1"
-attr(product_provenance, "compute_device")
-#> [1] "cpu"
+gram <- to_cpu(gram_gpu)
 ```
 
-The provenance table has one row per stage:
-
-- `requested_device` is the caller’s policy (`"cpu"`, `"cuda"`,
-  `"auto"`, `"fixed-cpu"`, or `"inherited"`);
-- `device` is where that stage actually computed;
-- `backend` names the implementation, such as `base`, `native`, or
-  `torch`;
-- `selection_reason` explains the resolution;
-- `fallback` is only true when an automatic request selected CPU;
-- `output_device` is where that stage placed its result.
-
-Do not infer the output location from `device`. A transfer or hybrid
-operation can compute on one device and return data on another.
-
-## Automatic selection is observable
-
-The following call is portable. It chooses CUDA only when diagnostics
-report a usable device; otherwise it returns a CPU tensor and records
-the fallback.
-
-``` r
-
-automatic <- cuda_tensor(matrix(1:4, 2), device = "auto")
-cuda_provenance(automatic)
-#> <cuda_provenance schema=cudaverse-stage/1 stages=1 compute=cpu>
-#>                   stage requested_device device backend selection_reason
-#>  tensor_materialization             auto    cpu    base    backend_error
-#>  fallback output_device
-#>      TRUE           cpu
-```
-
-This makes an automatic CPU result distinguishable from an explicit CPU
-request. For production runs that require a GPU, use `device = "cuda"`
-rather than `"auto"`.
-
-## Optional CUDA path
-
-``` r
-
-if (cuda_available()) {
-  gpu <- cuda_tensor(left_source, device = "cuda", dtype = "float64")
-  gpu_result <- tensor_sum(gpu, dim = 1)
-
-  tensor_device(gpu_result)
-  cuda_provenance(gpu_result)
-
-  # Native CUDA gathers values on-device. A compatibility backend may record
-  # materialization and upload stages instead.
-  gpu_subset <- gpu[1, , drop = FALSE]
-  cuda_provenance(gpu_subset)
-}
-```
-
-The guard keeps this installed vignette runnable on machines without
-NVIDIA hardware. It is not evidence that the CUDA path was tested.
-
-## Dense memory and transfer limits
-
-Dense `cudaverse` tensors use dense storage. The payload alone is
-approximately `prod(shape) * bytes_per_value`, before outputs and
-temporary tensors. The CPU fallback uses ordinary R vectors, so its
-physical storage can differ from CUDA backends:
-
-| dtype     | CPU base storage | CUDA native storage | CUDA torch storage |
-|-----------|-----------------:|--------------------:|-------------------:|
-| `float32` |          8 bytes |             4 bytes |            4 bytes |
-| `float64` |          8 bytes |             8 bytes |            8 bytes |
-| `integer` |          4 bytes |             4 bytes |            8 bytes |
-
-CPU `float32` values are rounded to IEEE single precision when stored
-and after each public operation, but base R kernels accumulate in double
-precision. CUDA kernels compute in their backend’s native dtype. Results
-should therefore be compared with an explicit tolerance rather than
-expected to be bit-for-bit identical. Floating tensors may contain IEEE
-`Inf`, `-Inf`, and `NaN`; integer tensors reject values that cannot be
-represented exactly.
-
-Creating a CUDA tensor from an R object transfers the dense input from
-host memory to GPU memory.
-[`to_cpu()`](https://cudaverse.github.io/cudaverse/reference/to_cpu.md),
-[`as.array()`](https://rdrr.io/r/base/array.html), and
-[`as.matrix()`](https://rdrr.io/r/base/matrix.html) materialize the
-complete result in host memory. Mixed-device binary operations move the
-right operand to the left operand’s device. Native CUDA subsetting and
-replacement evaluate index metadata in R but gather or replace tensor
-values on the GPU. Missing indices and backends without indexing
-operations use a recorded CPU round trip. Native reshape creates an
-allocation-free metadata view over shared device storage, so releasing
-the source does not invalidate the view and the allocation is freed
-after its final owner. Matrix arithmetic, broadcasting, reductions, and
-transpose use the tensor’s backend.
-
-Large operations can temporarily require input, output, and intermediate
-allocations at once. The package does not currently provide out-of-core
-execution or automatic chunking. Printing a tensor with more than 100
-values shows metadata without copying the full CUDA allocation;
-explicitly call
+Calling
 [`to_cpu()`](https://cudaverse.github.io/cudaverse/reference/to_cpu.md)
-only when that transfer is intended.
+inside each stage would add transfers and erase much of the reason to
+use the GPU.
 
-The built-in native pipeline stores COO and CSR metadata in shared
-device storage. Sparse normalization remains sparse; sparse-input PCA
-expands directly into a GPU dense buffer, attaches shared device storage
-to PCA’s ordinary R score matrix, and a following
-[`cuda_knn()`](https://cudaverse.github.io/cudaverse/reference/cuda_knn.md)
-call reuses that allocation. Exact distance blocks and stable top-k
-selection remain on the GPU, and only compact results are returned.
+## Keep PCA followed by kNN on CUDA
+
+The native PCA object retains device storage for its scores, so exact
+kNN can consume `pca$x` directly.
+
+``` r
+
+pca <- cuda_pca(
+  x_gpu,
+  n_components = 20,
+  device = "cuda"
+)
+
+neighbors <- cuda_knn(
+  pca$x,
+  k = 15,
+  batch_size = 256,
+  device = "cuda"
+)
+
+cuda_provenance(pca)
+cuda_provenance(neighbors)
+head(neighbors$index)
+```
+
+The public kNN result contains ordinary R index and distance matrices
+because those are normally the final analysis output. The expensive PCA,
+distance blocks, and stable top-k stages remain CUDA stages.
+
+## Keep sparse preprocessing on CUDA
+
+For sparse data, upload a `Matrix` object once and continue with
+normalization, PCA, and exact kNN:
+
+``` r
+
+counts <- Matrix::rsparsematrix(50000, 128, density = 0.01)
+counts@x <- abs(counts@x)
+
+counts_gpu <- cuda_sparse(counts, device = "cuda")
+normalized_gpu <- sparse_normalize(
+  counts_gpu,
+  margin = "rows",
+  scale_factor = 10000,
+  log1p = TRUE
+)
+sparse_pca <- cuda_pca(normalized_gpu, n_components = 20, device = "cuda")
+sparse_neighbors <- cuda_knn(
+  sparse_pca$x,
+  k = 15,
+  device = "cuda"
+)
+
+sparse_info(normalized_gpu)
+cuda_provenance(sparse_neighbors)
+```
+
+Use
+[`to_dgCMatrix()`](https://cudaverse.github.io/cudaverse/reference/to_dgCMatrix.md)
+only when a downstream R package specifically needs a host `dgCMatrix`.
+
+## Read provenance
+
 [`cuda_provenance()`](https://cudaverse.github.io/cudaverse/reference/cuda_provenance.md)
-records normalization, `sparse_to_dense`, `scores_resident`,
-device-resident input materialization, CUDA distance, and final CPU
-output as separate stages.
+shows where each part of a calculation ran. The most useful fields are:
 
-## Hardware-gated validation
+| Field           | Question answered                            |
+|-----------------|----------------------------------------------|
+| `operation`     | What did this stage do?                      |
+| `device`        | Where did the computation run?               |
+| `backend`       | Which cudaverse implementation performed it? |
+| `output_device` | Where was the result left for the next step? |
 
-Portable examples and ordinary R CMD check jobs use CPU and may guard
-optional CUDA code with `if (cuda_available())`. The repository’s
-`cuda-parity` workflow is different: manual dispatch, or the
-organization variable `CUDAVERSE_NVIDIA_CI=enabled`, invokes a reusable
-job on a self-hosted runner labeled `cuda`.
+Multi-stage algorithms retain a stage list. Inspect it directly when
+checking residency:
 
-The main-package compatibility job:
+``` r
 
-- sets `CUDAVERSE_REQUIRE_CUDA=true`;
-- requires `nvidia-smi` to succeed;
-- requires torch to report at least one CUDA device;
-- runs required CPU/CUDA parity and provenance checks.
+prov <- cuda_provenance(neighbors)
+prov$stages
+```
 
-The integrated native workflow compiles `cudaverse` on Windows, macOS,
-Ubuntu, and R-devel; reproducibly rebuilds its PTX in CUDA 12.8.1; and
-runs explicit native parity, structured-error, interruption, and
-1,000-cycle VRAM contracts on the RTX 2000 development machine. The
-ordinary package checks do not need CUDA hardware or a CUDA toolkit.
+A strict `device = "cuda"` request cannot silently fall back. A hybrid
+high-level workflow can still contain a deliberately documented host
+stage; that stage has its own record rather than being described as
+GPU-resident.
 
-A missing CUDA runtime fails the hardware job. It is never converted
-into a successful skip.
+## Control memory and transfer costs
+
+``` r
+
+cuda_memory_info("cuda")
+```
+
+- Prefer `float32` when its numerical precision is sufficient; it halves
+  the value storage compared with `float64`.
+- Reuse `cudatensor` and `cudasparse` objects across operations.
+- Use
+  [`cuda_knn()`](https://cudaverse.github.io/cudaverse/reference/cuda_knn.md)
+  instead of
+  [`cuda_distance()`](https://cudaverse.github.io/cudaverse/reference/cuda_distance.md)
+  when a full dense distance matrix is not needed.
+- Lower `batch_size` when exact distance or kNN blocks approach the
+  available device memory.
+- Print or download large CUDA objects only when the host values are
+  needed.
+
+## Confirm the backend used
+
+The lightweight path does not require R `torch`. A typical native result
+should show CUDA and native in its stage record:
+
+``` r
+
+stages <- cuda_provenance(neighbors)$stages
+vapply(stages, `[[`, character(1), "device")
+vapply(stages, `[[`, character(1), "backend")
+```
+
+Some records describe preparation or returning the final R object rather
+than a numerical calculation. The [operation coverage
+guide](https://cudaverse.github.io/cudaverse/articles/backend-support.md)
+explains what to expect for each task.

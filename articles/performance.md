@@ -1,0 +1,113 @@
+# Performance and package size
+
+`cudaverse` is designed for numerical R workflows that are large enough
+to benefit from CUDA but do not need a complete deep-learning framework.
+It uses the NVIDIA CUDA installation already on your computer, keeping
+the R package small.
+
+## What was compared?
+
+The retained 0.4 benchmark runs the same public cudaverse workload with
+three backends:
+
+- **base R**, the numerical reference on the host;
+- **native CUDA**, the lightweight cudaverse backend; and
+- **R torch**, the optional CUDA compatibility backend backed by
+  LibTorch.
+
+Each result below is the median of ten runs after five warm-up runs. The
+complete R function call is timed, and results are checked for numerical
+agreement before the timing is accepted.
+
+## Selected full-benchmark results
+
+These measurements come from one NVIDIA GPU system. Lower time is
+better, and your result will vary with the GPU, driver, data, and other
+running programs.
+
+| Workload | Base R | Native CUDA | R torch | Native vs base | Native vs torch |
+|----|---:|---:|---:|---:|---:|
+| 256 x 256 float32 matrix multiplication | 0.0061 s | 0.0055 s | 0.0096 s | 1.1x | 1.8x |
+| 1024 x 1024 float32 matrix multiplication | 0.3324 s | 0.0243 s | 0.0389 s | 13.7x | 1.6x |
+| 4096 x 4096 float32 matrix multiplication | 36.1725 s | 0.5803 s | 0.8134 s | 62.3x | 1.4x |
+| Dense PCA + exact kNN, 1,000 x 50 | 0.0899 s | 0.0267 s | 0.1026 s | 3.4x | 3.8x |
+| Dense PCA + exact kNN, 10,000 x 100 | 11.9146 s | 0.2747 s | 6.0944 s | 43.4x | 22.2x |
+| Dense PCA + exact kNN, 50,000 x 128 | 668.4177 s | 2.8068 s | 126.5523 s | 238.1x | 45.1x |
+| Sparse PCA + exact kNN, 10,000 x 100 | 10.2651 s | 0.2029 s | 5.1979 s | 50.6x | 25.6x |
+| Sparse PCA + exact kNN, 50,000 x 128 | 217.6324 s | 2.7995 s | 126.7389 s | 77.7x | 45.3x |
+
+In this test, cudaverse was most useful for the medium and large PCA
+followed by exact-kNN workflows. These numbers are examples, not a
+promise for every computer or dataset.
+
+## Small workloads can be faster without CUDA
+
+Starting GPU work and transferring data have fixed costs. In the
+retained sparse 1,000 x 50 pipeline, base R took 0.0780 s and native
+CUDA took 0.0930 s. Use cudaverse for workloads with enough arithmetic
+or a long enough device-resident continuation to repay that overhead.
+
+The 256 x 256 matrix multiplication result shows the same principle: all
+three backends completed in milliseconds, so the absolute difference was
+small even though native CUDA had the lowest median.
+
+## Why can the native pipeline be faster?
+
+The performance gain is not only a faster matrix multiplication call.
+Supported native workflows can:
+
+1.  upload the input once;
+2.  keep PCA scores on the device;
+3.  compute distance blocks on CUDA;
+4.  select stable top-k neighbours on CUDA; and
+5.  materialize only the final neighbour index and distance matrices in
+    R.
+
+This avoids repeated host/device boundaries between separate high-level
+tasks. See [Keep a workflow on the
+GPU](https://cudaverse.github.io/cudaverse/articles/backend-provenance.md)
+for practical code.
+
+## Installed footprint
+
+The same retained environment reported:
+
+| Component                         |                      Installed size |
+|-----------------------------------|------------------------------------:|
+| cudaverse                         |     1,447,216 bytes (about 1.45 MB) |
+| optional R torch installation     | 7,367,799,444 bytes (about 7.37 GB) |
+| CUDA runtime bundled by cudaverse |                             0 bytes |
+
+The native package is small because it uses compatible NVIDIA runtime
+libraries installed by the user. This is a deployment tradeoff:
+cudaverse does not download or redistribute those libraries, so the
+Windows or Linux system must be prepared first using the [CUDA setup
+guide](https://cudaverse.github.io/cudaverse/articles/gpu-setup.md).
+
+## When cudaverse is a good fit
+
+Good candidates include:
+
+- repeated dense matrix operations on an already uploaded tensor;
+- PCA followed by distance or exact kNN;
+- sparse normalization followed by PCA and exact kNN;
+- medium or large float32 matrix multiplication; and
+- analyses that can delay
+  [`to_cpu()`](https://cudaverse.github.io/cudaverse/reference/to_cpu.md)
+  until the final output.
+
+It is less useful for a single tiny matrix operation, a workflow that
+downloads after every step, or a task listed as only partly accelerated
+in [What runs on
+CUDA?](https://cudaverse.github.io/cudaverse/articles/backend-support.md).
+
+## Reproduce and interpret the evidence
+
+The repository retains the [complete human-readable
+report](https://github.com/cudaverse/cudaverse/blob/main/inst/reports/benchmarks/CP07-FULL.md),
+the raw timings, numerical checks, memory observations, software
+versions, and test conditions. This lets interested users reproduce or
+audit the table.
+
+Ratios compare ten-run medians. They describe this benchmark and are not
+confidence intervals or statistical-significance tests.

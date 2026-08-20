@@ -2,11 +2,13 @@
 
 ### Start here
 
-- [Getting started with
+- [Your first CUDA workflow with
   cudaverse](https://cudaverse.github.io/cudaverse/articles/getting-started.md):
-- [GPU setup and
-  troubleshooting](https://cudaverse.github.io/cudaverse/articles/gpu-setup.md):
-- [Backend selection and compute
-  provenance](https://cudaverse.github.io/cudaverse/articles/backend-provenance.md):
-- [Backend support and release
-  boundaries](https://cudaverse.github.io/cudaverse/articles/backend-support.md):
+- [Set up CUDA for
+  cudaverse](https://cudaverse.github.io/cudaverse/articles/gpu-setup.md):
+- [Keep an R workflow on the
+  GPU](https://cudaverse.github.io/cudaverse/articles/backend-provenance.md):
+- [What runs on
+  CUDA?](https://cudaverse.github.io/cudaverse/articles/backend-support.md):
+- [Performance and package
+  size](https://cudaverse.github.io/cudaverse/articles/performance.md):
