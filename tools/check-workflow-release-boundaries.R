@@ -18,7 +18,9 @@ required <- c(
   "github.event_name == 'push'",
   "github.ref == 'refs/heads/main'",
   "github.event_name == 'release'",
-  "Deploy to GitHub Pages"
+  "Deploy to GitHub Pages",
+  "git-config-name: YaoxiangLi",
+  "git-config-email: YaoxiangLi@users.noreply.github.com"
 )
 missing <- required[!vapply(
   required, grepl, logical(1L), x = deploy_block, fixed = TRUE
