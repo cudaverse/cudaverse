@@ -56,6 +56,7 @@ evidence_files <- c(
   rtx = "rtx.json",
   consolidation = "rtx-consolidation.json",
   package_tests = "rtx-package-tests.json",
+  session = "rtx-session.json",
   benchmark = "benchmark.json",
   summary = "benchmark-summary.md",
   benchmark_check = "benchmark-check.log",
@@ -70,6 +71,7 @@ plain_files <- setdiff(
   names(evidence_files),
   c(
     "tarball", "sbom", "rtx", "consolidation", "package_tests",
+    "session",
     "benchmark", "decision"
   )
 )
@@ -179,6 +181,47 @@ write_package_tests <- function(
     auto_unbox = TRUE, pretty = TRUE
   )
 }
+write_session <- function(
+  source_commit = commit, final_bytes = 0L,
+  hardware = "NVIDIA RTX 2000 Ada Generation Laptop GPU",
+  pids = c(101L, 202L)
+) {
+  workflow <- c(
+    "native-self-test", "dense-shared-view", "sparse-normalize",
+    "resident-pca-knn", "memory-telemetry", "injected-oom",
+    "post-error-matmul", "allocator-cleanup", "clean-exit"
+  )
+  sessions <- lapply(seq_len(2L), function(index) list(
+    session = index,
+    pid = pids[[index]],
+    version = version,
+    commit = source_commit,
+    baseline_bytes = 0L,
+    final_bytes = final_bytes,
+    process_absent_after_exit = TRUE,
+    workflow = workflow
+  ))
+  jsonlite::write_json(
+    list(
+      schema = "cudaverse-native-session/1",
+      source = list(
+        commit = source_commit, tracked_dirty = FALSE, version = version
+      ),
+      hardware = list(nvidia_smi = hardware),
+      contract = list(
+        isolated_install = TRUE, vanilla_sessions = 2L,
+        distinct_processes = !anyDuplicated(pids),
+        native_backend_required = TRUE,
+        injected_error = "CUDA_ERROR_OUT_OF_MEMORY",
+        exact_allocator_cleanup = TRUE, exited_process_check = TRUE
+      ),
+      sessions = sessions,
+      passed = final_bytes == 0L && !anyDuplicated(pids)
+    ),
+    file.path(work, evidence_files[["session"]]),
+    auto_unbox = TRUE, pretty = TRUE
+  )
+}
 write_rtx <- function(source_commit = commit) {
   jsonlite::write_json(
     list(
@@ -260,6 +303,7 @@ write_tarball()
 write_sbom()
 write_consolidation()
 write_package_tests()
+write_session()
 write_rtx()
 write_benchmark()
 write_decision()
@@ -324,6 +368,10 @@ manifest <- list(
     consolidation_report_sha256 = sha_for("consolidation"),
     package_test_report_file = evidence_files[["package_tests"]],
     package_test_report_sha256 = sha_for("package_tests"),
+    session_report_file = evidence_files[["session"]],
+    session_report_sha256 = sha_for("session"),
+    session_schema = "cudaverse-native-session/1",
+    session_passed = TRUE,
     schema = "cudaverse-native-candidate/1", parity = TRUE,
     structured_recovery = TRUE, interruption = TRUE, backend_reuse = TRUE,
     no_skips = TRUE,
@@ -362,6 +410,7 @@ stopifnot(
   identical(manifest$schema, "cudaverse-candidate-evidence/1"),
   identical(manifest$candidate$source_commit, commit),
   identical(manifest$rtx$report_sha256, sha_for("rtx")),
+  identical(manifest$rtx$session_report_sha256, sha_for("session")),
   identical(manifest$benchmark$report_sha256, sha_for("benchmark")),
   identical(manifest$artifacts$windows$bytes,
             as.numeric(file.info(file.path(
@@ -397,6 +446,8 @@ refresh_versioned_evidence <- function(candidate_version, candidate_branch) {
   manifest$rtx$consolidation_report_sha256 <<- sha_for("consolidation")
   write_package_tests()
   manifest$rtx$package_test_report_sha256 <<- sha_for("package_tests")
+  write_session()
+  manifest$rtx$session_report_sha256 <<- sha_for("session")
   write_rtx()
   manifest$rtx$report_sha256 <<- sha_for("rtx")
   write_benchmark()
@@ -409,9 +460,27 @@ Sys.setenv(CUDAVERSE_CANDIDATE_MANIFEST = path)
 write_manifest()
 run_checker()
 
+session_fields <- c(
+  "session_report_file", "session_report_sha256",
+  "session_schema", "session_passed"
+)
+legacy_session <- manifest$rtx[session_fields]
+manifest$rtx[session_fields] <- NULL
+write_manifest()
+run_checker()
+manifest$rtx[session_fields] <- legacy_session
+
 refresh_versioned_evidence("0.4.0.9000", "develop/0.4")
 write_manifest()
 run_checker()
+
+saved_session <- manifest$rtx[session_fields]
+manifest$rtx[session_fields] <- NULL
+write_manifest()
+expect_error_message(
+  run_checker(), "0.4 candidate is missing the RTX independent-session report"
+)
+manifest$rtx[session_fields] <- saved_session
 
 manifest$candidate$branch <- "develop/native-cuda"
 write_manifest()
@@ -500,6 +569,17 @@ write_manifest()
 expect_error_message(run_checker(), "RTX report source does not match")
 write_rtx()
 manifest$rtx$report_sha256 <- sha_for("rtx")
+
+write_session(final_bytes = 1L)
+manifest$rtx$session_report_sha256 <- sha_for("session")
+manifest$rtx$session_passed <- FALSE
+write_manifest()
+expect_error_message(
+  run_checker(), "RTX independent-session isolation contract is incomplete"
+)
+write_session()
+manifest$rtx$session_report_sha256 <- sha_for("session")
+manifest$rtx$session_passed <- TRUE
 
 write_package_tests(skips = 1L)
 manifest$rtx$package_test_report_sha256 <- sha_for("package_tests")

@@ -89,6 +89,19 @@ build_candidate_evidence_manifest <- function(spec, bundle_root) {
     root, spec$rtx$package_test_report_file, "RTX package-test report"
   )
   rtx_report <- candidate_evidence_read_json(rtx, "RTX candidate report")
+  session <- NULL
+  session_report <- NULL
+  session_file <- as.character(candidate_evidence_scalar(
+    spec$rtx$session_report_file, ""
+  ))
+  if (nzchar(session_file)) {
+    session <- candidate_evidence_bundle_file(
+      root, session_file, "RTX independent-session report"
+    )
+    session_report <- candidate_evidence_read_json(
+      session, "RTX independent-session report"
+    )
+  }
 
   benchmark <- candidate_evidence_bundle_file(
     root, spec$benchmark$report_file, "benchmark report"
@@ -122,6 +135,40 @@ build_candidate_evidence_manifest <- function(spec, bundle_root) {
     url = as.character(candidate_evidence_scalar(check$url, ""))
   ))
 
+  rtx_manifest <- list(
+    source_commit = commit,
+    report_file = rtx$file, report_sha256 = rtx$sha256,
+    consolidation_report_file = consolidation$file,
+    consolidation_report_sha256 = consolidation$sha256,
+    package_test_report_file = package_tests$file,
+    package_test_report_sha256 = package_tests$sha256,
+    schema = as.character(candidate_evidence_scalar(
+      rtx_report$schema, ""
+    )),
+    parity = candidate_evidence_logical(rtx_report$gates$parity),
+    structured_recovery = candidate_evidence_logical(
+      rtx_report$gates$structured_recovery
+    ),
+    interruption = candidate_evidence_logical(
+      rtx_report$gates$interruption
+    ),
+    backend_reuse = candidate_evidence_logical(
+      rtx_report$gates$backend_reuse
+    ),
+    no_skips = candidate_evidence_logical(rtx_report$gates$no_skips),
+    lifecycle = rtx_report$lifecycle
+  )
+  if (!is.null(session)) {
+    rtx_manifest$session_report_file <- session$file
+    rtx_manifest$session_report_sha256 <- session$sha256
+    rtx_manifest$session_schema <- as.character(candidate_evidence_scalar(
+      session_report$schema, ""
+    ))
+    rtx_manifest$session_passed <- candidate_evidence_logical(
+      session_report$passed
+    )
+  }
+
   list(
     schema = "cudaverse-candidate-evidence/1",
     candidate = list(
@@ -153,29 +200,7 @@ build_candidate_evidence_manifest <- function(spec, bundle_root) {
         spec$supply_chain$bundled_libtorch_bytes, NA_real_
       ))
     ),
-    rtx = list(
-      source_commit = commit,
-      report_file = rtx$file, report_sha256 = rtx$sha256,
-      consolidation_report_file = consolidation$file,
-      consolidation_report_sha256 = consolidation$sha256,
-      package_test_report_file = package_tests$file,
-      package_test_report_sha256 = package_tests$sha256,
-      schema = as.character(candidate_evidence_scalar(
-        rtx_report$schema, ""
-      )),
-      parity = candidate_evidence_logical(rtx_report$gates$parity),
-      structured_recovery = candidate_evidence_logical(
-        rtx_report$gates$structured_recovery
-      ),
-      interruption = candidate_evidence_logical(
-        rtx_report$gates$interruption
-      ),
-      backend_reuse = candidate_evidence_logical(
-        rtx_report$gates$backend_reuse
-      ),
-      no_skips = candidate_evidence_logical(rtx_report$gates$no_skips),
-      lifecycle = rtx_report$lifecycle
-    ),
+    rtx = rtx_manifest,
     benchmark = list(
       source_commit = commit,
       report_file = benchmark$file, report_sha256 = benchmark$sha256,
