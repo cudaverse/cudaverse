@@ -20,6 +20,10 @@ sys.source(
   file.path("tools", "benchmark-memory.R"),
   envir = environment()
 )
+sys.source(
+  file.path("tools", "benchmark-gpu-guard.R"),
+  envir = environment()
+)
 
 truthy <- function(name, default = "false") {
   tolower(Sys.getenv(name, unset = default)) %in% c("1", "true", "yes")
@@ -42,6 +46,11 @@ if (!identical(backends[[1L]], "base")) {
   stop("The base backend must run first to establish parity references.",
        call. = FALSE)
 }
+require_idle_gpu <- truthy(
+  "CUDAVERSE_BENCHMARK_REQUIRE_IDLE_GPU",
+  if (identical(profile, "full") && any(backends != "base")) "true" else
+    "false"
+)
 
 contract_path <- Sys.getenv(
   "CUDAVERSE_BENCHMARK_CONTRACT",
@@ -120,6 +129,10 @@ gpu_identity <- function() {
     ),
     error = function(error) conditionMessage(error)
   )
+}
+
+if (require_idle_gpu) {
+  benchmark_assert_idle_gpu("benchmark startup")
 }
 
 diagnostics_start <- elapsed()
@@ -680,10 +693,16 @@ for (row in seq_len(nrow(cases))) {
   reference <- NULL
   for (backend in backends) {
     message("  backend: ", backend)
+    if (require_idle_gpu) {
+      benchmark_assert_idle_gpu(paste(case$case_id, backend, "start"))
+    }
     result <- if (identical(case$family, "matmul")) {
       matmul_case(case, backend, benchmark_source)
     } else {
       pipeline_case(case, backend, benchmark_source, reference)
+    }
+    if (require_idle_gpu) {
+      benchmark_assert_idle_gpu(paste(case$case_id, backend, "completion"))
     }
     if (!isTRUE(result$validation$passed)) {
       stop(case$case_id, " failed parity on backend ", backend, ".")

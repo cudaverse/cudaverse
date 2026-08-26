@@ -48,6 +48,14 @@ from a dirty source tree fails validation. The report is raw machine evidence,
 not a universal speed claim; workload-specific interpretation belongs in the
 candidate benchmark assessment.
 
+A full run that includes a CUDA backend also requires the GPU to have no
+competing compute process. The runner checks at startup and around every
+backend measurement, excluding its own R process. If another workload appears,
+the run stops before retaining that measurement and leaves the last atomic
+checkpoint available for review. Set
+`CUDAVERSE_BENCHMARK_REQUIRE_IDLE_GPU=false` only for exploratory measurements
+that will not be retained as release evidence.
+
 The runner logs `started` and `complete` events for cold, every warmup, every
 timed run, and the separate memory pass within each case/backend/scope. Progress
 callbacks run outside retained timing intervals, so the logged completion
