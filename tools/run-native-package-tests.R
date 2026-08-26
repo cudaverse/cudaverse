@@ -9,7 +9,10 @@ if (!requireNamespace("jsonlite", quietly = TRUE) ||
 enabled <- tolower(Sys.getenv("CUDAVERSE_NATIVE_TESTS", unset = ""))
 if (!enabled %in% c("true", "1", "yes")) {
   stop(
-    "Set `CUDAVERSE_NATIVE_TESTS=true` for the explicit RTX package gate.",
+    paste(
+      "Set `CUDAVERSE_NATIVE_TESTS=true` for the explicit native CUDA",
+      "package gate."
+    ),
     call. = FALSE
   )
 }
@@ -150,12 +153,12 @@ jsonlite::write_json(
 )
 if (!isTRUE(report$overall_pass)) {
   stop(
-    "Native RTX package gate failed; retained report: ",
+    "Native CUDA package gate failed; retained report: ",
     normalizePath(output, winslash = "/", mustWork = TRUE),
     call. = FALSE
   )
 }
 message(
-  "Native RTX package gate passed without skips: ",
+  "Native CUDA package gate passed without skips: ",
   normalizePath(output, winslash = "/", mustWork = TRUE)
 )

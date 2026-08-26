@@ -82,6 +82,7 @@ if (!is_complete && !allow_incomplete) {
 
 report_sha256 <- sha256_after_read
 commit <- text_value(report$source$commit)
+hardware <- text_value(report$hardware$nvidia_smi)
 backends <- unlist(
   report$contract$backends, recursive = TRUE, use.names = FALSE
 )
@@ -104,9 +105,7 @@ append_line("- Source tracked dirty: `",
 append_line("- Report complete: `", tolower(as.character(is_complete)), "`")
 append_line("- Report SHA-256: `", report_sha256, "`")
 append_line("- Report generated: ", text_value(report$generated_at_utc))
-append_line("- Hardware: ", escape_markdown(
-  text_value(report$hardware$nvidia_smi)
-))
+append_line("- Hardware: ", escape_markdown(hardware))
 append_line("- R: ", text_value(report$software$R))
 append_line("- cudaverse: `", text_value(report$software$cudaverse), "`")
 append_line("- torch: `", text_value(report$software$torch), "`")
@@ -278,8 +277,9 @@ append_line("")
 append_line("## Interpretation boundaries")
 append_line("")
 append_line(paste(
-  "- These measurements describe one exact source commit on one RTX 2000",
-  "Ada system. They do not support a universal GPU speed claim."
+  "- These measurements describe one exact source commit on",
+  escape_markdown(hardware),
+  "hardware. They do not support a universal GPU speed claim."
 ))
 append_line(paste(
   "- Ratios compare ten-run sample medians descriptively. They are not",

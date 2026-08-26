@@ -102,7 +102,7 @@ changed$software$cudaverse <- "0.3.0"
 expect_failure(build(y = changed), "different versions")
 changed <- package_tests
 changed$hardware$nvidia_smi <- "NVIDIA RTX 4000"
-expect_failure(build(y = changed), "same RTX 2000")
+expect_failure(build(y = changed), "same NVIDIA CUDA device")
 changed <- package_tests
 changed$software$R <- "R version 0.0.0"
 expect_failure(build(y = changed), "different R runtimes")

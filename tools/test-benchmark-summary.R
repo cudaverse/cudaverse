@@ -128,6 +128,12 @@ if (!identical(summary_lines[[1L]], "# cudaverse full benchmark evidence")) {
   stop("Benchmark summary title does not reflect the report profile.",
        call. = FALSE)
 }
+if (!any(grepl(
+  "synthetic GPU hardware", summary_lines, fixed = TRUE
+))) {
+  stop("Benchmark summary does not carry the recorded hardware identity.",
+       call. = FALSE)
+}
 
 writeLines(
   summary_lines[!grepl(

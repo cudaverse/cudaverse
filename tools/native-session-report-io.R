@@ -41,8 +41,10 @@ validate_native_session_report <- function(
               "cudaverse-native-session/1"),
     "unexpected report schema"
   )
-  require_gate(grepl("RTX 2000", hardware, fixed = TRUE),
-               "report was not generated on the RTX 2000")
+  require_gate(
+    nzchar(hardware) && grepl("NVIDIA", hardware, ignore.case = TRUE),
+    "report does not identify an NVIDIA CUDA device"
+  )
   require_gate(grepl("^[0-9a-f]{40}$", commit),
                "source commit is missing")
   require_gate(!native_session_logical(source$tracked_dirty),

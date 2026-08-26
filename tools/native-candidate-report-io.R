@@ -74,9 +74,13 @@ build_native_candidate_report <- function(consolidation, package_tests,
     package_tests$hardware$nvidia_smi
   )
   if (!length(hardware) || !identical(hardware, test_hardware) ||
-      !grepl("RTX 2000", paste(hardware, collapse = " "), fixed = TRUE)) {
+      !grepl("NVIDIA", paste(hardware, collapse = " "),
+             ignore.case = TRUE)) {
     stop(
-      "RTX consolidation and package tests must identify the same RTX 2000.",
+      paste(
+        "Native consolidation and package tests must identify the same",
+        "NVIDIA CUDA device."
+      ),
       call. = FALSE
     )
   }
@@ -231,10 +235,10 @@ validate_native_candidate_report <- function(report, expected_commit = NULL,
                  "native candidate version does not match")
   }
   require_gate(
-    grepl("RTX 2000", paste(unlist(
+    grepl("NVIDIA", paste(unlist(
       report$hardware$nvidia_smi, recursive = TRUE, use.names = FALSE
-    ), collapse = " "), fixed = TRUE),
-    "native candidate was not run on the RTX 2000"
+    ), collapse = " "), ignore.case = TRUE),
+    "native candidate does not identify an NVIDIA CUDA device"
   )
   require_gate(
     native_candidate_logical(report$software$native_diagnostics$available) &&
