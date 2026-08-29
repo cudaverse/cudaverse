@@ -1,5 +1,6 @@
 allocator
 allocator's
+al
 Auditable
 backend's
 centre
@@ -17,10 +18,14 @@ densifying
 deterministically
 dtype
 dtypes
+doi
+Eck
 eigendecomposition
 embeddings
+et
 favour
 integrations
+joss
 kNN
 LibTorch
 libtorch
@@ -28,6 +33,7 @@ lifecycle
 lossy
 Louvain
 matmul
+McInnes
 modularity
 neighbour
 neighbours
@@ -53,8 +59,10 @@ symlink
 SNE
 tensor's
 toolchain
+Traag
 UMAP
 unversioned
 untimed
 unquantized
 VRAM
+Waltman

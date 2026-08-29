@@ -1,4 +1,14 @@
-## New submission
+## Resubmission
+
+This is a resubmission following manual review. In this version I have:
+
+- omitted the redundant "for R" and "in R" wording from the package title and
+  description;
+- enclosed software and API names in single quotes, preserving their official
+  capitalization; and
+- added formatted DOI references for methods implemented by the package.
+
+## New submission context
 
 This is the first CRAN submission of `cudaverse`.
 
