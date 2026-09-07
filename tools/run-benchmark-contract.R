@@ -678,6 +678,9 @@ for (row in seq_len(nrow(cases))) {
       benchmark_assert_idle_gpu(paste(case$case_id, backend, "completion"))
     }
     if (!isTRUE(result$validation$passed)) {
+      report <- checkpoint_benchmark_parity_failure(
+        report, case$case_id, backend, result, output
+      )
       stop(case$case_id, " failed parity on backend ", backend, ".")
     }
     if (!identical(case$family, "matmul") && identical(backend, "base")) {

@@ -125,6 +125,61 @@ stopifnot(!benchmark_checkpoint_case_complete(
   incomplete, expected$contract$backends
 ))
 
+# A failing backend must survive the parity error on disk, without discarding
+# earlier successful backends or allowing resume to reuse the failed case.
+failure_path <- file.path(work, "failed-parity.json")
+failure_report <- existing
+failure_report$complete <- TRUE
+write_benchmark_checkpoint(failure_report, failure_path)
+failed_result <- list(
+  status = "complete",
+  validation = list(passed = FALSE, max_absolute_error = 2e-6,
+                    max_tolerance_ratio = 2, failed_elements = 1L,
+                    rtol = 1e-5, atol = 1e-6),
+  warm = list(host_boundary = list(runs_seconds = c(1, 2))),
+  provenance = list(schema = "cudaverse-stage/1"),
+  reference = matrix(1, 2L, 2L)
+)
+expect_error_message({
+  checkpoint_benchmark_parity_failure(
+    failure_report, "case-a", "native", failed_result, failure_path
+  )
+  stop("case-a failed parity on backend native.")
+}, "case-a failed parity on backend native.")
+retained <- jsonlite::read_json(failure_path, simplifyVector = FALSE)
+native_failure <- retained$cases$`case-a`$backends$native
+stopifnot(
+  benchmark_checkpoint_valid(failure_path),
+  benchmark_checkpoint_valid(benchmark_checkpoint_previous(failure_path)),
+  identical(retained$complete, FALSE),
+  identical(native_failure$status, "failed_parity"),
+  identical(native_failure$validation$passed, FALSE),
+  identical(native_failure$validation$failed_elements, 1L),
+  identical(native_failure$validation$max_tolerance_ratio, 2L),
+  identical(native_failure$validation$rtol, 1e-5),
+  identical(native_failure$validation$atol, 1e-6),
+  is.null(native_failure$reference),
+  identical(retained$cases$`case-a`$backends$base$status, "complete"),
+  !benchmark_checkpoint_case_complete(
+    retained$cases$`case-a`, expected$contract$backends
+  ),
+  benchmark_checkpoint_case_complete(
+    retained$cases$`case-b`, expected$contract$backends
+  ),
+  isTRUE(validate_benchmark_resume(retained, expected))
+)
+# Even a corrupted TRUE flag cannot make failed_parity reusable.
+native_failure$validation$passed <- TRUE
+retained$cases$`case-a`$backends$native <- native_failure
+stopifnot(!benchmark_checkpoint_case_complete(
+  retained$cases$`case-a`, expected$contract$backends
+))
+expect_error_message(finalize_benchmark_checkpoint(failure_path),
+                     "Cannot finalize an incomplete")
+expect_error_message(checkpoint_benchmark_parity_failure(
+  failure_report, "case-a", "native", backend_result(), failure_path
+), "Cannot record a passing result")
+
 expect_resume_rejection <- function(code, pattern) {
   expect_error_message(validate_benchmark_resume(code, expected), pattern)
 }

@@ -164,6 +164,27 @@ write_benchmark_checkpoint <- function(value, path) {
   invisible(path)
 }
 
+checkpoint_benchmark_parity_failure <- function(report, case_id, backend,
+                                                result, path) {
+  if (isTRUE(result$validation$passed)) {
+    stop("Cannot record a passing result as failed parity.", call. = FALSE)
+  }
+  if (is.null(report$cases[[case_id]])) {
+    stop("Cannot record parity failure for an unknown benchmark case.",
+         call. = FALSE)
+  }
+  result$status <- "failed_parity"
+  # Pipeline references are large host objects, not failure diagnostics.
+  result$reference <- NULL
+  report$cases[[case_id]]$backends[[backend]] <- result
+  report$complete <- FALSE
+  report$generated_at_utc <- format(Sys.time(), tz = "UTC", usetz = TRUE)
+  # Use the same recoverable staging/rotation path as successful checkpoints.
+  # The caller must not raise the parity error until this write has completed.
+  write_benchmark_checkpoint(report, path)
+  report
+}
+
 recover_benchmark_checkpoint <- function(path) {
   if (benchmark_checkpoint_valid(path)) return("current")
   previous <- benchmark_checkpoint_previous(path)
