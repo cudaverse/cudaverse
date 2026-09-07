@@ -1172,6 +1172,36 @@ test_that("native float32 and float64 transfer and cuBLAS matmul match base R", 
   }
 })
 
+test_that("native PCA preserves identical observations and their exact ties", {
+  skip_if_not(identical(Sys.getenv("CUDAVERSE_NATIVE_TESTS"), "true"))
+  skip_if_not(nzchar(Sys.getenv("CUDAVERSE_CUSOLVER_PATH")))
+  skip_if_not(isTRUE(cudaverse:::.native_diagnostics()$auto_eligible))
+  old <- options(cudaverse.cuda_backends = "native")
+  on.exit(options(old), add = TRUE)
+
+  set.seed(20260907)
+  training <- matrix(rnorm(96L * 9L), 96L, 9L)
+  duplicated_rows <- c(1L, 2L, 10L, 28L)
+  training[duplicated_rows, ] <- training[rep(1L, length(duplicated_rows)), ]
+  fit <- cudaverse::cuda_pca(
+    training, n_components = 8L, center = TRUE, scale. = TRUE,
+    device = "cuda"
+  )
+  for (index in duplicated_rows[-1L]) {
+    expect_identical(fit$x[index, ], fit$x[duplicated_rows[1L], ])
+  }
+  predicted <- predict(fit, training, device = "cuda")
+  expect_equal(as.vector(fit$x), as.vector(predicted), tolerance = 1e-12)
+  state <- attr(fit$x, "cudaverse_native_state", exact = TRUE)
+  expect_type(state$storage, "externalptr")
+  neighbors <- cudaverse::cuda_knn(fit$x, k = 3L, device = "cuda")
+  for (index in duplicated_rows) {
+    expect_identical(as.integer(neighbors$index[index, ]),
+                     setdiff(duplicated_rows, index))
+    expect_identical(as.numeric(neighbors$distance[index, ]), rep(0, 3L))
+  }
+})
+
 test_that("native PCA prediction remains compatible with automatic selection", {
   skip_if_not(identical(Sys.getenv("CUDAVERSE_NATIVE_TESTS"), "true"))
   skip_if_not(nzchar(Sys.getenv("CUDAVERSE_CUSOLVER_PATH")))

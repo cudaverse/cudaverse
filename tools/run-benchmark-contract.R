@@ -24,6 +24,10 @@ sys.source(
   file.path("tools", "benchmark-gpu-guard.R"),
   envir = environment()
 )
+sys.source(
+  file.path("tools", "benchmark-validation.R"),
+  envir = environment()
+)
 
 truthy <- function(name, default = "false") {
   tolower(Sys.getenv(name, unset = default)) %in% c("1", "true", "yes")
@@ -51,6 +55,8 @@ require_idle_gpu <- truthy(
   if (identical(profile, "full") && any(backends != "base")) "true" else
     "false"
 )
+benchmark_validate_idle_gpu_requirement(profile, backends, require_idle_gpu)
+timing_guard <- if (require_idle_gpu) benchmark_assert_idle_gpu else NULL
 
 contract_path <- Sys.getenv(
   "CUDAVERSE_BENCHMARK_CONTRACT",
@@ -234,6 +240,10 @@ make_matmul <- function(case) {
     stats::rnorm(case$columns * case$columns),
     case$columns, case$columns
   )
+  if (identical(case$dtype, "float32")) {
+    left <- benchmark_float32_input(left)
+    right <- benchmark_float32_input(right)
+  }
   list(left = left, right = right, reference = left %*% right)
 }
 
@@ -290,6 +300,7 @@ matmul_case <- function(case, backend, source) {
     host_timing <- benchmark_time_runs(
       host_run, host_run, case$warmups, case$timed_runs,
       summarize = summary_times,
+      guard = timing_guard,
       progress = benchmark_progress_logger(
         case$case_id, backend, "host_boundary"
       )
@@ -297,25 +308,19 @@ matmul_case <- function(case, backend, source) {
     resident_timing <- benchmark_time_runs(
       resident_run, resident_run, case$warmups, case$timed_runs,
       summarize = summary_times,
+      guard = timing_guard,
       progress = benchmark_progress_logger(
         case$case_id, backend, "resident_compute"
       )
     )
     actual <- host_timing$last$host
-    scale <- max(1, max(abs(reference)))
-    absolute <- max(abs(actual - reference))
-    relative <- absolute / scale
     tolerance <- if (identical(case$dtype, "float32")) {
       list(rtol = 1e-5, atol = 1e-6)
     } else {
       list(rtol = 1e-8, atol = 1e-10)
     }
-    validation <- list(
-      max_absolute_error = absolute,
-      max_relative_error = relative,
-      rtol = tolerance$rtol,
-      atol = tolerance$atol,
-      passed = absolute <= tolerance$atol + tolerance$rtol * scale
+    validation <- benchmark_numeric_validation(
+      actual, reference, rtol = tolerance$rtol, atol = tolerance$atol
     )
     provenance <- provenance_payload(resident_timing$last)
     memory <- measure_memory(
@@ -413,48 +418,7 @@ pipeline_reference <- function(value) {
 }
 
 pipeline_validation <- function(value, reference) {
-  rotation <- unname(value$pca$rotation)
-  scores <- unname(value$pca$x)
-  rank_threshold <- max(reference$pca$sdev) *
-    max(nrow(reference$pca$x), nrow(reference$pca$rotation)) *
-    .Machine$double.eps
-  effective_rank <- max(1L, sum(reference$pca$sdev > rank_threshold))
-  components <- seq_len(effective_rank)
-  projector_error <- max(abs(
-    tcrossprod(rotation[, components, drop = FALSE]) -
-      tcrossprod(reference$pca$rotation[, components, drop = FALSE])
-  ))
-  reconstruction <- scores[, components, drop = FALSE] %*%
-    t(rotation[, components, drop = FALSE])
-  reference_reconstruction <-
-    reference$pca$x[, components, drop = FALSE] %*%
-    t(reference$pca$rotation[, components, drop = FALSE])
-  reconstruction_scale <- max(1, max(abs(reference_reconstruction)))
-  reconstruction_error <- max(abs(reconstruction - reference_reconstruction))
-  indices_identical <- identical(unname(value$knn$index), reference$knn$index)
-  distance_scale <- max(1, max(abs(reference$knn$distance)))
-  distance_error <- max(abs(
-    unname(value$knn$distance) - reference$knn$distance
-  ))
-  normalized_error <- if (is.null(reference$normalized)) 0 else max(abs(
-    as.matrix(cudaverse::to_dgCMatrix(value$normalized)) -
-      reference$normalized
-  ))
-  normalized_scale <- if (is.null(reference$normalized)) 1 else
-    max(1, max(abs(reference$normalized)))
-  list(
-    normalized_max_relative_error = normalized_error / normalized_scale,
-    pca_effective_rank = effective_rank,
-    pca_projector_max_absolute_error = projector_error,
-    pca_reconstruction_max_relative_error =
-      reconstruction_error / reconstruction_scale,
-    knn_indices_identical = indices_identical,
-    knn_distance_max_relative_error = distance_error / distance_scale,
-    passed = normalized_error / normalized_scale <= 1e-10 &&
-      projector_error <= 1e-8 &&
-      reconstruction_error / reconstruction_scale <= 1e-8 &&
-      indices_identical && distance_error / distance_scale <= 1e-8
-  )
+  benchmark_pipeline_validation(pipeline_reference(value), reference)
 }
 
 pipeline_case <- function(case, backend, source, reference) {
@@ -473,6 +437,7 @@ pipeline_case <- function(case, backend, source, reference) {
     included <- benchmark_time_runs(
       included_run, included_run, case$warmups, case$timed_runs,
       summarize = summary_times,
+      guard = timing_guard,
       collect = function(result) result$seconds,
       progress = benchmark_progress_logger(
         case$case_id, backend, "host_boundary"
@@ -481,6 +446,7 @@ pipeline_case <- function(case, backend, source, reference) {
     excluded <- if (is.null(preloaded)) NULL else benchmark_time_runs(
       excluded_run, excluded_run, case$warmups, case$timed_runs,
       summarize = summary_times,
+      guard = timing_guard,
       progress = benchmark_progress_logger(
         case$case_id, backend, "resident_continuation"
       )
@@ -578,6 +544,11 @@ expected_report <- list(
     backends = backends,
     cases = cases,
     timing_clock = "wall clock with backend synchronization",
+    idle_gpu_guard = list(
+      required = require_idle_gpu,
+      sampling = "before and after each sample, outside its timed boundary",
+      continuous_monitoring = FALSE
+    ),
     stage_sampling = paste(
       "pipeline stages are collected from the same synchronized timed",
       "host-boundary runs"
@@ -599,7 +570,9 @@ expected_report <- list(
     ),
     tolerances = list(
       float32 = list(rtol = 1e-5, atol = 1e-6),
-      float64 = list(rtol = 1e-10, heavy_rtol = 1e-8),
+      float64 = list(rtol = 1e-10, heavy_rtol = 1e-8, atol = 1e-10),
+      acceptance = "elementwise abs(actual-reference) <= atol+rtol*abs(reference)",
+      float32_input = "CPU reference uses the same float32-rounded inputs",
       pca = "projector and reconstruction, heavy rtol 1e-8",
       knn = "exact indices; distance rtol 1e-8; ties by original row"
     )

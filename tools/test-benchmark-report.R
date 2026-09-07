@@ -117,7 +117,30 @@ changed <- report
 changed$contract$backends <- as.list(c("base", "native"))
 for (name in names(changed$cases)) changed$cases[[name]]$backends$torch <- NULL
 write_report(changed)
-expect_failure(run_checker(path), "full report must contain base, native, and torch")
+run_checker(path)
+
+# An explicitly declared torch-free report is valid; a report that declares
+# torch but silently omits its result is not.
+changed$contract$backends <- report$contract$backends
+write_report(changed)
+expect_failure(run_checker(path), "does not contain every requested backend")
+
+changed <- report
+changed$contract$backends <- as.list(c("base", "native"))
+write_report(changed)
+expect_failure(run_checker(path), "does not contain every requested backend")
+
+changed <- report
+changed$contract$backends <- as.list(c("base", "torch"))
+write_report(changed)
+expect_failure(run_checker(path), "full report must declare both base and native")
+
+changed <- report
+changed$cases[[1L]]$backends <- changed$cases[[1L]]$backends[
+  c("native", "base", "torch")
+]
+write_report(changed)
+expect_failure(run_checker(path), "does not contain every requested backend")
 
 changed <- report
 changed$cases[[1L]]$definition$rows <- 999

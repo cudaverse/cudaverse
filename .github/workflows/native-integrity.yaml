@@ -42,6 +42,10 @@ jobs:
         run: Rscript tools/test-benchmark-checkpoint-io.R
       - name: Validate benchmark timing collection
         run: Rscript tools/test-benchmark-timing.R
+      - name: Validate benchmark numerical and idle-GPU gates
+        run: |
+          Rscript tools/test-benchmark-validation.R
+          Rscript tools/test-benchmark-gpu-guard.R
       - name: Validate benchmark memory collection
         run: Rscript tools/test-benchmark-memory.R
       - name: Validate final RTX candidate report composition
@@ -121,6 +125,11 @@ jobs:
       - name: Validate benchmark timing collection
         shell: Rscript {0}
         run: source(file.path("tools", "test-benchmark-timing.R"))
+      - name: Validate benchmark numerical and idle-GPU gates
+        shell: Rscript {0}
+        run: |
+          source(file.path("tools", "test-benchmark-validation.R"))
+          source(file.path("tools", "test-benchmark-gpu-guard.R"))
       - name: Validate final RTX candidate report composition
         shell: Rscript {0}
         run: source(file.path("tools", "test-native-candidate-report.R"))

@@ -24,27 +24,35 @@ benchmark_progress_logger <- function(case_id, backend, scope,
 benchmark_time_runs <- function(cold_run, timed_run, warmups, timed_runs,
                                 summarize, collect = NULL,
                                 clock = function() as.numeric(Sys.time()),
-                                progress = NULL) {
+                                progress = NULL, guard = NULL) {
   notify <- function(event, index, total, seconds = NA_real_) {
     if (!is.null(progress)) {
       progress(event, as.integer(index), as.integer(total), seconds)
     }
     invisible(NULL)
   }
+  inspect <- function(context) {
+    if (!is.null(guard)) guard(context)
+    invisible(NULL)
+  }
 
   notify("cold_started", 1L, 1L)
+  inspect("before cold sample")
   cold_start <- clock()
   cold_value <- cold_run()
   cold_seconds <- clock() - cold_start
+  inspect("after cold sample")
   cold_value <- NULL
   invisible(gc(FALSE))
   notify("cold_complete", 1L, 1L, cold_seconds)
 
   for (index in seq_len(warmups)) {
     notify("warmup_started", index, warmups)
+    inspect(paste("before warmup", index))
     warm_start <- clock()
     warm_value <- timed_run()
     warm_seconds <- clock() - warm_start
+    inspect(paste("after warmup", index))
     warm_value <- NULL
     invisible(gc(FALSE))
     notify("warmup_complete", index, warmups, warm_seconds)
@@ -55,9 +63,11 @@ benchmark_time_runs <- function(cold_run, timed_run, warmups, timed_runs,
   last <- NULL
   for (index in seq_len(timed_runs)) {
     notify("timed_started", index, timed_runs)
+    inspect(paste("before retained sample", index))
     start <- clock()
     value <- timed_run()
     values[[index]] <- clock() - start
+    inspect(paste("after retained sample", index))
     if (!is.null(collect)) observations[[index]] <- collect(value)
     if (index == timed_runs) last <- value
     value <- NULL

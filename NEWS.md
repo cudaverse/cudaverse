@@ -1,3 +1,14 @@
+# cudaverse (development version)
+
+- Native PCA computes scores by projecting the centered/scaled input onto its
+  fitted loadings. Identical observations keep identical scores and exact
+  zero-distance neighbour ties, while the scores remain on the device.
+- Benchmark validation now applies numerical limits element by element,
+  rejects malformed GPU activity reports, and checks the explicitly declared
+  backends so that a native CUDA comparison does not require torch.
+- Retained benchmark timings check for competing GPU processes before and
+  after individual samples, outside the measured interval.
+
 # cudaverse 0.4.1
 
 - Reworked the README and tutorials around first-time CUDA users, with clearer

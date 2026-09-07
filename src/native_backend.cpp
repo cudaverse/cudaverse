@@ -2065,7 +2065,6 @@ extern "C" SEXP C_cudaverse_cuda_pca(SEXP pointer,
     require_kernels();
     CUfunction statistics = get_kernel("cudaverse_column_stats_f64");
     CUfunction transform = get_kernel("cudaverse_center_scale_f64");
-    CUfunction scale_columns = get_kernel("cudaverse_scale_columns_f64");
 
     DeviceMemory centers(static_cast<std::size_t>(columns) * sizeof(double));
     DeviceMemory scales(static_cast<std::size_t>(columns) * sizeof(double));
@@ -2105,15 +2104,21 @@ extern "C" SEXP C_cudaverse_cuda_pca(SEXP pointer,
         transformed.pointer(), rows, columns);
     DeviceMemory scores(
         static_cast<std::size_t>(rows) * components * sizeof(double));
-    CUdeviceptr left_pointer = decomposition.left.pointer();
-    CUdeviceptr scores_pointer = scores.pointer();
-    CUdeviceptr singular_pointer = decomposition.values.pointer();
-    void* score_parameters[] = {
-        &left_pointer, &scores_pointer, &singular_pointer,
-        &rows, &components};
-    launch_or_throw(
-        scale_columns, "cudaverse_scale_columns_f64",
-        static_cast<std::size_t>(rows) * components, score_parameters);
+    // Project the input just as prediction does. U * S is mathematically
+    // equivalent, but solver round-off can give identical rows different
+    // scores and change the ordering of zero-distance neighbours.
+    const double alpha = 1.0;
+    const double beta = 0.0;
+    cublasStatus_t score_status = api.cublasDgemm(
+        api.cublas_handle, CUBLAS_OP_N, CUBLAS_OP_N,
+        rows, components, columns, &alpha,
+        reinterpret_cast<const double*>(transformed.pointer()), rows,
+        reinterpret_cast<const double*>(decomposition.right.pointer()), columns,
+        &beta, reinterpret_cast<double*>(scores.pointer()), rows);
+    if (score_status != CUBLAS_STATUS_SUCCESS) {
+      throw std::runtime_error("cublasDgemm(PCA scores): " +
+                               cublas_error(score_status));
+    }
 
     std::vector<double> host_singular = copy_double_to_host(
         decomposition.values.pointer(), components,

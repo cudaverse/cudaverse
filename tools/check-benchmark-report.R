@@ -67,8 +67,8 @@ require_gate(
 )
 if (identical(profile, "full")) {
   require_gate(
-    identical(required_backends, c("base", "native", "torch")),
-    "full report must contain base, native, and torch in contract order"
+    all(c("base", "native") %in% required_backends),
+    "full report must declare both base and native backends"
   )
 }
 if (!is.null(report$contract$stage_sampling)) {
@@ -185,7 +185,7 @@ for (case_id in expected) {
     paste(case_id, "definition does not match contract.csv")
   )
   require_gate(
-    setequal(names(case$backends), required_backends),
+    identical(names(case$backends), required_backends),
     paste(case_id, "does not contain every requested backend")
   )
   for (backend in required_backends) {
