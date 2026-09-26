@@ -42,6 +42,12 @@ text_value <- function(x, default = "n/a") {
   if (is.na(value) || !nzchar(as.character(value))) default else
     as.character(value)
 }
+tf32_override_label <- function(x) {
+  value <- unlist(x, recursive = TRUE, use.names = FALSE)
+  if (length(value) != 1L || is.na(value[[1L]])) return("<missing>")
+  value <- as.character(value[[1L]])
+  if (!nzchar(value)) "<empty>" else value
+}
 logical_value <- function(x) isTRUE(as.logical(scalar(x, FALSE)))
 format_seconds <- function(x) {
   value <- number(x)
@@ -112,7 +118,7 @@ append_line("- torch: `", text_value(report$software$torch), "`")
 append_line("- Float32 matmul numeric policy: `",
             text_value(report$contract$numeric_policy$version), "`")
 append_line("- NVIDIA_TF32_OVERRIDE: `",
-            text_value(report$contract$NVIDIA_TF32_OVERRIDE), "`")
+            tf32_override_label(report$contract$NVIDIA_TF32_OVERRIDE), "`")
 append_line(
   "- Stage sampling: ",
   text_value(

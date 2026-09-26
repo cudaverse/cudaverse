@@ -30,6 +30,12 @@ scalar <- function(x, default = NA) {
   value <- unlist(x, recursive = TRUE, use.names = FALSE)
   if (!length(value)) default else value[[1L]]
 }
+tf32_override_label <- function(x) {
+  value <- unlist(x, recursive = TRUE, use.names = FALSE)
+  if (length(value) != 1L || is.na(value[[1L]])) return("<missing>")
+  value <- as.character(value[[1L]])
+  if (!nzchar(value)) "<empty>" else value
+}
 logical_value <- function(x) isTRUE(as.logical(scalar(x, FALSE)))
 summary <- paste(readLines(summary_path, warn = FALSE), collapse = "\n")
 failures <- character()
@@ -71,7 +77,7 @@ require_text(
 )
 require_text(
   paste0("NVIDIA_TF32_OVERRIDE: `",
-         scalar(report$contract$NVIDIA_TF32_OVERRIDE, ""), "`"),
+         tf32_override_label(report$contract$NVIDIA_TF32_OVERRIDE), "`"),
   "summary omits the TF32 override"
 )
 require_text(

@@ -131,6 +131,44 @@ Sys.setenv(
 Sys.unsetenv("CUDAVERSE_BENCHMARK_ALLOW_INCOMPLETE")
 run_script(file.path("tools", "summarize-benchmark-report.R"))
 run_script(file.path("tools", "check-benchmark-summary.R"))
+for (variant in list(
+    list(value = "", label = "<empty>"),
+    list(value = "<unset>", label = "<unset>"),
+    list(value = "0", label = "0"),
+    list(value = NULL, label = "<missing>")
+)) {
+  report$contract$NVIDIA_TF32_OVERRIDE <- variant$value
+  jsonlite::write_json(
+    report, report_path, auto_unbox = TRUE, pretty = TRUE, null = "null"
+  )
+  run_script(file.path("tools", "summarize-benchmark-report.R"))
+  run_script(file.path("tools", "check-benchmark-summary.R"))
+  override_line <- readLines(summary_path, warn = FALSE)
+  override_line <- override_line[startsWith(override_line,
+                                            "- NVIDIA_TF32_OVERRIDE:")]
+  stopifnot(identical(override_line,
+                      paste0("- NVIDIA_TF32_OVERRIDE: `", variant$label, "`")))
+}
+report$contract$NVIDIA_TF32_OVERRIDE <- ""
+jsonlite::write_json(
+  report, report_path, auto_unbox = TRUE, pretty = TRUE, null = "null"
+)
+run_script(file.path("tools", "summarize-benchmark-report.R"))
+writeLines(
+  sub("NVIDIA_TF32_OVERRIDE: `<empty>`", "NVIDIA_TF32_OVERRIDE: `n/a`",
+      readLines(summary_path, warn = FALSE), fixed = TRUE),
+  summary_path, useBytes = TRUE
+)
+expect_error_message(
+  run_script(file.path("tools", "check-benchmark-summary.R")),
+  "summary omits the TF32 override"
+)
+report$contract$NVIDIA_TF32_OVERRIDE <- "0"
+jsonlite::write_json(
+  report, report_path, auto_unbox = TRUE, pretty = TRUE, null = "null"
+)
+run_script(file.path("tools", "summarize-benchmark-report.R"))
+run_script(file.path("tools", "check-benchmark-summary.R"))
 summary_lines <- readLines(summary_path, warn = FALSE)
 native_line <- summary_lines[startsWith(summary_lines,
                                         "| matmul-test | native |")]
