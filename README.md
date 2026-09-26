@@ -47,11 +47,10 @@ starting R.
 
 ## Install
 
-Install the current release from GitHub:
+Install the current release from CRAN:
 
 ```r
-# install.packages("pak")
-pak::pak("cudaverse/cudaverse@v0.4.1")
+install.packages("cudaverse")
 ```
 
 Then verify the complete runtime—not only GPU detection:

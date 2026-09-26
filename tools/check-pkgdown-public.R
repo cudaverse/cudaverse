@@ -77,7 +77,6 @@ index <- if (file.exists(index_path)) {
   ""
 }
 required_home <- c(
-  "cudaverse/cudaverse@v0.4.1",
   "https://github.com/cudaverse/cudaverse/blob/0a422fad7744da4116915037fc7134075a65e2a0/inst/benchmarks/README.md",
   "https://cudaverse.github.io/cudaverse/articles/gpu-setup.html",
   "https://cudaverse.github.io/cudaverse/articles/backend-support.html"
@@ -86,6 +85,10 @@ for (target in required_home) {
   require_gate(grepl(target, index, fixed = TRUE),
                paste("homepage stable target is missing:", target))
 }
+require_gate(
+  grepl("install\\.packages[\\s\\S]{0,500}cudaverse", index, perl = TRUE),
+  "homepage does not show the CRAN installation command"
+)
 require_gate(
   !grepl('href="[^"]*vignettes/[^"]*\\.Rmd"', index),
   "homepage contains a source Rmd link that pkgdown cannot serve"

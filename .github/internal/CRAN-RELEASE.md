@@ -2,6 +2,20 @@
 
 This is the first CRAN submission of `cudaverse`.
 
+## Publication checkpoint (2026-09-25)
+
+CRAN published version 0.4.1 on 2026-09-10. Its package record and listed
+checks are available at <https://cran.r-project.org/package=cudaverse> and
+<https://cran.r-project.org/web/checks/check_results_cudaverse.html>. The CRAN
+source contains the submitted package files; CRAN added its `MD5` manifest and
+rewrote `DESCRIPTION` with publication metadata.
+
+The existing `v0.4.1` GitHub tag and release point to `e292672`, before the
+accepted resubmission commit `2faaa38`. Preserve the tag. Reconcile the release
+description with the accepted CRAN source before treating the GitHub release as
+an exact source match. The checklist below records the submission process; its
+unchecked historical steps are not a claim that CRAN review is still pending.
+
 ## Candidate
 
 - [x] Confirm that `cudaverse` conflicts with neither current nor archived CRAN
@@ -26,7 +40,8 @@ This is the first CRAN submission of `cudaverse`.
 
 ## Acceptance
 
-- [ ] Verify the CRAN package and check-results pages.
-- [ ] Tag the accepted commit as `v0.4.1` and create the matching GitHub release.
+- [x] Verify the CRAN package and check-results pages.
+- [ ] Reconcile the existing `v0.4.1` tag and release with the accepted source
+      without moving the published tag.
 - [ ] Update installation documentation from development installation to CRAN.
 - [ ] Begin the next package submission only after this package is accepted.
