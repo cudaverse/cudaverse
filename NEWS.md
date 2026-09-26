@@ -1,5 +1,12 @@
 # cudaverse (development version)
 
+- Added an explicit `precision = "tf32"` option to native float32
+  `tensor_matmul()`. It permits cuBLAS TensorFloat-32 computation on supported
+  GPUs, records the policy in provenance and leaves standard dtype arithmetic
+  and `%*%` unchanged. Unsupported requests fail without changing later calls.
+- Standard float32 matmul benchmarks use a documented componentwise rounding
+  model with conditioning, underflow and overflow checks. Reports retain the
+  former strict tolerance and its failed-entry count as diagnostics.
 - Native PCA computes scores by projecting the centered/scaled input onto its
   fitted loadings. Identical observations keep identical scores and exact
   zero-distance neighbour ties, while the scores remain on the device.

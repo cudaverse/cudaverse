@@ -36,15 +36,39 @@ Run a protected-machine smoke report from a clean, installed source commit:
 ```powershell
 $env:CUDAVERSE_BENCHMARK_PROFILE = "smoke"
 $env:CUDAVERSE_BENCHMARK_BACKENDS = "base,native,torch"
-$env:CUDAVERSE_BENCHMARK_OUTPUT = "benchmark-smoke.json"
+$env:NVIDIA_TF32_OVERRIDE = "0" # Required when the standard torch backend runs
+$env:CUDAVERSE_BENCHMARK_OUTPUT = "C:/evidence/benchmark-smoke.json"
 Rscript tools/run-benchmark-contract.R
 
-$env:CUDAVERSE_BENCHMARK_REPORT = "benchmark-smoke.json"
+$env:CUDAVERSE_BENCHMARK_REPORT = "C:/evidence/benchmark-smoke.json"
 Rscript tools/check-benchmark-report.R
 ```
 
-Change the profile to `full` only for the retained candidate run. A full report
-from a dirty source tree fails validation. The report is raw machine evidence,
+Use `base,native` if torch is not part of the comparison. The standard benchmark
+never enables the new per-call TF32 mode. Compare that mode separately with
+`tools/run-matmul-precision-experiment.R`; its usage and assumptions are in
+`tools/README-matmul-precision.md`.
+
+Before a retained `full` run, create an exact installation from the clean
+checkout. The destination must be new and outside the checkout:
+
+```powershell
+Rscript tools/install-benchmark-candidate.R C:/evidence/candidate
+$env:R_LIBS_USER = "C:/evidence/candidate/lib;$env:R_LIBS_USER"
+$env:CUDAVERSE_BENCHMARK_INSTALL_MANIFEST = "C:/evidence/candidate/manifest.json"
+$env:CUDAVERSE_BENCHMARK_PROFILE = "full"
+$env:CUDAVERSE_BENCHMARK_OUTPUT = "C:/evidence/benchmark-full.json"
+Rscript tools/run-benchmark-contract.R
+```
+
+Keep the dependency library containing `jsonlite`, `digest` and `Matrix`
+available. The installer archives the exact commit, performs a clean compile
+and records every installed file's SHA-256, including native code and R
+bytecode. Full runs verify source and installed files before and after the
+workload. Matching package versions alone is insufficient. Put outputs outside
+the checkout so they do not dirty the source. Dirty full runs are rejected even
+when `CUDAVERSE_BENCHMARK_ALLOW_DIRTY=true` is set for exploratory smoke work.
+The report is raw machine evidence,
 not a universal speed claim; workload-specific interpretation belongs in the
 candidate benchmark assessment.
 
@@ -53,8 +77,30 @@ competing compute process. The runner checks at startup and around every
 backend measurement, excluding its own R process. If another workload appears,
 the run stops before retaining that measurement and leaves the last atomic
 checkpoint available for review. Set
-`CUDAVERSE_BENCHMARK_REQUIRE_IDLE_GPU=false` only for exploratory measurements
-that will not be retained as release evidence.
+`CUDAVERSE_BENCHMARK_REQUIRE_IDLE_GPU=false` is allowed only for exploratory
+`smoke` measurements. A full CUDA run cannot disable the guard. The guard samples
+compute activity and does not provide continuous monitoring or establish that
+unreported graphics activity is absent; use a controlled machine window.
+
+## Standard float32 numerical policy
+
+`standard-fp32-dot-product/1` uses the componentwise absolute-product sum
+`S = |A| |B|` and contracted dimension `k`. For unit roundoff `u`, define
+`gamma(n,u) = n*u/(1-n*u)`. The double-computed sum is inflated to an upper
+bound `S_upper`; acceptance allows
+`(gamma(2k,2^-24) + gamma(2k,2^-53))*S_upper + U`, with a small documented
+binary64 bound-arithmetic inflation and
+`U = 2k*2^-126/(1-2k*2^-24)` for underflow under the stated operation model.
+Zero absolute-product support must produce exact zeros. Nonfinite values,
+subnormal inputs, empty shapes and possible float32 overflow are rejected.
+
+This model accounts for cancellation through each output's own `S`. It is an
+explicit benchmark contract under ordinary full-mantissa FP32 operations,
+not a universal bound for every undocumented cuBLAS algorithm. The original
+`1e-6 + 1e-5*abs(reference)` comparison remains a separate diagnostic, including
+its failed-entry count. Reports and checkpoints identify the policy version
+and a line-ending-independent validator fingerprint. Application accuracy
+requirements must still be assessed for the complete analysis.
 
 The runner logs `started` and `complete` events for cold, every warmup, every
 timed run, and the separate memory pass within each case/backend/scope. Progress

@@ -81,9 +81,23 @@ expected <- list(
   source = list(commit = "abc123", tracked_dirty = FALSE),
   hardware = list(nvidia_smi = c("GPU A, UUID-A")),
   software = list(R = "R 4.6.0", cudaverse = "0.3.0.9000",
-                  torch = NA_character_),
+                  torch = NA_character_,
+                  installed_source_identity = list(
+                    verified = TRUE,
+                    source_commit = "abc123", source_tree = "tree-a",
+                    manifest_sha256 = "manifest-a",
+                    installed_payload_sha256 = "payload-a"
+                  )),
   contract = list(
     backends = c("base", "native", "torch"),
+    NVIDIA_TF32_OVERRIDE = "0",
+    idle_gpu_guard = list(
+      required = TRUE,
+      sampling = "before and after each sample, outside its timed boundary",
+      continuous_monitoring = FALSE
+    ),
+    numeric_policy = list(version = "standard-fp32-dot-product/1",
+                          validator_sha256 = "validator-a"),
     cases = data.frame(
       case_id = c("case-a", "case-b"),
       rows = c(100L, 200L),
@@ -199,8 +213,39 @@ changed <- existing
 changed$profile <- "smoke"
 expect_resume_rejection(changed, "benchmark profile changed")
 changed <- existing
+changed$contract$numeric_policy <- NULL
+expect_resume_rejection(changed, "numeric policy version changed")
+changed <- existing
+changed$contract$numeric_policy$validator_sha256 <- "validator-b"
+expect_resume_rejection(changed, "numeric policy fingerprint changed")
+changed <- existing
+changed$contract$NVIDIA_TF32_OVERRIDE <- "<unset>"
+expect_resume_rejection(changed, "TF32 override changed")
+changed <- existing
+changed$contract$idle_gpu_guard$required <- FALSE
+expect_resume_rejection(changed, "idle-GPU guard required changed")
+changed <- existing
+changed$contract$idle_gpu_guard$required <- c(TRUE, FALSE)
+expect_resume_rejection(changed, "idle-GPU guard required changed")
+changed <- existing
+changed$contract$idle_gpu_guard$sampling <- "start only"
+expect_resume_rejection(changed, "idle-GPU guard sampling changed")
+changed <- existing
+changed$contract$idle_gpu_guard$continuous_monitoring <- TRUE
+expect_resume_rejection(changed, "idle-GPU guard continuous_monitoring changed")
+changed <- existing
+changed$contract$idle_gpu_guard <- NULL
+expect_resume_rejection(changed, "idle-GPU guard required changed")
+changed <- existing
 changed$software$R <- "R 4.6.1"
 expect_resume_rejection(changed, "R software identity changed")
+changed <- existing
+changed$software$installed_source_identity$installed_payload_sha256 <-
+  "payload-b"
+expect_resume_rejection(changed, "installed package installed_payload_sha256 changed")
+changed <- existing
+changed$software$installed_source_identity$manifest_sha256 <- "manifest-b"
+expect_resume_rejection(changed, "installed package manifest_sha256 changed")
 changed <- existing
 changed$hardware$nvidia_smi <- "GPU B, UUID-B"
 expect_resume_rejection(changed, "GPU identity changed")

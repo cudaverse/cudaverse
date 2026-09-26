@@ -1,4 +1,4 @@
-required_packages <- c("cudaverse", "jsonlite", "Matrix")
+required_packages <- c("cudaverse", "jsonlite", "digest", "Matrix")
 missing_packages <- required_packages[!vapply(
   required_packages, requireNamespace, logical(1), quietly = TRUE
 )]
@@ -28,6 +28,10 @@ sys.source(
   file.path("tools", "benchmark-validation.R"),
   envir = environment()
 )
+sys.source(
+  file.path("tools", "benchmark-source-identity.R"),
+  envir = environment()
+)
 
 truthy <- function(name, default = "false") {
   tolower(Sys.getenv(name, unset = default)) %in% c("1", "true", "yes")
@@ -49,6 +53,16 @@ if (!length(backends) || any(!backends %in% c("base", "native", "torch")) ||
 if (!identical(backends[[1L]], "base")) {
   stop("The base backend must run first to establish parity references.",
        call. = FALSE)
+}
+tf32_override <- Sys.getenv("NVIDIA_TF32_OVERRIDE", unset = "<unset>")
+if ("torch" %in% backends && !identical(tf32_override, "0")) {
+  stop(
+    paste(
+      "Standard float32 torch benchmarks require a new process with",
+      "NVIDIA_TF32_OVERRIDE=0 to exclude implicit TF32 computation."
+    ),
+    call. = FALSE
+  )
 }
 require_idle_gpu <- truthy(
   "CUDAVERSE_BENCHMARK_REQUIRE_IDLE_GPU",
@@ -105,6 +119,13 @@ source_state <- function(path = ".") {
 }
 
 source <- source_state(".")
+if (identical(profile, "full") && isTRUE(source$tracked_dirty)) {
+  stop(
+    "Full retained benchmarks require a clean committed source checkout; ",
+    "CUDAVERSE_BENCHMARK_ALLOW_DIRTY applies only to smoke runs.",
+    call. = FALSE
+  )
+}
 if (isTRUE(source$tracked_dirty) &&
     !truthy("CUDAVERSE_BENCHMARK_ALLOW_DIRTY")) {
   stop(
@@ -113,6 +134,21 @@ if (isTRUE(source$tracked_dirty) &&
     call. = FALSE
   )
 }
+installed_identity <- benchmark_installed_source_identity()
+if (identical(profile, "full") && !isTRUE(installed_identity$verified)) {
+  stop(
+    "Full benchmark requires an exact-source isolated package installation: ",
+    installed_identity$reason,
+    ". Run tools/install-benchmark-candidate.R and set ",
+    "CUDAVERSE_BENCHMARK_INSTALL_MANIFEST in the benchmark process.",
+    call. = FALSE
+  )
+}
+if (!isTRUE(installed_identity$verified)) {
+  message("Benchmark package source identity is unverified: ",
+          installed_identity$reason)
+}
+installed_identity$installed_package <- NULL
 
 installed_size <- function(package) {
   if (!requireNamespace(package, quietly = TRUE)) return(NA_real_)
@@ -319,9 +355,13 @@ matmul_case <- function(case, backend, source) {
     } else {
       list(rtol = 1e-8, atol = 1e-10)
     }
-    validation <- benchmark_numeric_validation(
-      actual, reference, rtol = tolerance$rtol, atol = tolerance$atol
-    )
+    validation <- if (identical(case$dtype, "float32")) {
+      benchmark_float32_matmul_validation(actual, reference, left, right)
+    } else {
+      benchmark_numeric_validation(
+        actual, reference, rtol = tolerance$rtol, atol = tolerance$atol
+      )
+    }
     provenance <- provenance_payload(resident_timing$last)
     memory <- measure_memory(
       backend, host_run,
@@ -537,11 +577,13 @@ expected_report <- list(
     cudaverse = as.character(utils::packageVersion("cudaverse")),
     torch = if (requireNamespace("torch", quietly = TRUE))
       as.character(utils::packageVersion("torch")) else NA_character_,
-    diagnostics = unclass(diagnostics)
+    diagnostics = unclass(diagnostics),
+    installed_source_identity = installed_identity
   ),
   contract = list(
     path = contract_path,
     backends = backends,
+    NVIDIA_TF32_OVERRIDE = tf32_override,
     cases = cases,
     timing_clock = "wall clock with backend synchronization",
     idle_gpu_guard = list(
@@ -568,10 +610,17 @@ expected_report <- list(
       "cold host boundary, warmups/timed host boundary, cold resident",
       "continuation when separable, warmups/timed resident continuation"
     ),
+    numeric_policy = c(
+      benchmark_float32_matmul_policy(),
+      list(validator_sha256 = benchmark_validation_source_sha256())
+    ),
     tolerances = list(
-      float32 = list(rtol = 1e-5, atol = 1e-6),
+      float32_strict_diagnostic = list(rtol = 1e-5, atol = 1e-6),
       float64 = list(rtol = 1e-10, heavy_rtol = 1e-8, atol = 1e-10),
-      acceptance = "elementwise abs(actual-reference) <= atol+rtol*abs(reference)",
+      acceptance = paste(
+        "float32 matmul uses standard-fp32-dot-product/1; all other",
+        "comparisons use elementwise atol+rtol*abs(reference)"
+      ),
       float32_input = "CPU reference uses the same float32-rounded inputs",
       pca = "projector and reconstruction, heavy rtol 1e-8",
       knn = "exact indices; distance rtol 1e-8; ties by original row"
@@ -695,6 +744,22 @@ for (row in seq_len(nrow(cases))) {
   invisible(gc(FALSE))
 }
 
+if (identical(profile, "full")) {
+  ending_identity <- benchmark_installed_source_identity()
+  ending_identity$installed_package <- NULL
+  if (!isTRUE(ending_identity$verified) ||
+      !identical(ending_identity, installed_identity)) {
+    stop(
+      "Full benchmark package or source identity changed during the run: ",
+      if (is.null(ending_identity$reason)) {
+        "installation fingerprint differs"
+      } else {
+        ending_identity$reason
+      },
+      call. = FALSE
+    )
+  }
+}
 report$complete <- TRUE
 write_report()
 finalize_benchmark_checkpoint(output)

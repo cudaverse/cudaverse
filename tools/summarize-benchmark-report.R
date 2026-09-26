@@ -109,6 +109,10 @@ append_line("- Hardware: ", escape_markdown(hardware))
 append_line("- R: ", text_value(report$software$R))
 append_line("- cudaverse: `", text_value(report$software$cudaverse), "`")
 append_line("- torch: `", text_value(report$software$torch), "`")
+append_line("- Float32 matmul numeric policy: `",
+            text_value(report$contract$numeric_policy$version), "`")
+append_line("- NVIDIA_TF32_OVERRIDE: `",
+            text_value(report$contract$NVIDIA_TF32_OVERRIDE), "`")
 append_line(
   "- Stage sampling: ",
   text_value(
@@ -147,9 +151,10 @@ append_line("")
 append_line(paste(
   "| Case | Backend | Host median (s) | Host p95 (s) |",
   "Resident median (s) | Resident p95 (s) | Peak MiB |",
-  "Max relative error | Parity |"
+  "Global-scale relative error | Original strict failed entries |",
+  "Policy max scaled error | Parity |"
 ))
-append_line("|---|---:|---:|---:|---:|---:|---:|---:|---:|")
+append_line("|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|")
 for (case_id in matmul_ids) {
   values <- report$cases[[case_id]]$backends
   for (backend in intersect(backends, names(values))) {
@@ -162,6 +167,9 @@ for (case_id in matmul_ids) {
       format_seconds(value$warm$resident_compute$p95_seconds), " | ",
       format_mib(value$memory$backend_allocator_peak_bytes), " | ",
       format_number(value$validation$max_relative_error), " | ",
+      format_number(value$validation$strict_diagnostic$failed_elements,
+                    digits = 0L), " | ",
+      format_number(value$validation$max_scaled_error), " | ",
       if (logical_value(value$validation$passed)) "pass" else "fail", " |"
     )
   }

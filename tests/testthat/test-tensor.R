@@ -89,6 +89,25 @@ test_that("matrix multiplication preserves outer labels safely", {
   )
 })
 
+test_that("matmul precision is explicit and unsupported TF32 never falls back", {
+  left <- cuda_tensor(matrix(1:6, 2, 3), device = "cpu", dtype = "float32")
+  right <- cuda_tensor(matrix(1:6, 3, 2), device = "cpu", dtype = "float32")
+  default <- tensor_matmul(left, right)
+  standard <- tensor_matmul(left, right, precision = "standard")
+  expect_identical(to_cpu(default), to_cpu(standard))
+  expect_identical(to_cpu(left %*% right), to_cpu(standard))
+  expect_identical(cuda_provenance(default)$selection_reason, "matmul_standard")
+  expect_identical(cuda_provenance(standard)$selection_reason, "matmul_standard")
+  expect_error(tensor_matmul(left, right, precision = "tf32"),
+               "TF32 requires two native CUDA tensors")
+  for (invalid in list("fast", "t", "s", NA_character_, character(),
+                       c("standard", "tf32"), 1)) {
+    expect_error(tensor_matmul(left, right, precision = invalid),
+                 "`precision` must be exactly")
+  }
+  expect_identical(to_cpu(tensor_matmul(left, right)), to_cpu(default))
+})
+
 test_that("matrix multiplication promotes mixed and integer dtypes safely", {
   mixed <- tensor_matmul(
     cuda_tensor(matrix(1:4, 2), device = "cpu"),
