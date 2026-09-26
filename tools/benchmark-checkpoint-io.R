@@ -2,7 +2,7 @@ benchmark_checkpoint_previous <- function(path) paste0(path, ".previous")
 
 benchmark_checkpoint_scalar <- function(x, default = NA) {
   value <- unlist(x, recursive = TRUE, use.names = FALSE)
-  if (!length(value) || is.na(value[[1L]])) default else value[[1L]]
+  if (length(value) != 1L || is.na(value[[1L]])) default else value[[1L]]
 }
 
 benchmark_checkpoint_case_ids <- function(cases) {
@@ -71,6 +71,16 @@ validate_benchmark_resume <- function(existing, expected) {
     "benchmark profile changed"
   )
   require_same(
+    benchmark_checkpoint_scalar(existing$contract$numeric_policy$version, ""),
+    benchmark_checkpoint_scalar(expected$contract$numeric_policy$version, ""),
+    "numeric policy version changed"
+  )
+  require_same(
+    benchmark_checkpoint_scalar(existing$contract$numeric_policy$validator_sha256, ""),
+    benchmark_checkpoint_scalar(expected$contract$numeric_policy$validator_sha256, ""),
+    "numeric policy fingerprint changed"
+  )
+  require_same(
     benchmark_checkpoint_scalar(existing$source$commit, ""),
     benchmark_checkpoint_scalar(expected$source$commit, ""),
     "source commit changed"
@@ -102,6 +112,32 @@ validate_benchmark_resume <- function(existing, expected) {
     unlist(expected$contract$backends, recursive = TRUE, use.names = FALSE),
     "benchmark backend order changed"
   )
+  require_same(
+    benchmark_checkpoint_scalar(existing$contract$NVIDIA_TF32_OVERRIDE, ""),
+    benchmark_checkpoint_scalar(expected$contract$NVIDIA_TF32_OVERRIDE, ""),
+    "TF32 override changed"
+  )
+  for (field in c("required", "sampling", "continuous_monitoring")) {
+    require_same(
+      benchmark_checkpoint_scalar(existing$contract$idle_gpu_guard[[field]],
+                                  "<absent>"),
+      benchmark_checkpoint_scalar(expected$contract$idle_gpu_guard[[field]],
+                                  "<absent>"),
+      paste("idle-GPU guard", field, "changed")
+    )
+  }
+  for (field in c("verified", "source_commit", "source_tree",
+                  "manifest_sha256", "installed_payload_sha256")) {
+    require_same(
+      benchmark_checkpoint_scalar(
+        existing$software$installed_source_identity[[field]], "<absent>"
+      ),
+      benchmark_checkpoint_scalar(
+        expected$software$installed_source_identity[[field]], "<absent>"
+      ),
+      paste("installed package", field, "changed")
+    )
+  }
   if (!benchmark_checkpoint_case_contract_same(
     existing$contract$cases, expected$contract$cases
   )) failures <- c(failures, "benchmark case contract changed")
@@ -162,6 +198,27 @@ write_benchmark_checkpoint <- function(value, path) {
          call. = FALSE)
   }
   invisible(path)
+}
+
+checkpoint_benchmark_parity_failure <- function(report, case_id, backend,
+                                                result, path) {
+  if (isTRUE(result$validation$passed)) {
+    stop("Cannot record a passing result as failed parity.", call. = FALSE)
+  }
+  if (is.null(report$cases[[case_id]])) {
+    stop("Cannot record parity failure for an unknown benchmark case.",
+         call. = FALSE)
+  }
+  result$status <- "failed_parity"
+  # Pipeline references are large host objects, not failure diagnostics.
+  result$reference <- NULL
+  report$cases[[case_id]]$backends[[backend]] <- result
+  report$complete <- FALSE
+  report$generated_at_utc <- format(Sys.time(), tz = "UTC", usetz = TRUE)
+  # Use the same recoverable staging/rotation path as successful checkpoints.
+  # The caller must not raise the parity error until this write has completed.
+  write_benchmark_checkpoint(report, path)
+  report
 }
 
 recover_benchmark_checkpoint <- function(path) {

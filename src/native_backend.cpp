@@ -44,11 +44,17 @@ constexpr cublasStatus_t CUBLAS_STATUS_SUCCESS = 0;
 constexpr cusolverStatus_t CUSOLVER_STATUS_SUCCESS = 0;
 constexpr int CUBLAS_OP_N = 0;
 constexpr int CUBLAS_OP_T = 1;
+// CUDA 12.8 enum values are checked against NVIDIA headers in the ABI job.
+constexpr int CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MAJOR = 75;
+constexpr int CUDA_R_32F = 0;
+constexpr int CUBLAS_COMPUTE_32F_FAST_TF32 = 77;
+constexpr int CUBLAS_GEMM_DEFAULT = -1;
 
 using cuInit_t = CUresult (*)(unsigned int);
 using cuDriverGetVersion_t = CUresult (*)(int*);
 using cuDeviceGetCount_t = CUresult (*)(int*);
 using cuDeviceGet_t = CUresult (*)(CUdevice*, int);
+using cuDeviceGetAttribute_t = CUresult (*)(int*, int, CUdevice);
 using cuDevicePrimaryCtxRetain_t = CUresult (*)(CUcontext*, CUdevice);
 using cuCtxSetCurrent_t = CUresult (*)(CUcontext);
 using cuMemAlloc_t = CUresult (*)(CUdeviceptr*, std::size_t);
@@ -75,6 +81,10 @@ using cublasDgemm_t = cublasStatus_t (*)(
 using cublasSgemm_t = cublasStatus_t (*)(
     cublasHandle_t, int, int, int, int, int, const float*,
     const float*, int, const float*, int, const float*, float*, int);
+using cublasGemmEx_t = cublasStatus_t (*)(
+    cublasHandle_t, int, int, int, int, int, const void*,
+    const void*, int, int, const void*, int, int, const void*,
+    void*, int, int, int, int);
 using cusolverDnCreate_t = cusolverStatus_t (*)(cusolverDnHandle_t*);
 using cusolverDnDgesvd_bufferSize_t = cusolverStatus_t (*)(
     cusolverDnHandle_t, int, int, int*);
@@ -97,6 +107,7 @@ struct BackendApi {
   cuDriverGetVersion_t cuDriverGetVersion = nullptr;
   cuDeviceGetCount_t cuDeviceGetCount = nullptr;
   cuDeviceGet_t cuDeviceGet = nullptr;
+  cuDeviceGetAttribute_t cuDeviceGetAttribute = nullptr;
   cuDevicePrimaryCtxRetain_t cuDevicePrimaryCtxRetain = nullptr;
   cuCtxSetCurrent_t cuCtxSetCurrent = nullptr;
   cuMemAlloc_t cuMemAlloc = nullptr;
@@ -115,6 +126,7 @@ struct BackendApi {
   cublasCreate_t cublasCreate = nullptr;
   cublasDgemm_t cublasDgemm = nullptr;
   cublasSgemm_t cublasSgemm = nullptr;
+  cublasGemmEx_t cublasGemmEx = nullptr;
   cusolverDnCreate_t cusolverDnCreate = nullptr;
   cusolverDnDgesvd_bufferSize_t cusolverDnDgesvd_bufferSize = nullptr;
   cusolverDnDgesvd_t cusolverDnDgesvd = nullptr;
@@ -307,6 +319,8 @@ bool load_driver(std::string& reason) {
     reason = "The CUDA Driver library is missing required symbols.";
     return false;
   }
+  // Optional: an older driver can still serve the standard native backend.
+  bind_symbol(api.cuDeviceGetAttribute, api.driver, "cuDeviceGetAttribute");
   CUresult status = api.cuInit(0);
   if (status != CUDA_SUCCESS) {
     reason = cuda_error(status);
@@ -366,6 +380,8 @@ bool load_cublas(std::string& reason) {
     reason = "The cuBLAS library is missing required symbols.";
     return false;
   }
+  // TF32 is opt-in; absence of GemmEx must not disable ordinary FP32 matmul.
+  bind_symbol(api.cublasGemmEx, api.cublas, "cublasGemmEx");
   if (api.cublas_handle == nullptr) {
     cublasStatus_t status = api.cublasCreate(&api.cublas_handle);
     if (status != CUBLAS_STATUS_SUCCESS) {
@@ -2065,7 +2081,6 @@ extern "C" SEXP C_cudaverse_cuda_pca(SEXP pointer,
     require_kernels();
     CUfunction statistics = get_kernel("cudaverse_column_stats_f64");
     CUfunction transform = get_kernel("cudaverse_center_scale_f64");
-    CUfunction scale_columns = get_kernel("cudaverse_scale_columns_f64");
 
     DeviceMemory centers(static_cast<std::size_t>(columns) * sizeof(double));
     DeviceMemory scales(static_cast<std::size_t>(columns) * sizeof(double));
@@ -2105,15 +2120,21 @@ extern "C" SEXP C_cudaverse_cuda_pca(SEXP pointer,
         transformed.pointer(), rows, columns);
     DeviceMemory scores(
         static_cast<std::size_t>(rows) * components * sizeof(double));
-    CUdeviceptr left_pointer = decomposition.left.pointer();
-    CUdeviceptr scores_pointer = scores.pointer();
-    CUdeviceptr singular_pointer = decomposition.values.pointer();
-    void* score_parameters[] = {
-        &left_pointer, &scores_pointer, &singular_pointer,
-        &rows, &components};
-    launch_or_throw(
-        scale_columns, "cudaverse_scale_columns_f64",
-        static_cast<std::size_t>(rows) * components, score_parameters);
+    // Project the input just as prediction does. U * S is mathematically
+    // equivalent, but solver round-off can give identical rows different
+    // scores and change the ordering of zero-distance neighbours.
+    const double alpha = 1.0;
+    const double beta = 0.0;
+    cublasStatus_t score_status = api.cublasDgemm(
+        api.cublas_handle, CUBLAS_OP_N, CUBLAS_OP_N,
+        rows, components, columns, &alpha,
+        reinterpret_cast<const double*>(transformed.pointer()), rows,
+        reinterpret_cast<const double*>(decomposition.right.pointer()), columns,
+        &beta, reinterpret_cast<double*>(scores.pointer()), rows);
+    if (score_status != CUBLAS_STATUS_SUCCESS) {
+      throw std::runtime_error("cublasDgemm(PCA scores): " +
+                               cublas_error(score_status));
+    }
 
     std::vector<double> host_singular = copy_double_to_host(
         decomposition.values.pointer(), components,
@@ -2664,6 +2685,67 @@ extern "C" SEXP C_cudaverse_cuda_matmul(SEXP left_pointer,
   return make_pointer(output, false);
 }
 
+extern "C" SEXP C_cudaverse_cuda_matmul_tf32(SEXP left_pointer,
+                                              SEXP right_pointer) {
+  require_backend();
+  SharedBuffer* left = get_buffer(left_pointer);
+  SharedBuffer* right = get_buffer(right_pointer);
+  if (left->dtype != DType::Float32 || right->dtype != DType::Float32) {
+    Rf_error("Native CUDA TF32 matmul requires two float32 tensors.");
+  }
+  if (left->shape.size() != 2 || right->shape.size() != 2 ||
+      left->shape[1] != right->shape[0]) {
+    Rf_error("Native CUDA TF32 matrix dimensions are not conformable.");
+  }
+
+  const char* tf32_override = std::getenv("NVIDIA_TF32_OVERRIDE");
+  if (tf32_override != nullptr && std::strcmp(tf32_override, "0") == 0) {
+    Rf_error("Native CUDA TF32 matmul is disabled by "
+             "NVIDIA_TF32_OVERRIDE=0.");
+  }
+  if (api.cublasGemmEx == nullptr) {
+    Rf_error("Native CUDA TF32 matmul is unsupported: cuBLAS is missing "
+             "the optional cublasGemmEx symbol.");
+  }
+  if (api.cuDeviceGetAttribute == nullptr) {
+    Rf_error("Native CUDA TF32 matmul is unsupported: the CUDA driver is "
+             "missing the optional cuDeviceGetAttribute symbol.");
+  }
+  CUdevice device = 0;
+  check_cuda(api.cuDeviceGet(&device, 0), "cuDeviceGet(TF32)");
+  int compute_capability_major = 0;
+  check_cuda(api.cuDeviceGetAttribute(
+                 &compute_capability_major,
+                 CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MAJOR, device),
+             "cuDeviceGetAttribute(TF32 compute capability)");
+  if (compute_capability_major < 8) {
+    Rf_error("Native CUDA TF32 matmul requires compute capability >= 8.0 "
+             "(found major version %d).", compute_capability_major);
+  }
+
+  int m = left->shape[0];
+  int k = left->shape[1];
+  int n = right->shape[1];
+  R_CheckUserInterrupt();
+  SharedBuffer* output = allocate_buffer(
+      DType::Float32, {m, n}, static_cast<std::size_t>(m) * n);
+  const float alpha = 1.0f;
+  const float beta = 0.0f;
+  // Compute type is local to this call; shared cublas_handle math mode stays
+  // untouched. cuBLAS may choose any supported kernel for the matrix shape.
+  cublasStatus_t status = api.cublasGemmEx(
+      api.cublas_handle, CUBLAS_OP_N, CUBLAS_OP_N, m, n, k, &alpha,
+      reinterpret_cast<const void*>(left->pointer), CUDA_R_32F, m,
+      reinterpret_cast<const void*>(right->pointer), CUDA_R_32F, k,
+      &beta, reinterpret_cast<void*>(output->pointer), CUDA_R_32F, m,
+      CUBLAS_COMPUTE_32F_FAST_TF32, CUBLAS_GEMM_DEFAULT);
+  if (status != CUBLAS_STATUS_SUCCESS) {
+    destroy_buffer(output);
+    check_cublas(status, "cublasGemmEx(TF32)");
+  }
+  return make_pointer(output, false);
+}
+
 extern "C" SEXP C_cudaverse_cuda_synchronize() {
   require_backend();
   check_cuda(api.cuCtxSynchronize(), "cuCtxSynchronize");
@@ -2801,6 +2883,8 @@ static const R_CallMethodDef call_methods[] = {
      reinterpret_cast<DL_FUNC>(&C_cudaverse_cuda_knn_block), 6},
     {"C_cudaverse_cuda_matmul",
      reinterpret_cast<DL_FUNC>(&C_cudaverse_cuda_matmul), 2},
+    {"C_cudaverse_cuda_matmul_tf32",
+     reinterpret_cast<DL_FUNC>(&C_cudaverse_cuda_matmul_tf32), 2},
     {"C_cudaverse_cuda_synchronize",
      reinterpret_cast<DL_FUNC>(&C_cudaverse_cuda_synchronize), 0},
     {"C_cudaverse_cuda_test_inject_error",

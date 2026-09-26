@@ -795,6 +795,10 @@
   .Call(C_cudaverse_cuda_matmul, x, y)
 }
 
+.native_matmul_tf32 <- function(x, y) {
+  .Call(C_cudaverse_cuda_matmul_tf32, x, y)
+}
+
 .native_synchronize <- function() {
   invisible(.Call(C_cudaverse_cuda_synchronize))
 }
@@ -852,6 +856,7 @@
     binary = .native_binary,
     transpose = .native_transpose,
     matmul = .native_matmul,
+    matmul_tf32 = .native_matmul_tf32,
     reduce = .native_reduce,
     algorithm_matrix_validate = .native_algorithm_matrix_validate,
     algorithm_svd = .native_algorithm_svd,

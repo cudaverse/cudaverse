@@ -30,6 +30,12 @@ scalar <- function(x, default = NA) {
   value <- unlist(x, recursive = TRUE, use.names = FALSE)
   if (!length(value)) default else value[[1L]]
 }
+tf32_override_label <- function(x) {
+  value <- unlist(x, recursive = TRUE, use.names = FALSE)
+  if (length(value) != 1L || is.na(value[[1L]])) return("<missing>")
+  value <- as.character(value[[1L]])
+  if (!nzchar(value)) "<empty>" else value
+}
 logical_value <- function(x) isTRUE(as.logical(scalar(x, FALSE)))
 summary <- paste(readLines(summary_path, warn = FALSE), collapse = "\n")
 failures <- character()
@@ -65,6 +71,24 @@ require_text(
   "summary does not identify a complete report"
 )
 require_text(
+  paste0("Float32 matmul numeric policy: `",
+         scalar(report$contract$numeric_policy$version, ""), "`"),
+  "summary omits the float32 numeric policy"
+)
+require_text(
+  paste0("NVIDIA_TF32_OVERRIDE: `",
+         tf32_override_label(report$contract$NVIDIA_TF32_OVERRIDE), "`"),
+  "summary omits the TF32 override"
+)
+require_text(
+  "Original strict failed entries",
+  "summary omits the original strict float32 diagnostic"
+)
+require_text(
+  "Global-scale relative error",
+  "summary mislabels the global-scale relative error statistic"
+)
+require_text(
   "CUDA runtime bundled by cudaverse",
   "summary omits the bundled-runtime footprint"
 )
@@ -84,6 +108,7 @@ require_text(
 backends <- unlist(
   report$contract$backends, recursive = TRUE, use.names = FALSE
 )
+summary_lines <- strsplit(summary, "\n", fixed = TRUE)[[1L]]
 for (case_id in names(report$cases)) {
   require_text(case_id, paste(case_id, "is absent from the summary"))
   present <- names(report$cases[[case_id]]$backends)
@@ -98,6 +123,30 @@ for (case_id in names(report$cases)) {
       paste0("| ", case_id, " | ", backend, " |"),
       paste(case_id, backend, "table row is absent")
     )
+    case <- report$cases[[case_id]]
+    if (backend %in% present &&
+        identical(scalar(case$definition$family, ""), "matmul") &&
+        identical(scalar(case$definition$dtype, ""), "float32")) {
+      prefix <- paste0("| ", case_id, " | ", backend, " |")
+      row <- summary_lines[startsWith(summary_lines, prefix)]
+      fields <- if (length(row) == 1L) {
+        trimws(strsplit(row, "|", fixed = TRUE)[[1L]])
+      } else {
+        character()
+      }
+      expected_failed <- as.character(scalar(
+        case$backends[[backend]]$validation$strict_diagnostic$failed_elements,
+        "<missing>"
+      ))
+      if (length(fields) < 12L ||
+          !identical(fields[[10L]], expected_failed)) {
+        failures <- c(
+          failures,
+          paste(case_id, backend,
+                "does not show its original strict float32 failure count")
+        )
+      }
+    }
   }
 }
 

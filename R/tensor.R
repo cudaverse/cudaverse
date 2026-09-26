@@ -546,15 +546,52 @@ to_cpu <- function(x) {
 #' Matrix multiplication for tensors
 #'
 #' @param x,y Two-dimensional `cudatensor` objects or numeric matrices.
+#' @param precision Compute policy: `"standard"` preserves the existing dtype
+#'   and backend arithmetic. `"tf32"` explicitly permits reduced-precision
+#'   TensorFloat-32 multiplication with float32 output on the native CUDA
+#'   backend. It requires two native CUDA float32 tensors and an NVIDIA GPU
+#'   with compute capability 8.0 or newer.
 #' @details Row names come from `x` and column names come from `y`. When both
 #'   operands name the contracted dimension, those names must be identical.
+#'
+#'   Standard native float32 multiplication uses cuBLAS SGEMM; float64 uses
+#'   DGEMM. Float32 inputs are never automatically promoted to float64 for
+#'   accuracy. TF32 permits cuBLAS to use Tensor Cores with reduced input
+#'   precision; the selected kernel and any speedup depend on the workload.
+#'   An unsupported TF32 request raises an error, including when
+#'   `NVIDIA_TF32_OVERRIDE=0`. The policy applies only to this call, and
+#'   [cuda_provenance()] records `matmul_standard` or `matmul_tf32_permitted`
+#'   as its selection reason. `%*%` uses the standard policy.
+#'
+#'   Rounding and cancellation can cause float32 dot products to differ from
+#'   a double-precision reference, especially near zero. TF32 allows larger
+#'   differences. Use float64 tensors when the analysis requires greater
+#'   accuracy; assess precision against the needs of the complete workflow.
 #' @return A `cudatensor`.
 #' @export
 #' @examples
 #' x <- cuda_tensor(matrix(1:6, 2, 3), device = "cpu")
 #' y <- cuda_tensor(matrix(1:6, 3, 2), device = "cpu")
 #' tensor_matmul(x, y)
-tensor_matmul <- function(x, y) {
+tensor_matmul <- function(x, y, precision = "standard") {
+  if (!is.character(precision) || length(precision) != 1L ||
+      is.na(precision) || !precision %in% c("standard", "tf32")) {
+    stop("`precision` must be exactly \"standard\" or \"tf32\".",
+         call. = FALSE)
+  }
+  precision <- c("standard", "tf32")[match(precision, c("standard", "tf32"))]
+  if (identical(precision, "tf32")) {
+    .check_tensor(x)
+    .check_tensor(y, "y")
+    if (!identical(x$device, "cuda") || !identical(y$device, "cuda") ||
+        !identical(x$backend, "native") || !identical(y$backend, "native")) {
+      stop("TF32 requires two native CUDA tensors.", call. = FALSE)
+    }
+    if (!identical(x$dtype, "float32") || !identical(y$dtype, "float32")) {
+      stop("TF32 requires both input tensors to have dtype `float32`.",
+           call. = FALSE)
+    }
+  }
   device <- if (inherits(x, "cudatensor")) {
     x$device
   } else if (inherits(y, "cudatensor")) {
@@ -603,13 +640,21 @@ tensor_matmul <- function(x, y) {
   y <- .cast_tensor(y, result_dtype)
   result_dimnames <- .matmul_tensor_dimnames(x, y)
 
-  storage <- .backend_call(x$backend, "matmul", x$storage, y$storage)
+  operation <- if (identical(precision, "tf32")) "matmul_tf32" else "matmul"
+  storage <- .backend_call(x$backend, operation, x$storage, y$storage)
   .new_cudatensor(
     storage, x$device, x$backend, result_dtype,
     c(x$shape[[1]], y$shape[[2]]),
     dimnames = result_dimnames,
     compute_stages = list(
-      matrix_multiply = .tensor_stage(x$device, x$backend)
+      matrix_multiply = .tensor_stage(
+        x$device, x$backend,
+        reason = if (identical(precision, "tf32")) {
+          "matmul_tf32_permitted"
+        } else {
+          "matmul_standard"
+        }
+      )
     )
   )
 }

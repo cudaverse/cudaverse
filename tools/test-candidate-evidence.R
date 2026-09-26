@@ -269,12 +269,22 @@ write_rtx <- function(source_commit = commit) {
     auto_unbox = TRUE, pretty = TRUE
   )
 }
-write_benchmark <- function(source_commit = commit) {
+write_benchmark <- function(source_commit = commit,
+                            installed_verified = TRUE) {
   jsonlite::write_json(
     list(
       schema = "cudaverse-benchmark/1", profile = "full",
       source = list(commit = source_commit, tracked_dirty = FALSE),
-      software = list(cudaverse = version), complete = TRUE
+      software = list(
+        cudaverse = version,
+        installed_source_identity = list(
+          verified = installed_verified,
+          source_commit = source_commit,
+          source_tree = paste(rep("a", 40L), collapse = ""),
+          manifest_sha256 = paste(rep("b", 64L), collapse = ""),
+          installed_payload_sha256 = paste(rep("c", 64L), collapse = "")
+        )
+      ), complete = TRUE
     ),
     file.path(work, evidence_files[["benchmark"]]),
     auto_unbox = TRUE, pretty = TRUE
@@ -560,6 +570,13 @@ write_benchmark(paste(rep("c", 40L), collapse = ""))
 manifest$benchmark$report_sha256 <- sha_for("benchmark")
 write_manifest()
 expect_error_message(run_checker(), "benchmark report source does not match")
+write_benchmark()
+manifest$benchmark$report_sha256 <- sha_for("benchmark")
+
+write_benchmark(installed_verified = FALSE)
+manifest$benchmark$report_sha256 <- sha_for("benchmark")
+write_manifest()
+expect_error_message(run_checker(), "lacks verified exact-source package")
 write_benchmark()
 manifest$benchmark$report_sha256 <- sha_for("benchmark")
 

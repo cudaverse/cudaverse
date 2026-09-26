@@ -81,9 +81,23 @@ expected <- list(
   source = list(commit = "abc123", tracked_dirty = FALSE),
   hardware = list(nvidia_smi = c("GPU A, UUID-A")),
   software = list(R = "R 4.6.0", cudaverse = "0.3.0.9000",
-                  torch = NA_character_),
+                  torch = NA_character_,
+                  installed_source_identity = list(
+                    verified = TRUE,
+                    source_commit = "abc123", source_tree = "tree-a",
+                    manifest_sha256 = "manifest-a",
+                    installed_payload_sha256 = "payload-a"
+                  )),
   contract = list(
     backends = c("base", "native", "torch"),
+    NVIDIA_TF32_OVERRIDE = "0",
+    idle_gpu_guard = list(
+      required = TRUE,
+      sampling = "before and after each sample, outside its timed boundary",
+      continuous_monitoring = FALSE
+    ),
+    numeric_policy = list(version = "standard-fp32-dot-product/1",
+                          validator_sha256 = "validator-a"),
     cases = data.frame(
       case_id = c("case-a", "case-b"),
       rows = c(100L, 200L),
@@ -125,6 +139,61 @@ stopifnot(!benchmark_checkpoint_case_complete(
   incomplete, expected$contract$backends
 ))
 
+# A failing backend must survive the parity error on disk, without discarding
+# earlier successful backends or allowing resume to reuse the failed case.
+failure_path <- file.path(work, "failed-parity.json")
+failure_report <- existing
+failure_report$complete <- TRUE
+write_benchmark_checkpoint(failure_report, failure_path)
+failed_result <- list(
+  status = "complete",
+  validation = list(passed = FALSE, max_absolute_error = 2e-6,
+                    max_tolerance_ratio = 2, failed_elements = 1L,
+                    rtol = 1e-5, atol = 1e-6),
+  warm = list(host_boundary = list(runs_seconds = c(1, 2))),
+  provenance = list(schema = "cudaverse-stage/1"),
+  reference = matrix(1, 2L, 2L)
+)
+expect_error_message({
+  checkpoint_benchmark_parity_failure(
+    failure_report, "case-a", "native", failed_result, failure_path
+  )
+  stop("case-a failed parity on backend native.")
+}, "case-a failed parity on backend native.")
+retained <- jsonlite::read_json(failure_path, simplifyVector = FALSE)
+native_failure <- retained$cases$`case-a`$backends$native
+stopifnot(
+  benchmark_checkpoint_valid(failure_path),
+  benchmark_checkpoint_valid(benchmark_checkpoint_previous(failure_path)),
+  identical(retained$complete, FALSE),
+  identical(native_failure$status, "failed_parity"),
+  identical(native_failure$validation$passed, FALSE),
+  identical(native_failure$validation$failed_elements, 1L),
+  identical(native_failure$validation$max_tolerance_ratio, 2L),
+  identical(native_failure$validation$rtol, 1e-5),
+  identical(native_failure$validation$atol, 1e-6),
+  is.null(native_failure$reference),
+  identical(retained$cases$`case-a`$backends$base$status, "complete"),
+  !benchmark_checkpoint_case_complete(
+    retained$cases$`case-a`, expected$contract$backends
+  ),
+  benchmark_checkpoint_case_complete(
+    retained$cases$`case-b`, expected$contract$backends
+  ),
+  isTRUE(validate_benchmark_resume(retained, expected))
+)
+# Even a corrupted TRUE flag cannot make failed_parity reusable.
+native_failure$validation$passed <- TRUE
+retained$cases$`case-a`$backends$native <- native_failure
+stopifnot(!benchmark_checkpoint_case_complete(
+  retained$cases$`case-a`, expected$contract$backends
+))
+expect_error_message(finalize_benchmark_checkpoint(failure_path),
+                     "Cannot finalize an incomplete")
+expect_error_message(checkpoint_benchmark_parity_failure(
+  failure_report, "case-a", "native", backend_result(), failure_path
+), "Cannot record a passing result")
+
 expect_resume_rejection <- function(code, pattern) {
   expect_error_message(validate_benchmark_resume(code, expected), pattern)
 }
@@ -144,8 +213,39 @@ changed <- existing
 changed$profile <- "smoke"
 expect_resume_rejection(changed, "benchmark profile changed")
 changed <- existing
+changed$contract$numeric_policy <- NULL
+expect_resume_rejection(changed, "numeric policy version changed")
+changed <- existing
+changed$contract$numeric_policy$validator_sha256 <- "validator-b"
+expect_resume_rejection(changed, "numeric policy fingerprint changed")
+changed <- existing
+changed$contract$NVIDIA_TF32_OVERRIDE <- "<unset>"
+expect_resume_rejection(changed, "TF32 override changed")
+changed <- existing
+changed$contract$idle_gpu_guard$required <- FALSE
+expect_resume_rejection(changed, "idle-GPU guard required changed")
+changed <- existing
+changed$contract$idle_gpu_guard$required <- c(TRUE, FALSE)
+expect_resume_rejection(changed, "idle-GPU guard required changed")
+changed <- existing
+changed$contract$idle_gpu_guard$sampling <- "start only"
+expect_resume_rejection(changed, "idle-GPU guard sampling changed")
+changed <- existing
+changed$contract$idle_gpu_guard$continuous_monitoring <- TRUE
+expect_resume_rejection(changed, "idle-GPU guard continuous_monitoring changed")
+changed <- existing
+changed$contract$idle_gpu_guard <- NULL
+expect_resume_rejection(changed, "idle-GPU guard required changed")
+changed <- existing
 changed$software$R <- "R 4.6.1"
 expect_resume_rejection(changed, "R software identity changed")
+changed <- existing
+changed$software$installed_source_identity$installed_payload_sha256 <-
+  "payload-b"
+expect_resume_rejection(changed, "installed package installed_payload_sha256 changed")
+changed <- existing
+changed$software$installed_source_identity$manifest_sha256 <- "manifest-b"
+expect_resume_rejection(changed, "installed package manifest_sha256 changed")
 changed <- existing
 changed$hardware$nvidia_smi <- "GPU B, UUID-B"
 expect_resume_rejection(changed, "GPU identity changed")

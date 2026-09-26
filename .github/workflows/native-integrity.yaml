@@ -38,10 +38,16 @@ jobs:
         run: Rscript tools/test-benchmark-summary.R
       - name: Validate benchmark report integrity and rejection gates
         run: Rscript tools/test-benchmark-report.R
+      - name: Reject stale same-version benchmark installations
+        run: Rscript tools/test-benchmark-source-identity.R
       - name: Validate benchmark checkpoint recovery
         run: Rscript tools/test-benchmark-checkpoint-io.R
       - name: Validate benchmark timing collection
         run: Rscript tools/test-benchmark-timing.R
+      - name: Validate benchmark numerical and idle-GPU gates
+        run: |
+          Rscript tools/test-benchmark-validation.R
+          Rscript tools/test-benchmark-gpu-guard.R
       - name: Validate benchmark memory collection
         run: Rscript tools/test-benchmark-memory.R
       - name: Validate final RTX candidate report composition
@@ -60,6 +66,8 @@ jobs:
         run: |
           apt-get update -qq
           DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends r-base-dev
+      - name: Validate dynamic CUDA and cuBLAS TF32 ABI against 12.8.1 headers
+        run: c++ -std=c++17 -fsyntax-only -I/usr/local/cuda/include tools/check-cuda-12-8-1-abi.cpp
       - name: Compile the registered native bridge
         run: R CMD SHLIB src/native_backend.cpp -o cudaverse.so
         env:
@@ -121,6 +129,12 @@ jobs:
       - name: Validate benchmark timing collection
         shell: Rscript {0}
         run: source(file.path("tools", "test-benchmark-timing.R"))
+      - name: Validate benchmark numerical and idle-GPU gates
+        shell: Rscript {0}
+        run: |
+          source(file.path("tools", "test-benchmark-validation.R"))
+          source(file.path("tools", "test-matmul-precision-validation.R"))
+          source(file.path("tools", "test-benchmark-gpu-guard.R"))
       - name: Validate final RTX candidate report composition
         shell: Rscript {0}
         run: source(file.path("tools", "test-native-candidate-report.R"))

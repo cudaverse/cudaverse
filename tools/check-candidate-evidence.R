@@ -570,6 +570,15 @@ if (!is.null(benchmark_report)) {
     identical(text_value(benchmark_report$software$cudaverse), version),
     "benchmark report package version does not match the candidate"
   )
+  install_identity <- benchmark_report$software$installed_source_identity
+  require_gate(
+    logical_value(install_identity$verified) &&
+      identical(text_value(install_identity$source_commit), commit) &&
+      is_commit(install_identity$source_tree) &&
+      is_sha256(install_identity$manifest_sha256) &&
+      is_sha256(install_identity$installed_payload_sha256),
+    "benchmark report lacks verified exact-source package installation"
+  )
 }
 require_gate(logical_value(manifest$benchmark$complete) &&
                logical_value(manifest$benchmark$report_checker_passed) &&

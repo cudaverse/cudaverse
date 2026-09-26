@@ -1,4 +1,4 @@
-required_packages <- c("cudaverse", "jsonlite", "Matrix")
+required_packages <- c("cudaverse", "jsonlite", "digest", "Matrix")
 missing_packages <- required_packages[!vapply(
   required_packages, requireNamespace, logical(1), quietly = TRUE
 )]
@@ -24,6 +24,14 @@ sys.source(
   file.path("tools", "benchmark-gpu-guard.R"),
   envir = environment()
 )
+sys.source(
+  file.path("tools", "benchmark-validation.R"),
+  envir = environment()
+)
+sys.source(
+  file.path("tools", "benchmark-source-identity.R"),
+  envir = environment()
+)
 
 truthy <- function(name, default = "false") {
   tolower(Sys.getenv(name, unset = default)) %in% c("1", "true", "yes")
@@ -46,11 +54,23 @@ if (!identical(backends[[1L]], "base")) {
   stop("The base backend must run first to establish parity references.",
        call. = FALSE)
 }
+tf32_override <- Sys.getenv("NVIDIA_TF32_OVERRIDE", unset = "<unset>")
+if ("torch" %in% backends && !identical(tf32_override, "0")) {
+  stop(
+    paste(
+      "Standard float32 torch benchmarks require a new process with",
+      "NVIDIA_TF32_OVERRIDE=0 to exclude implicit TF32 computation."
+    ),
+    call. = FALSE
+  )
+}
 require_idle_gpu <- truthy(
   "CUDAVERSE_BENCHMARK_REQUIRE_IDLE_GPU",
   if (identical(profile, "full") && any(backends != "base")) "true" else
     "false"
 )
+benchmark_validate_idle_gpu_requirement(profile, backends, require_idle_gpu)
+timing_guard <- if (require_idle_gpu) benchmark_assert_idle_gpu else NULL
 
 contract_path <- Sys.getenv(
   "CUDAVERSE_BENCHMARK_CONTRACT",
@@ -99,6 +119,13 @@ source_state <- function(path = ".") {
 }
 
 source <- source_state(".")
+if (identical(profile, "full") && isTRUE(source$tracked_dirty)) {
+  stop(
+    "Full retained benchmarks require a clean committed source checkout; ",
+    "CUDAVERSE_BENCHMARK_ALLOW_DIRTY applies only to smoke runs.",
+    call. = FALSE
+  )
+}
 if (isTRUE(source$tracked_dirty) &&
     !truthy("CUDAVERSE_BENCHMARK_ALLOW_DIRTY")) {
   stop(
@@ -107,6 +134,21 @@ if (isTRUE(source$tracked_dirty) &&
     call. = FALSE
   )
 }
+installed_identity <- benchmark_installed_source_identity()
+if (identical(profile, "full") && !isTRUE(installed_identity$verified)) {
+  stop(
+    "Full benchmark requires an exact-source isolated package installation: ",
+    installed_identity$reason,
+    ". Run tools/install-benchmark-candidate.R and set ",
+    "CUDAVERSE_BENCHMARK_INSTALL_MANIFEST in the benchmark process.",
+    call. = FALSE
+  )
+}
+if (!isTRUE(installed_identity$verified)) {
+  message("Benchmark package source identity is unverified: ",
+          installed_identity$reason)
+}
+installed_identity$installed_package <- NULL
 
 installed_size <- function(package) {
   if (!requireNamespace(package, quietly = TRUE)) return(NA_real_)
@@ -234,6 +276,10 @@ make_matmul <- function(case) {
     stats::rnorm(case$columns * case$columns),
     case$columns, case$columns
   )
+  if (identical(case$dtype, "float32")) {
+    left <- benchmark_float32_input(left)
+    right <- benchmark_float32_input(right)
+  }
   list(left = left, right = right, reference = left %*% right)
 }
 
@@ -290,6 +336,7 @@ matmul_case <- function(case, backend, source) {
     host_timing <- benchmark_time_runs(
       host_run, host_run, case$warmups, case$timed_runs,
       summarize = summary_times,
+      guard = timing_guard,
       progress = benchmark_progress_logger(
         case$case_id, backend, "host_boundary"
       )
@@ -297,26 +344,24 @@ matmul_case <- function(case, backend, source) {
     resident_timing <- benchmark_time_runs(
       resident_run, resident_run, case$warmups, case$timed_runs,
       summarize = summary_times,
+      guard = timing_guard,
       progress = benchmark_progress_logger(
         case$case_id, backend, "resident_compute"
       )
     )
     actual <- host_timing$last$host
-    scale <- max(1, max(abs(reference)))
-    absolute <- max(abs(actual - reference))
-    relative <- absolute / scale
     tolerance <- if (identical(case$dtype, "float32")) {
       list(rtol = 1e-5, atol = 1e-6)
     } else {
       list(rtol = 1e-8, atol = 1e-10)
     }
-    validation <- list(
-      max_absolute_error = absolute,
-      max_relative_error = relative,
-      rtol = tolerance$rtol,
-      atol = tolerance$atol,
-      passed = absolute <= tolerance$atol + tolerance$rtol * scale
-    )
+    validation <- if (identical(case$dtype, "float32")) {
+      benchmark_float32_matmul_validation(actual, reference, left, right)
+    } else {
+      benchmark_numeric_validation(
+        actual, reference, rtol = tolerance$rtol, atol = tolerance$atol
+      )
+    }
     provenance <- provenance_payload(resident_timing$last)
     memory <- measure_memory(
       backend, host_run,
@@ -413,48 +458,7 @@ pipeline_reference <- function(value) {
 }
 
 pipeline_validation <- function(value, reference) {
-  rotation <- unname(value$pca$rotation)
-  scores <- unname(value$pca$x)
-  rank_threshold <- max(reference$pca$sdev) *
-    max(nrow(reference$pca$x), nrow(reference$pca$rotation)) *
-    .Machine$double.eps
-  effective_rank <- max(1L, sum(reference$pca$sdev > rank_threshold))
-  components <- seq_len(effective_rank)
-  projector_error <- max(abs(
-    tcrossprod(rotation[, components, drop = FALSE]) -
-      tcrossprod(reference$pca$rotation[, components, drop = FALSE])
-  ))
-  reconstruction <- scores[, components, drop = FALSE] %*%
-    t(rotation[, components, drop = FALSE])
-  reference_reconstruction <-
-    reference$pca$x[, components, drop = FALSE] %*%
-    t(reference$pca$rotation[, components, drop = FALSE])
-  reconstruction_scale <- max(1, max(abs(reference_reconstruction)))
-  reconstruction_error <- max(abs(reconstruction - reference_reconstruction))
-  indices_identical <- identical(unname(value$knn$index), reference$knn$index)
-  distance_scale <- max(1, max(abs(reference$knn$distance)))
-  distance_error <- max(abs(
-    unname(value$knn$distance) - reference$knn$distance
-  ))
-  normalized_error <- if (is.null(reference$normalized)) 0 else max(abs(
-    as.matrix(cudaverse::to_dgCMatrix(value$normalized)) -
-      reference$normalized
-  ))
-  normalized_scale <- if (is.null(reference$normalized)) 1 else
-    max(1, max(abs(reference$normalized)))
-  list(
-    normalized_max_relative_error = normalized_error / normalized_scale,
-    pca_effective_rank = effective_rank,
-    pca_projector_max_absolute_error = projector_error,
-    pca_reconstruction_max_relative_error =
-      reconstruction_error / reconstruction_scale,
-    knn_indices_identical = indices_identical,
-    knn_distance_max_relative_error = distance_error / distance_scale,
-    passed = normalized_error / normalized_scale <= 1e-10 &&
-      projector_error <= 1e-8 &&
-      reconstruction_error / reconstruction_scale <= 1e-8 &&
-      indices_identical && distance_error / distance_scale <= 1e-8
-  )
+  benchmark_pipeline_validation(pipeline_reference(value), reference)
 }
 
 pipeline_case <- function(case, backend, source, reference) {
@@ -473,6 +477,7 @@ pipeline_case <- function(case, backend, source, reference) {
     included <- benchmark_time_runs(
       included_run, included_run, case$warmups, case$timed_runs,
       summarize = summary_times,
+      guard = timing_guard,
       collect = function(result) result$seconds,
       progress = benchmark_progress_logger(
         case$case_id, backend, "host_boundary"
@@ -481,6 +486,7 @@ pipeline_case <- function(case, backend, source, reference) {
     excluded <- if (is.null(preloaded)) NULL else benchmark_time_runs(
       excluded_run, excluded_run, case$warmups, case$timed_runs,
       summarize = summary_times,
+      guard = timing_guard,
       progress = benchmark_progress_logger(
         case$case_id, backend, "resident_continuation"
       )
@@ -571,13 +577,20 @@ expected_report <- list(
     cudaverse = as.character(utils::packageVersion("cudaverse")),
     torch = if (requireNamespace("torch", quietly = TRUE))
       as.character(utils::packageVersion("torch")) else NA_character_,
-    diagnostics = unclass(diagnostics)
+    diagnostics = unclass(diagnostics),
+    installed_source_identity = installed_identity
   ),
   contract = list(
     path = contract_path,
     backends = backends,
+    NVIDIA_TF32_OVERRIDE = tf32_override,
     cases = cases,
     timing_clock = "wall clock with backend synchronization",
+    idle_gpu_guard = list(
+      required = require_idle_gpu,
+      sampling = "before and after each sample, outside its timed boundary",
+      continuous_monitoring = FALSE
+    ),
     stage_sampling = paste(
       "pipeline stages are collected from the same synchronized timed",
       "host-boundary runs"
@@ -597,9 +610,18 @@ expected_report <- list(
       "cold host boundary, warmups/timed host boundary, cold resident",
       "continuation when separable, warmups/timed resident continuation"
     ),
+    numeric_policy = c(
+      benchmark_float32_matmul_policy(),
+      list(validator_sha256 = benchmark_validation_source_sha256())
+    ),
     tolerances = list(
-      float32 = list(rtol = 1e-5, atol = 1e-6),
-      float64 = list(rtol = 1e-10, heavy_rtol = 1e-8),
+      float32_strict_diagnostic = list(rtol = 1e-5, atol = 1e-6),
+      float64 = list(rtol = 1e-10, heavy_rtol = 1e-8, atol = 1e-10),
+      acceptance = paste(
+        "float32 matmul uses standard-fp32-dot-product/1; all other",
+        "comparisons use elementwise atol+rtol*abs(reference)"
+      ),
+      float32_input = "CPU reference uses the same float32-rounded inputs",
       pca = "projector and reconstruction, heavy rtol 1e-8",
       knn = "exact indices; distance rtol 1e-8; ties by original row"
     )
@@ -705,6 +727,9 @@ for (row in seq_len(nrow(cases))) {
       benchmark_assert_idle_gpu(paste(case$case_id, backend, "completion"))
     }
     if (!isTRUE(result$validation$passed)) {
+      report <- checkpoint_benchmark_parity_failure(
+        report, case$case_id, backend, result, output
+      )
       stop(case$case_id, " failed parity on backend ", backend, ".")
     }
     if (!identical(case$family, "matmul") && identical(backend, "base")) {
@@ -719,6 +744,22 @@ for (row in seq_len(nrow(cases))) {
   invisible(gc(FALSE))
 }
 
+if (identical(profile, "full")) {
+  ending_identity <- benchmark_installed_source_identity()
+  ending_identity$installed_package <- NULL
+  if (!isTRUE(ending_identity$verified) ||
+      !identical(ending_identity, installed_identity)) {
+    stop(
+      "Full benchmark package or source identity changed during the run: ",
+      if (is.null(ending_identity$reason)) {
+        "installation fingerprint differs"
+      } else {
+        ending_identity$reason
+      },
+      call. = FALSE
+    )
+  }
+}
 report$complete <- TRUE
 write_report()
 finalize_benchmark_checkpoint(output)
