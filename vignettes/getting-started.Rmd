@@ -28,8 +28,7 @@ Follow the [GPU setup guide](gpu-setup.html) first if `nvidia-smi` does not
 show a GPU or the diagnostic call below reports missing libraries.
 
 ```{r install}
-# install.packages("pak")
-pak::pak("cudaverse/cudaverse@v0.4.1")
+install.packages("cudaverse")
 
 library(cudaverse)
 

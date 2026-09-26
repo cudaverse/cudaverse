@@ -26,11 +26,13 @@ rest.
 | Pairwise distances | Yes | A regular R distance matrix |
 | Exact kNN | Yes | Neighbour indices and distances |
 | k-means | Yes | An R clustering result |
-| Sparse storage, normalization, and multiplication | Yes | A GPU sparse object |
-| Sparse PCA followed by exact kNN | Yes | Final neighbour results |
-| kNN graph construction | Partly | A sparse `Matrix` graph |
-| Louvain and Leiden | Partly | Community labels |
-| UMAP and t-SNE | Partly | Embedding coordinates |
+| Sparse storage and normalization | Yes | A GPU sparse object |
+| Sparse matrix × dense matrix | Yes | A dense GPU tensor |
+| Sparse matrix × vector and sparse summaries | Yes | An R vector |
+| Sparse PCA followed by exact kNN | Yes | An R PCA model and neighbour results |
+| kNN graph construction | No; can follow CUDA preprocessing | A sparse `Matrix` graph |
+| Louvain and Leiden | No; can follow CUDA preprocessing | Community labels |
+| UMAP and t-SNE | No; can follow CUDA preprocessing | Embedding coordinates |
 | Diffusion map | Partly | Embedding coordinates |
 
 Use `device = "cuda"` for tasks that must run on an eligible CUDA backend and
@@ -55,8 +57,10 @@ tensor_device(reduced_gpu)
 cuda_provenance(neighbors)
 ```
 
-The tensor operations and PCA scores stay on the GPU. Only the final neighbour
-matrices are returned as ordinary R objects.
+The tensor operations retain device storage. PCA returns ordinary R score and
+loading matrices as part of its model, and retains a device-side score cache.
+Passing `pca$x` to kNN reuses that cache without uploading the scores again;
+the final neighbour indices and distances are ordinary R matrices.
 
 ## Sparse CUDA example
 
@@ -71,7 +75,7 @@ normalized_gpu <- sparse_normalize(
   scale_factor = 10000,
   log1p = TRUE
 )
-feature_totals_gpu <- sparse_row_sums(t(normalized_gpu))
+feature_totals <- sparse_row_sums(t(normalized_gpu))
 sparse_pca <- cuda_pca(normalized_gpu, n_components = 20, device = "cuda")
 sparse_neighbors <- cuda_knn(
   sparse_pca$x,
