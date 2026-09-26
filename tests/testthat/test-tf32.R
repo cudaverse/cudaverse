@@ -12,7 +12,8 @@ test_that("native TF32 is per-call, labeled, and preserves exact control product
   x <- cuda_tensor(left, "cuda", "float32")
   y <- cuda_tensor(right, "cuda", "float32")
   before <- to_cpu(tensor_matmul(x, y))
-  result <- tryCatch(tensor_matmul(x, y, precision = "tf32"), error = identity)
+  result <- tryCatch(tensor_matmul(x, y, precision = c(mode = "tf32")),
+                     error = identity)
   if (inherits(result, "error") && grepl(
       "TF32 matmul requires compute capability >= 8.0",
       conditionMessage(result), ignore.case = TRUE)) {

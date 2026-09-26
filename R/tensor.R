@@ -579,6 +579,7 @@ tensor_matmul <- function(x, y, precision = "standard") {
     stop("`precision` must be exactly \"standard\" or \"tf32\".",
          call. = FALSE)
   }
+  precision <- c("standard", "tf32")[match(precision, c("standard", "tf32"))]
   if (identical(precision, "tf32")) {
     .check_tensor(x)
     .check_tensor(y, "y")

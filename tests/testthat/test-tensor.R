@@ -100,6 +100,11 @@ test_that("matmul precision is explicit and unsupported TF32 never falls back", 
   expect_identical(cuda_provenance(standard)$selection_reason, "matmul_standard")
   expect_error(tensor_matmul(left, right, precision = "tf32"),
                "TF32 requires two native CUDA tensors")
+  expect_error(tensor_matmul(left, right, precision = c(mode = "tf32")),
+               "TF32 requires two native CUDA tensors")
+  expect_identical(to_cpu(tensor_matmul(left, right,
+                                       precision = c(mode = "standard"))),
+                   to_cpu(standard))
   for (invalid in list("fast", "t", "s", NA_character_, character(),
                        c("standard", "tf32"), 1)) {
     expect_error(tensor_matmul(left, right, precision = invalid),
