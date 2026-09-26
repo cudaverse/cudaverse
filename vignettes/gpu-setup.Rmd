@@ -111,8 +111,7 @@ the workflows in these guides.
 ## 3. Install cudaverse
 
 ```{r install}
-# install.packages("pak")
-pak::pak("cudaverse/cudaverse@v0.4.1")
+install.packages("cudaverse")
 library(cudaverse)
 ```
 
