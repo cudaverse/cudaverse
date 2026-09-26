@@ -2,6 +2,8 @@
 
 ## cudaverse 0.4.1
 
+CRAN release: 2026-09-10
+
 - Reworked the README and tutorials around first-time CUDA users, with
   clearer Windows and Linux setup, strict CUDA examples, task-oriented
   workflows, and an evidence-backed performance guide.

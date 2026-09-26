@@ -119,28 +119,38 @@ established R package for the rest.</p>
 <td>An R clustering result</td>
 </tr>
 <tr class="odd">
-<td>Sparse storage, normalization, and multiplication</td>
+<td>Sparse storage and normalization</td>
 <td>Yes</td>
 <td>A GPU sparse object</td>
 </tr>
 <tr class="even">
+<td>Sparse matrix × dense matrix</td>
+<td>Yes</td>
+<td>A dense GPU tensor</td>
+</tr>
+<tr class="odd">
+<td>Sparse matrix × vector and sparse summaries</td>
+<td>Yes</td>
+<td>An R vector</td>
+</tr>
+<tr class="even">
 <td>Sparse PCA followed by exact kNN</td>
 <td>Yes</td>
-<td>Final neighbour results</td>
+<td>An R PCA model and neighbour results</td>
 </tr>
 <tr class="odd">
 <td>kNN graph construction</td>
-<td>Partly</td>
+<td>No; can follow CUDA preprocessing</td>
 <td>A sparse <code>Matrix</code> graph</td>
 </tr>
 <tr class="even">
 <td>Louvain and Leiden</td>
-<td>Partly</td>
+<td>No; can follow CUDA preprocessing</td>
 <td>Community labels</td>
 </tr>
 <tr class="odd">
 <td>UMAP and t-SNE</td>
-<td>Partly</td>
+<td>No; can follow CUDA preprocessing</td>
 <td>Embedding coordinates</td>
 </tr>
 <tr class="even">
@@ -172,8 +182,11 @@ actual stage boundary.</p>
 <span></span>
 <span><span class="fu"><a href="../reference/tensor_device.html">tensor_device</a></span><span class="op">(</span><span class="va">reduced_gpu</span><span class="op">)</span></span>
 <span><span class="fu"><a href="../reference/cuda_provenance.html">cuda_provenance</a></span><span class="op">(</span><span class="va">neighbors</span><span class="op">)</span></span></code></pre></div>
-<p>The tensor operations and PCA scores stay on the GPU. Only the final
-neighbour matrices are returned as ordinary R objects.</p>
+<p>The tensor operations retain device storage. PCA returns ordinary R
+score and loading matrices as part of its model, and retains a
+device-side score cache. Passing <code>pca$x</code> to kNN reuses that
+cache without uploading the scores again; the final neighbour indices
+and distances are ordinary R matrices.</p>
 </div>
 <div class="section level2">
 <h2 id="sparse-cuda-example">Sparse CUDA example<a class="anchor" aria-label="anchor" href="#sparse-cuda-example"></a>
@@ -189,7 +202,7 @@ neighbour matrices are returned as ordinary R objects.</p>
 <span>  scale_factor <span class="op">=</span> <span class="fl">10000</span>,</span>
 <span>  log1p <span class="op">=</span> <span class="cn">TRUE</span></span>
 <span><span class="op">)</span></span>
-<span><span class="va">feature_totals_gpu</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/sparse_row_sums.html">sparse_row_sums</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/t.html" class="external-link">t</a></span><span class="op">(</span><span class="va">normalized_gpu</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="va">feature_totals</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/sparse_row_sums.html">sparse_row_sums</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/t.html" class="external-link">t</a></span><span class="op">(</span><span class="va">normalized_gpu</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="va">sparse_pca</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cuda_pca.html">cuda_pca</a></span><span class="op">(</span><span class="va">normalized_gpu</span>, n_components <span class="op">=</span> <span class="fl">20</span>, device <span class="op">=</span> <span class="st">"cuda"</span><span class="op">)</span></span>
 <span><span class="va">sparse_neighbors</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cuda_knn.html">cuda_knn</a></span><span class="op">(</span></span>
 <span>  <span class="va">sparse_pca</span><span class="op">$</span><span class="va">x</span>,</span>

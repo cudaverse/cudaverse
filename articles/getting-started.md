@@ -20,8 +20,7 @@ reports missing libraries.
 
 ``` r
 
-# install.packages("pak")
-pak::pak("cudaverse/cudaverse@v0.4.1")
+install.packages("cudaverse")
 
 library(cudaverse)
 

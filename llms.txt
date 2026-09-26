@@ -58,12 +58,11 @@ before starting R.
 
 ## Install
 
-Install the current release from GitHub:
+Install the current release from CRAN:
 
 ``` r
 
-# install.packages("pak")
-pak::pak("cudaverse/cudaverse@v0.4.1")
+install.packages("cudaverse")
 ```
 
 Then verify the complete runtime—not only GPU detection:
@@ -89,8 +88,10 @@ for platform-specific examples and troubleshooting.
 
 ## A five-minute CUDA workflow
 
-The following workflow uploads a matrix once, computes PCA and exact kNN
-with CUDA, and transfers only the final neighbour result back to R:
+The following workflow computes PCA and exact kNN with CUDA. PCA returns
+an R model containing scores and loadings, while retaining a device-side
+score cache so kNN can reuse those scores without uploading them again.
+Neighbour indices and distances are returned as ordinary R matrices:
 
 ``` r
 

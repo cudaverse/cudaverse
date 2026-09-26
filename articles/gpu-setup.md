@@ -105,8 +105,7 @@ an NVIDIA GPU for the workflows in these guides.
 
 ``` r
 
-# install.packages("pak")
-pak::pak("cudaverse/cudaverse@v0.4.1")
+install.packages("cudaverse")
 library(cudaverse)
 ```
 

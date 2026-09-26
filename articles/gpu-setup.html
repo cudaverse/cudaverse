@@ -181,8 +181,7 @@ instance with an NVIDIA GPU for the workflows in these guides.</p>
 <h2 id="install-cudaverse">3. Install cudaverse<a class="anchor" aria-label="anchor" href="#install-cudaverse"></a>
 </h2>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># install.packages("pak")</span></span>
-<span><span class="fu">pak</span><span class="fu">::</span><span class="fu"><a href="https://pak.r-lib.org/reference/pak.html" class="external-link">pak</a></span><span class="op">(</span><span class="st">"cudaverse/cudaverse@v0.4.1"</span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/install.packages.html" class="external-link">install.packages</a></span><span class="op">(</span><span class="st">"cudaverse"</span><span class="op">)</span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://cudaverse.github.io/cudaverse/">cudaverse</a></span><span class="op">)</span></span></code></pre></div>
 <p>The installed R package remains small because it does not download
 LibTorch or copy NVIDIA runtime libraries into the package library.</p>

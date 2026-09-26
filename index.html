@@ -97,10 +97,9 @@
 <div class="section level2">
 <h2 id="install">Install<a class="anchor" aria-label="anchor" href="#install"></a>
 </h2>
-<p>Install the current release from GitHub:</p>
+<p>Install the current release from CRAN:</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># install.packages("pak")</span></span>
-<span><span class="fu">pak</span><span class="fu">::</span><span class="fu"><a href="https://pak.r-lib.org/reference/pak.html" class="external-link">pak</a></span><span class="op">(</span><span class="st">"cudaverse/cudaverse@v0.4.1"</span><span class="op">)</span></span></code></pre></div>
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/install.packages.html" class="external-link">install.packages</a></span><span class="op">(</span><span class="st">"cudaverse"</span><span class="op">)</span></span></code></pre></div>
 <p>Then verify the complete runtime—not only GPU detection:</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://cudaverse.github.io/cudaverse/">cudaverse</a></span><span class="op">)</span></span>
@@ -116,7 +115,7 @@
 <div class="section level2">
 <h2 id="a-five-minute-cuda-workflow">A five-minute CUDA workflow<a class="anchor" aria-label="anchor" href="#a-five-minute-cuda-workflow"></a>
 </h2>
-<p>The following workflow uploads a matrix once, computes PCA and exact kNN with CUDA, and transfers only the final neighbour result back to R:</p>
+<p>The following workflow computes PCA and exact kNN with CUDA. PCA returns an R model containing scores and loadings, while retaining a device-side score cache so kNN can reuse those scores without uploading them again. Neighbour indices and distances are returned as ordinary R matrices:</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://cudaverse.github.io/cudaverse/">cudaverse</a></span><span class="op">)</span></span>
 <span></span>
@@ -237,6 +236,7 @@
   </main><aside class="col-md-3"><div class="links">
 <h2 data-toc-skip>Links</h2>
 <ul class="list-unstyled">
+<li><a href="https://cloud.r-project.org/package=cudaverse" class="external-link">View on CRAN</a></li>
 <li><a href="https://github.com/cudaverse/cudaverse/" class="external-link">Browse source code</a></li>
 <li><a href="https://github.com/cudaverse/cudaverse/issues" class="external-link">Report a bug</a></li>
 </ul>
