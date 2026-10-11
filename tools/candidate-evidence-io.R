@@ -211,6 +211,8 @@ build_candidate_evidence_manifest <- function(spec, bundle_root) {
       summary_checker_log_file = summary_check$file,
       summary_checker_log_sha256 = summary_check$sha256,
       complete = candidate_evidence_logical(benchmark_report$complete),
+      shared_gpu_execution = benchmark_report$shared_gpu_execution,
+      retained_performance_eligible = benchmark_report$retained_performance_eligible,
       report_checker_passed = candidate_evidence_logical(
         spec$benchmark$report_checker_passed
       ),

@@ -76,6 +76,8 @@ if (!identical(text_value(report$schema), "cudaverse-benchmark/1")) {
   stop("Unexpected benchmark report schema.", call. = FALSE)
 }
 is_complete <- logical_value(report$complete)
+shared_gpu_execution <- logical_value(report$shared_gpu_execution) ||
+  logical_value(report$contract$idle_gpu_guard$allow_shared_gpu)
 if (!is_complete && !allow_incomplete) {
   stop(
     paste(
@@ -102,6 +104,11 @@ if (!is_complete) {
               "case/backend results are shown.")
   append_line("")
 }
+if (shared_gpu_execution) {
+  append_line("> **SHARED GPU: selected workload and correctness assessment.** ",
+              "Timing samples may include contention and do not establish uncontended performance.")
+  append_line("")
+}
 append_line("- Schema: `", text_value(report$schema), "`")
 append_line("- Profile: `", text_value(report$profile), "`")
 append_line("- Source commit: `", commit, "`")
@@ -109,6 +116,11 @@ append_line("- Source tracked dirty: `",
             tolower(as.character(logical_value(report$source$tracked_dirty))),
             "`")
 append_line("- Report complete: `", tolower(as.character(is_complete)), "`")
+if (!is.null(report$shared_gpu_execution)) {
+  append_line("- Shared GPU opt-in: `", tolower(as.character(shared_gpu_execution)), "`")
+  append_line("- Retained performance eligible: `",
+              tolower(as.character(logical_value(report$retained_performance_eligible))), "`")
+}
 append_line("- Report SHA-256: `", report_sha256, "`")
 append_line("- Report generated: ", text_value(report$generated_at_utc))
 append_line("- Hardware: ", escape_markdown(hardware))
@@ -257,7 +269,13 @@ comparison <- function(candidate_name, candidate, reference_name, reference) {
 }
 append_line("## Workload-specific observations")
 append_line("")
-for (case_id in names(report$cases)) {
+if (shared_gpu_execution) {
+  append_line("All recorded case sizes, warmups, measured runs, numerical checks, ",
+              "and memory checks use the selected workload contract. Raw timing samples ",
+              "remain in the JSON report. Backend speed rankings are omitted because ",
+              "other GPU clients may affect the measurements.")
+}
+if (!shared_gpu_execution) for (case_id in names(report$cases)) {
   values <- report$cases[[case_id]]$backends
   if (!all(c("base", "native", "torch") %in% names(values))) next
   host <- vapply(c("base", "native", "torch"), function(backend) {
@@ -295,11 +313,14 @@ append_line(paste(
   escape_markdown(hardware),
   "hardware. They do not support a universal GPU speed claim."
 ))
-append_line(paste(
+if (!shared_gpu_execution) append_line(paste(
   "- Ratios compare ten-run sample medians descriptively. They are not",
   "confidence intervals or statistical significance tests; small differences",
   "may be measurement noise."
 ))
+if (shared_gpu_execution) append_line(
+  "- Shared GPU timings are descriptive observations, not retained uncontended performance evidence."
+)
 append_line(paste(
   "- Host-boundary and resident timings answer different questions.",
   "Dense PCA upload is internal to the public boundary and is therefore",

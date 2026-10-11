@@ -1,10 +1,21 @@
 benchmark_validate_idle_gpu_requirement <- function(profile, backends, required) {
   if (identical(profile, "full") && any(backends != "base") &&
       !isTRUE(required)) {
-    stop("Full retained CUDA benchmarks require idle-GPU inspection; use ",
+    stop("Full CUDA benchmarks require idle-GPU inspection, including shared runs; use ",
          "a smoke profile for non-retained experiments.", call. = FALSE)
   }
   invisible(TRUE)
+}
+
+benchmark_allow_shared_gpu <- function(
+  value = Sys.getenv("CUDAVERSE_BENCHMARK_ALLOW_SHARED_GPU", unset = "false")
+) {
+  if (!is.character(value) || length(value) != 1L || is.na(value) ||
+      !tolower(value) %in% c("true", "false")) {
+    stop("CUDAVERSE_BENCHMARK_ALLOW_SHARED_GPU must be true or false.",
+         call. = FALSE)
+  }
+  identical(tolower(value), "true")
 }
 
 benchmark_parse_compute_pids <- function(lines) {
@@ -174,10 +185,14 @@ benchmark_assert_idle_gpu <- function(
     stop("Invalid full GPU process/display inventory; refusing to assume ",
          "the GPU is idle.", call. = FALSE)
   }
+  contention <- function(...) {
+    stop(structure(list(message = paste0(...), call = NULL),
+                   class = c("cudaverse_gpu_contention", "error", "condition")))
+  }
   for (gpu in inventory$gpus) {
     if (!identical(gpu$display_active, "Disabled")) {
-      stop("Retained benchmark requires an idle GPU; active display context ",
-           "on ", gpu$uuid, " during ", context, ".", call. = FALSE)
+      contention("Retained benchmark requires an idle GPU; active display context ",
+                 "on ", gpu$uuid, " during ", context, ".")
     }
     competing <- Filter(function(process) {
       process$pid != current_pid || !identical(process$type, "C")
@@ -186,11 +201,10 @@ benchmark_assert_idle_gpu <- function(
       labels <- vapply(competing, function(process) {
         paste0(process$pid, " (", process$type, ")")
       }, character(1L))
-      stop("Retained benchmark requires an idle GPU; competing or non-compute ",
+      contention("Retained benchmark requires an idle GPU; competing or non-compute ",
            "GPU process detected on ", gpu$uuid, " during ", context, ": ",
            paste(labels, collapse = ", "),
-           ". Preserve the checkpoint and resume when the GPU is idle.",
-           call. = FALSE)
+           ". Preserve the checkpoint and resume when the GPU is idle.")
     }
   }
   invisible(TRUE)
@@ -201,18 +215,26 @@ benchmark_assert_idle_gpu <- function(
 benchmark_gpu_guard_recorder <- function(
   read_inventory = benchmark_gpu_inventory,
   clock = function() format(Sys.time(), tz = "UTC", usetz = TRUE),
-  current_pid = Sys.getpid
+  current_pid = Sys.getpid,
+  allow_shared = FALSE
 ) {
+  if (!is.logical(allow_shared) || length(allow_shared) != 1L ||
+      is.na(allow_shared)) stop("allow_shared must be TRUE or FALSE.", call. = FALSE)
   observations <- list()
   check <- function(context) {
     observation <- list(context = context, observed_at_utc = clock(),
-                        pid = current_pid(), passed = FALSE)
+                        pid = current_pid(), shared_execution = allow_shared,
+                        passed = FALSE)
     failure <- tryCatch({
       observation$inventory <- read_inventory()
       benchmark_assert_idle_gpu(context, inventory = observation$inventory,
                                  current_pid = observation$pid)
       NULL
     }, error = identity, interrupt = identity)
+    contended <- inherits(failure, "cudaverse_gpu_contention")
+    if (is.null(failure) || contended) observation$idle <- !contended
+    if (contended) observation$contention <- conditionMessage(failure)
+    if (contended && allow_shared) failure <- NULL
     observation$passed <- is.null(failure)
     if (!is.null(failure)) observation$error <- conditionMessage(failure)
     observations[[length(observations) + 1L]] <<- observation

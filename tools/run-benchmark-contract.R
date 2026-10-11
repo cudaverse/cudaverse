@@ -70,7 +70,12 @@ require_idle_gpu <- truthy(
     "false"
 )
 benchmark_validate_idle_gpu_requirement(profile, backends, require_idle_gpu)
-gpu_guard_records <- benchmark_gpu_guard_recorder()
+allow_shared_gpu <- benchmark_allow_shared_gpu()
+gpu_guard_records <- benchmark_gpu_guard_recorder(allow_shared = allow_shared_gpu)
+if (allow_shared_gpu) {
+  message("Shared-GPU execution explicitly enabled; full workloads and checks remain unchanged. ",
+          "Timings are not retained uncontended performance evidence.")
+}
 write_guard_failure <- NULL
 observe_idle_gpu <- function(context) {
   failed <- function(condition) {
@@ -196,6 +201,7 @@ write_guard_failure <- function() {
   jsonlite::write_json(list(
     schema = "cudaverse-benchmark-gpu-preflight/1", profile = profile,
     source = source, intended_report = output, complete = FALSE,
+    shared_gpu_execution = allow_shared_gpu, retained_performance_eligible = FALSE,
     idle_gpu_observations = gpu_guard_records$snapshot()
   ), failure_path, auto_unbox = TRUE, pretty = TRUE, null = "null")
   message("GPU guard preflight failure preserved: ", failure_path)
@@ -613,6 +619,7 @@ expected_report <- list(
     timing_clock = "wall clock with backend synchronization",
     idle_gpu_guard = list(
       required = require_idle_gpu,
+      allow_shared_gpu = allow_shared_gpu,
       sampling = "before and after each sample, outside its timed boundary",
       continuous_monitoring = FALSE
     ),
@@ -658,6 +665,8 @@ expected_report <- list(
   ),
   cases = list(),
   idle_gpu_observations = list(),
+  shared_gpu_execution = allow_shared_gpu,
+  retained_performance_eligible = FALSE,
   complete = FALSE
 )
 
@@ -704,6 +713,8 @@ if (resume) {
   report <- expected_report
 }
 gpu_guard_records$prepend(report$idle_gpu_observations)
+report$shared_gpu_execution <- allow_shared_gpu
+report$retained_performance_eligible <- FALSE
 
 write_report <- function() {
   report$generated_at_utc <<- format(Sys.time(), tz = "UTC", usetz = TRUE)
@@ -712,6 +723,7 @@ write_report <- function() {
 }
 write_guard_failure <- function() {
   report$complete <<- FALSE
+  report$retained_performance_eligible <<- FALSE
   write_report()
 }
 # Retain startup and resume observations even if the first case cannot finish.
@@ -796,6 +808,8 @@ if (identical(profile, "full")) {
   }
 }
 report$complete <- TRUE
+report$retained_performance_eligible <- identical(profile, "full") &&
+  require_idle_gpu && !allow_shared_gpu
 write_report()
 finalize_benchmark_checkpoint(output)
 message("Benchmark report complete: ", normalizePath(output, winslash = "/"))

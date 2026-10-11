@@ -129,6 +129,24 @@ require_gate(
   "report contains an invalid backend contract"
 )
 guard <- report$contract$idle_gpu_guard
+shared_gpu_execution <- identical(scalar(guard$allow_shared_gpu), TRUE)
+if (!is.null(guard$allow_shared_gpu) || !is.null(report$shared_gpu_execution)) {
+  require_gate(
+    (identical(scalar(guard$allow_shared_gpu), TRUE) ||
+       identical(scalar(guard$allow_shared_gpu), FALSE)) &&
+      identical(scalar(report$shared_gpu_execution), scalar(guard$allow_shared_gpu)),
+    "report has an inconsistent shared-GPU execution policy"
+  )
+  require_gate(
+    identical(scalar(report$retained_performance_eligible), TRUE) ||
+      identical(scalar(report$retained_performance_eligible), FALSE),
+    "report does not state retained performance eligibility"
+  )
+  if (shared_gpu_execution) require_gate(
+    identical(scalar(report$retained_performance_eligible), FALSE),
+    "shared-GPU timings cannot be retained uncontended performance evidence"
+  )
+}
 require_gate(
   is.list(guard) &&
     (identical(scalar(guard$required), TRUE) ||
@@ -461,4 +479,8 @@ if (length(failures)) {
     call. = FALSE
   )
 }
-message("Benchmark report passed all machine-readable gates: ", input)
+message("Benchmark report passed all machine-readable gates: ", input,
+        if (shared_gpu_execution) paste0(
+          " (shared-GPU selected-workload correctness evidence; ",
+          "timings are not retained uncontended performance evidence)"
+        ) else "")

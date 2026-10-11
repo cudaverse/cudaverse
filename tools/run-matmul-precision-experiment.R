@@ -53,6 +53,8 @@ run_matmul_precision_experiment <- function() {
     identity_helper <- file.path("tools", "benchmark-source-identity.R")
     if (file.exists(identity_helper)) helper_paths <- c(helper_paths, identity_helper)
     for (path in helper_paths) sys.source(path, envir = environment())
+    allow_shared_gpu <- benchmark_allow_shared_gpu()
+    report$shared_gpu_execution <- allow_shared_gpu
     require_check(is.function(benchmark_float32_matmul_validation),
                   "The standard FP32 validation helper is unavailable.")
     sha <- function(path) digest::digest(file = path, algo = "sha256")
@@ -71,11 +73,12 @@ run_matmul_precision_experiment <- function() {
       validation_and_gc = "outside timed intervals; allocations and API overhead inside intervals",
       cold_scope = "first scope sample after backend initialization and correctness probes; not a fresh-process CUDA cold start",
       idle_guard_required = full,
+      allow_shared_gpu = allow_shared_gpu,
       idle_guard_inventory = "nvidia-smi XML: display activity and every reported process type on all GPUs",
       continuous_monitoring = FALSE,
       idle_guard_limit = "Point-in-time observations cannot exclude interference that starts and stops between samples; use a controlled machine window",
-      shared_gpu_warning = if (!full) paste(
-        "Diagnostic profile: GPU sharing is allowed. These durations are",
+      shared_gpu_warning = if (!full || allow_shared_gpu) paste(
+        "GPU sharing is permitted for this run. These durations are",
         "not retained performance evidence and support no speed claim."
       ) else NULL,
       mode_order = c("standard_float32", "tf32_permitted_float32", "standard_float64")
@@ -131,7 +134,7 @@ run_matmul_precision_experiment <- function() {
       "CUDAVERSE_MATMUL_PRECISION_PROFILE", "CUDAVERSE_NATIVE_TESTS",
       "CUDAVERSE_CUBLAS_PATH", "CUDAVERSE_CUSOLVER_PATH", "CUDA_VISIBLE_DEVICES",
       "NVIDIA_TF32_OVERRIDE", "R_LIBS_USER", "R_LIBS", "OMP_NUM_THREADS",
-      "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS"
+      "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS", "CUDAVERSE_BENCHMARK_ALLOW_SHARED_GPU"
     )
     report$environment <- list(
       variables = as.list(Sys.getenv(environment_names, unset = "<unset>")),
@@ -154,7 +157,7 @@ run_matmul_precision_experiment <- function() {
     require_check(!identical(Sys.getenv("NVIDIA_TF32_OVERRIDE"), "0"),
                   "TF32 comparison requires a new process without NVIDIA_TF32_OVERRIDE=0.")
     benchmark_validate_idle_gpu_requirement(if (full) "full" else "smoke", "native", full)
-    gpu_guard_records <- benchmark_gpu_guard_recorder()
+    gpu_guard_records <- benchmark_gpu_guard_recorder(allow_shared = allow_shared_gpu)
     report$environment$idle_gpu_observations <- list()
     observe_idle_gpu <- function(context) {
       on.exit(report$environment$idle_gpu_observations <<-
@@ -433,7 +436,8 @@ run_matmul_precision_experiment <- function() {
       isTRUE(report$installed$source_identity_after$verified) &&
       isTRUE(report$installed$source_identity_unchanged)
     if (full) observe_idle_gpu("precision experiment completion")
-    report$retained_performance_eligible <- full && report$passed && report$source$clean
+    report$retained_performance_eligible <- full && !allow_shared_gpu &&
+      report$passed && report$source$clean
     report$environment$compute_processes_at_finish <- command_result("nvidia-smi", c(
       "--query-compute-apps=pid,process_name", "--format=csv,noheader"))
   }, error = fail_report, interrupt = fail_report)

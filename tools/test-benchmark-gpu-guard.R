@@ -2,6 +2,12 @@ sys.source(
   file.path("tools", "benchmark-gpu-guard.R"),
   envir = environment()
 )
+stopifnot(!benchmark_allow_shared_gpu("false"), benchmark_allow_shared_gpu("true"),
+          benchmark_allow_shared_gpu("TRUE"))
+for (invalid in list("", "yes", "1", "typo", NA_character_, TRUE, c("true", "false"))) {
+  stopifnot(inherits(tryCatch(benchmark_allow_shared_gpu(invalid), error = identity),
+                     "error"))
+}
 stopifnot(isTRUE(benchmark_validate_idle_gpu_requirement(
   "full", c("base", "native"), TRUE
 )))
@@ -187,6 +193,34 @@ recorder$prepend(list(prior))
 stopifnot(identical(recorder$snapshot(), c(list(prior), records)))
 assert_rejected(function() recorder$prepend("invalid history"),
                  "must be a list")
+
+# Explicit shared execution accepts only recognized contention. It still
+# requires a complete, supported inventory and never changes the strict default.
+for (shared_inventory in c(list(empty, display), lapply(c("C", "G", "C+G", "M", "M+C", "O"),
+  function(type) parse_inventory(inventory_xml(gpu_xml(process_xml("99", type))))))) {
+  shared <- benchmark_gpu_guard_recorder(
+    read_inventory = function() shared_inventory, current_pid = function() 42L,
+    allow_shared = TRUE)
+  stopifnot(isTRUE(shared$check("explicit shared run")))
+  observation <- shared$snapshot()[[1L]]
+  stopifnot(isTRUE(observation$passed), isTRUE(observation$shared_execution),
+            identical(observation$idle, identical(shared_inventory, empty)))
+  if (!observation$idle) stopifnot(nzchar(observation$contention), is.null(observation$error))
+}
+for (broken_inventory in list(NULL, list(schema = "unknown"),
+  list(schema = empty$schema, gpus = c(display$gpus, list(list(display_active = "N/A")))))) {
+  shared <- benchmark_gpu_guard_recorder(
+    read_inventory = function() broken_inventory, current_pid = function() 42L,
+    allow_shared = TRUE)
+  assert_rejected(function() shared$check("malformed shared inventory"), "Invalid full GPU")
+  stopifnot(identical(shared$snapshot()[[1L]]$passed, FALSE))
+}
+shared <- benchmark_gpu_guard_recorder(
+  read_inventory = function() stop("inspection unavailable"), allow_shared = TRUE)
+assert_rejected(function() shared$check("unavailable shared inventory"), "inspection unavailable")
+stopifnot(identical(shared$snapshot()[[1L]]$passed, FALSE))
+assert_rejected(function() benchmark_gpu_guard_recorder(allow_shared = "true"),
+                 "allow_shared must be TRUE or FALSE")
 
 # An interrupt in the final diagnostic query can arrive after eligibility was
 # set. Exercise the actual driver's handler without running its GPU workload.

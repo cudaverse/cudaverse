@@ -126,6 +126,11 @@ validate_benchmark_resume <- function(existing, expected) {
       paste("idle-GPU guard", field, "changed")
     )
   }
+  require_same(
+    benchmark_checkpoint_scalar(existing$contract$idle_gpu_guard$allow_shared_gpu, FALSE),
+    benchmark_checkpoint_scalar(expected$contract$idle_gpu_guard$allow_shared_gpu, FALSE),
+    "shared-GPU execution policy changed"
+  )
   for (field in c("verified", "source_commit", "source_tree",
                   "manifest_sha256", "installed_payload_sha256")) {
     require_same(

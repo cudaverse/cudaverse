@@ -30,18 +30,27 @@ source manifest. Their reports label those limitations and always set
 `retained_performance_eligible` to false. Do not publish speed claims from these
 durations.
 
-## Full retained profile
+## Full profile
 
 The full profile adds a 4096 square fixture and uses five warmups and ten
 measured samples per scope and mode. It requires a clean checkout, a verified
-installation of that source, `xml2`, and an idle GPU. The GPU guard parses
+installation of that source and `xml2`. By default it requires an idle GPU. The GPU guard parses
 the full `nvidia-smi -q -x` inventory before and after every first, warmup,
 and measured sample. Every reported GPU must have display activity disabled
 and no processes except this R process with a compute-only context. Graphics,
 mixed compute/graphics, MPS, and other clients are rejected. Missing,
 unsupported, or malformed inventory is rejected; an empty compute-process
-query alone cannot establish eligibility. There is no environment switch to
-disable this requirement.
+query alone cannot establish eligibility. Full runs always require inspection.
+
+Set `CUDAVERSE_BENCHMARK_ALLOW_SHARED_GPU=true` to explicitly allow a full
+comparison while other GPU clients or a display context are active. This is
+the same option used by the core benchmark runner. Every full fixture,
+warmup, timed sample, numerical/memory check, and source-identity check remains
+enabled. Recognized contention is recorded and allowed; unavailable or malformed
+inventories still fail. The report labels shared execution and always sets
+`retained_performance_eligible=false` for this mode. Its results provide full
+workload and accuracy evidence with descriptive timings, without establishing
+uncontended performance. Unset the option or set it to `false` for strict runs.
 
 The report retains these process/display observations. They are point-in-time
 checks, not continuous monitoring: a client could appear and disappear between

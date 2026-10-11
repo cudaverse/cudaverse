@@ -72,7 +72,7 @@ The report is raw machine evidence,
 not a universal speed claim; workload-specific interpretation belongs in the
 candidate benchmark assessment.
 
-A full run that includes a CUDA backend also requires the GPU to have no
+By default, a full run that includes a CUDA backend requires the GPU to have no
 competing compute, graphics, or other GPU client, and no active display context.
 The runner checks NVIDIA's complete XML process inventory at startup and around every
 backend measurement, allowing only its own compute-only R context. If another workload appears,
@@ -87,6 +87,20 @@ timestamps, observing PIDs, measurement contexts, inventories, and rejection
 reasons. A rejected startup writes a separate `idle-gpu-failure-*.json` record
 beside the intended report before CUDA initialization. Earlier reports using a compute-only guard
 must not be interpreted as proof that graphics activity was absent.
+
+To run the **same full workload on a shared GPU**, explicitly set
+`CUDAVERSE_BENCHMARK_ALLOW_SHARED_GPU=true`. Case sizes, warmups, timed samples,
+numerical validation, memory checks, and exact-source requirements stay the same.
+The XML guard still inspects and records all clients before and after each
+sample; recognized display/process contention is nonfatal in this mode.
+Missing or malformed inventory still stops the run. The default value is
+`false`; a resumed report must use the same policy.
+
+Shared runs record `shared_gpu_execution=true` and
+`retained_performance_eligible=false`, even if a particular snapshot appears
+idle. Their completed reports and summaries are full-workload correctness
+assessments. Raw durations are preserved, with shared-execution labels and
+without backend speed rankings or claims of uncontended performance.
 
 ## Standard float32 numerical policy
 

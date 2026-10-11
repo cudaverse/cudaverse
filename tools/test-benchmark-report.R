@@ -147,6 +147,31 @@ write_report <- function(value = report) jsonlite::write_json(
 write_report()
 run_checker(path)
 
+# Shared execution remains valid full-workload correctness evidence, while
+# any claim of retained uncontended performance fails even if parity passed.
+shared <- report
+shared$contract$idle_gpu_guard$allow_shared_gpu <- TRUE
+shared$shared_gpu_execution <- TRUE
+shared$retained_performance_eligible <- FALSE
+write_report(shared)
+run_checker(path)
+changed <- shared
+changed$retained_performance_eligible <- TRUE
+write_report(changed)
+expect_failure(run_checker(path), "shared-GPU timings cannot be retained")
+changed <- shared
+changed$shared_gpu_execution <- FALSE
+write_report(changed)
+expect_failure(run_checker(path), "inconsistent shared-GPU execution policy")
+changed <- shared
+changed$contract$idle_gpu_guard$required <- FALSE
+write_report(changed)
+expect_failure(run_checker(path), "did not require idle-GPU inspection")
+changed <- shared
+changed$cases[[1L]]$backends$native$validation$passed <- FALSE
+write_report(changed)
+expect_failure(run_checker(path), "failed numerical parity")
+
 changed <- report
 changed$software$installed_source_identity$verified <- FALSE
 write_report(changed)

@@ -243,6 +243,35 @@ expect_error_message(
 )
 run_script(file.path("tools", "summarize-benchmark-report.R"))
 
+shared <- report
+shared$contract$idle_gpu_guard <- list(allow_shared_gpu = TRUE)
+shared$shared_gpu_execution <- TRUE
+shared$retained_performance_eligible <- FALSE
+jsonlite::write_json(shared, report_path, auto_unbox = TRUE, pretty = TRUE, null = "null")
+run_script(file.path("tools", "summarize-benchmark-report.R"))
+run_script(file.path("tools", "check-benchmark-summary.R"))
+shared_lines <- readLines(summary_path, warn = FALSE)
+stopifnot(any(grepl("SHARED GPU: selected workload and correctness assessment.", shared_lines, fixed = TRUE)),
+          any(grepl("Retained performance eligible: `false`", shared_lines, fixed = TRUE)),
+          !any(grepl("had the numerically lowest", shared_lines, fixed = TRUE)),
+          any(startsWith(shared_lines, "| matmul-test | native |")))
+writeLines(shared_lines[!grepl("SHARED GPU:", shared_lines, fixed = TRUE)], summary_path)
+expect_error_message(run_script(file.path("tools", "check-benchmark-summary.R")),
+                     "summary omits shared-GPU execution")
+shared$retained_performance_eligible <- TRUE
+jsonlite::write_json(shared, report_path, auto_unbox = TRUE, pretty = TRUE, null = "null")
+run_script(file.path("tools", "summarize-benchmark-report.R"))
+expect_error_message(run_script(file.path("tools", "check-benchmark-summary.R")),
+                     "shared-GPU timings cannot be retained")
+shared$profile <- "smoke"
+shared$retained_performance_eligible <- FALSE
+jsonlite::write_json(shared, report_path, auto_unbox = TRUE, pretty = TRUE, null = "null")
+run_script(file.path("tools", "summarize-benchmark-report.R"))
+run_script(file.path("tools", "check-benchmark-summary.R"))
+smoke_lines <- readLines(summary_path, warn = FALSE)
+stopifnot(identical(smoke_lines[[1L]], "# cudaverse smoke benchmark evidence"),
+          !any(grepl("full workload", smoke_lines, fixed = TRUE)))
+
 report$complete <- FALSE
 jsonlite::write_json(
   report, report_path, auto_unbox = TRUE, pretty = TRUE, null = "null"

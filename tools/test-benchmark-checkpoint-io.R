@@ -234,6 +234,9 @@ changed <- existing
 changed$contract$idle_gpu_guard$continuous_monitoring <- TRUE
 expect_resume_rejection(changed, "idle-GPU guard continuous_monitoring changed")
 changed <- existing
+changed$contract$idle_gpu_guard$allow_shared_gpu <- TRUE
+expect_resume_rejection(changed, "shared-GPU execution policy changed")
+changed <- existing
 changed$contract$idle_gpu_guard <- NULL
 expect_resume_rejection(changed, "idle-GPU guard required changed")
 changed <- existing
@@ -272,6 +275,7 @@ callbacks <- core_assignments("write_guard_failure")
 stopifnot(length(callbacks) == 3L)
 core_fixture <- new.env(parent = environment())
 core_fixture$profile <- "full"
+core_fixture$allow_shared_gpu <- FALSE
 core_fixture$source <- expected$source
 core_fixture$output <- file.path(work, "guard-report.json")
 observed_inventory <- list(schema = "cudaverse-gpu-idle-inventory/1", gpus = list(list(

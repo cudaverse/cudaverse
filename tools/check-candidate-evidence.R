@@ -526,7 +526,7 @@ benchmark_path <- check_evidence_file(
   manifest$benchmark$report_sha256,
   "benchmark report"
 )
-check_evidence_file(
+benchmark_summary_path <- check_evidence_file(
   manifest$benchmark$summary_file,
   manifest$benchmark$summary_sha256,
   "benchmark summary"
@@ -579,6 +579,36 @@ if (!is.null(benchmark_report)) {
       is_sha256(install_identity$installed_payload_sha256),
     "benchmark report lacks verified exact-source package installation"
   )
+  if (!is.null(benchmark_report$retained_performance_eligible) ||
+      !is.null(benchmark_report$shared_gpu_execution)) {
+    eligible <- benchmark_report$retained_performance_eligible
+    shared <- benchmark_report$shared_gpu_execution
+    require_gate(
+      (identical(eligible, TRUE) || identical(eligible, FALSE)) &&
+        (identical(shared, TRUE) || identical(shared, FALSE)) &&
+        identical(manifest$benchmark$retained_performance_eligible, eligible) &&
+        identical(manifest$benchmark$shared_gpu_execution, shared),
+      "candidate benchmark execution/eligibility flags differ from the report"
+    )
+    require_gate(
+      identical(benchmark_report$contract$idle_gpu_guard$allow_shared_gpu, shared),
+      "candidate benchmark shared-GPU policy is inconsistent"
+    )
+    if (identical(shared, TRUE)) {
+      require_gate(identical(eligible, FALSE),
+                   "shared candidate benchmark cannot claim retained uncontended performance")
+      require_evidence_text(
+        benchmark_summary_path,
+        "SHARED GPU: selected workload and correctness assessment.",
+        "shared candidate benchmark summary"
+      )
+      require_evidence_text(
+        benchmark_summary_path,
+        "Retained performance eligible: `false`",
+        "shared candidate benchmark summary"
+      )
+    }
+  }
 }
 require_gate(logical_value(manifest$benchmark$complete) &&
                logical_value(manifest$benchmark$report_checker_passed) &&

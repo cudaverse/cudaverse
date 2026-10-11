@@ -270,9 +270,9 @@ write_rtx <- function(source_commit = commit) {
   )
 }
 write_benchmark <- function(source_commit = commit,
-                            installed_verified = TRUE) {
-  jsonlite::write_json(
-    list(
+                            installed_verified = TRUE,
+                            shared = NULL, eligible = NULL) {
+  value <- list(
       schema = "cudaverse-benchmark/1", profile = "full",
       source = list(commit = source_commit, tracked_dirty = FALSE),
       software = list(
@@ -285,7 +285,13 @@ write_benchmark <- function(source_commit = commit,
           installed_payload_sha256 = paste(rep("c", 64L), collapse = "")
         )
       ), complete = TRUE
-    ),
+    )
+  if (!is.null(shared)) {
+    value$shared_gpu_execution <- shared
+    value$retained_performance_eligible <- eligible
+    value$contract <- list(idle_gpu_guard = list(allow_shared_gpu = shared))
+  }
+  jsonlite::write_json(value,
     file.path(work, evidence_files[["benchmark"]]),
     auto_unbox = TRUE, pretty = TRUE
   )
@@ -469,6 +475,29 @@ Sys.setenv(CUDAVERSE_CANDIDATE_MANIFEST = path)
 
 write_manifest()
 run_checker()
+
+saved_manifest <- manifest
+saved_summary <- readLines(file.path(work, evidence_files[["summary"]]), warn = FALSE)
+write_benchmark(shared = TRUE, eligible = FALSE)
+write_fixture("summary", paste(
+  "SHARED GPU: selected workload and correctness assessment.",
+  "Retained performance eligible: `false`", sep = "\n"))
+manifest <- build_candidate_evidence_manifest(spec, work)
+stopifnot(identical(manifest$benchmark$shared_gpu_execution, TRUE),
+          identical(manifest$benchmark$retained_performance_eligible, FALSE))
+write_manifest()
+run_checker()
+manifest$benchmark$retained_performance_eligible <- TRUE
+write_manifest()
+expect_error_message(run_checker(), "execution/eligibility flags differ")
+write_benchmark(shared = TRUE, eligible = TRUE)
+manifest$benchmark$report_sha256 <- sha_for("benchmark")
+write_manifest()
+expect_error_message(run_checker(), "shared candidate benchmark cannot claim retained")
+write_benchmark()
+write_fixture("summary", saved_summary)
+manifest <- saved_manifest
+write_manifest()
 
 session_fields <- c(
   "session_report_file", "session_report_sha256",

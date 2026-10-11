@@ -37,6 +37,8 @@ tf32_override_label <- function(x) {
   if (!nzchar(value)) "<empty>" else value
 }
 logical_value <- function(x) isTRUE(as.logical(scalar(x, FALSE)))
+shared_gpu_execution <- logical_value(report$shared_gpu_execution) ||
+  logical_value(report$contract$idle_gpu_guard$allow_shared_gpu)
 summary <- paste(readLines(summary_path, warn = FALSE), collapse = "\n")
 failures <- character()
 require_text <- function(pattern, message, fixed = TRUE) {
@@ -100,10 +102,21 @@ require_text(
   "Memory sampling:",
   "summary omits the memory-sampling boundary"
 )
-require_text(
-  "Ratios compare ten-run sample medians descriptively.",
-  "summary overstates descriptive timing ratios"
-)
+if (shared_gpu_execution) {
+  require_text("SHARED GPU: selected workload and correctness assessment.",
+               "summary omits shared-GPU execution")
+  require_text("Shared GPU opt-in: `true`", "summary omits shared-GPU opt-in")
+  require_text("Retained performance eligible: `false`",
+               "summary mislabels shared timing eligibility")
+  require_text("Shared GPU timings are descriptive observations, not retained uncontended performance evidence.",
+               "summary omits shared timing limitations")
+  if (!identical(scalar(report$retained_performance_eligible), FALSE)) {
+    failures <- c(failures, "shared-GPU timings cannot be retained uncontended performance evidence")
+  }
+} else {
+  require_text("Ratios compare ten-run sample medians descriptively.",
+               "summary overstates descriptive timing ratios")
+}
 
 backends <- unlist(
   report$contract$backends, recursive = TRUE, use.names = FALSE
