@@ -63,20 +63,24 @@ cublas64_12.dll
 cusolver64_11.dll
 ```
 
-The NVIDIA installer normally adds its `bin` directory to `PATH`. If R still
-cannot find the files, set their absolute paths before loading cudaverse:
+The NVIDIA installer normally adds its `bin` directory to `PATH`. Absolute
+paths select the primary DLLs, but the runtime directory also needs to be on
+`PATH` so Windows can load their dependent DLLs. If R cannot find the libraries,
+use these session-local settings before loading cudaverse or making the first
+CUDA call:
 
 ```{r windows-paths}
+cuda_bin <- "C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v12.x/bin"
 Sys.setenv(
-  CUDAVERSE_CUBLAS_PATH =
-    "C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v12.x/bin/cublas64_12.dll",
-  CUDAVERSE_CUSOLVER_PATH =
-    "C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v12.x/bin/cusolver64_11.dll"
+  PATH = paste(cuda_bin, Sys.getenv("PATH"), sep = .Platform$path.sep),
+  CUDAVERSE_CUBLAS_PATH = file.path(cuda_bin, "cublas64_12.dll"),
+  CUDAVERSE_CUSOLVER_PATH = file.path(cuda_bin, "cusolver64_11.dll")
 )
 ```
 
-Replace `v12.x` with the installed CUDA directory. Use forward slashes or
-escaped backslashes in R paths.
+Set `cuda_bin` to your existing compatible CUDA runtime directory, replacing
+`v12.x` with the installed version. Use forward slashes or escaped backslashes
+in R paths. This prepends the directory for the current R session only.
 
 ### Linux
 
@@ -165,7 +169,9 @@ API when the operating system cannot communicate with the GPU.
 ### `cublas_loaded` or `cusolver_loaded` is false
 
 Install the compatible CUDA 12.x runtime libraries or set the two absolute
-library paths before loading cudaverse. Restart R afterward.
+library paths before loading cudaverse. On Windows, also add the directory
+containing their dependent DLLs to `PATH`; the absolute-path overrides do not
+add it. Restart R and apply the settings before the first CUDA call.
 
 ### CUDA is found, but the test calculation fails
 
