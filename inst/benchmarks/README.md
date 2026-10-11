@@ -61,7 +61,7 @@ $env:CUDAVERSE_BENCHMARK_OUTPUT = "C:/evidence/benchmark-full.json"
 Rscript tools/run-benchmark-contract.R
 ```
 
-Keep the dependency library containing `jsonlite`, `digest` and `Matrix`
+Keep the dependency library containing `jsonlite`, `digest`, `Matrix` and `xml2`
 available. The installer archives the exact commit, performs a clean compile
 and records every installed file's SHA-256, including native code and R
 bytecode. Full runs verify source and installed files before and after the
@@ -73,14 +73,20 @@ not a universal speed claim; workload-specific interpretation belongs in the
 candidate benchmark assessment.
 
 A full run that includes a CUDA backend also requires the GPU to have no
-competing compute process. The runner checks at startup and around every
-backend measurement, excluding its own R process. If another workload appears,
+competing compute, graphics, or other GPU client, and no active display context.
+The runner checks NVIDIA's complete XML process inventory at startup and around every
+backend measurement, allowing only its own compute-only R context. If another workload appears,
 the run stops before retaining that measurement and leaves the last atomic
 checkpoint available for review. Set
 `CUDAVERSE_BENCHMARK_REQUIRE_IDLE_GPU=false` is allowed only for exploratory
-`smoke` measurements. A full CUDA run cannot disable the guard. The guard samples
-compute activity and does not provide continuous monitoring or establish that
-unreported graphics activity is absent; use a controlled machine window.
+`smoke` measurements. A full CUDA run cannot disable the guard. Missing or
+malformed process/display observations are rejected. These point-in-time samples
+do not provide continuous monitoring; use a controlled machine window and retain
+the observations with the report. Reports and resumed checkpoints preserve UTC
+timestamps, observing PIDs, measurement contexts, inventories, and rejection
+reasons. A rejected startup writes a separate `idle-gpu-failure-*.json` record
+beside the intended report before CUDA initialization. Earlier reports using a compute-only guard
+must not be interpreted as proof that graphics activity was absent.
 
 ## Standard float32 numerical policy
 

@@ -259,4 +259,65 @@ changed <- existing
 changed$contract$cases[[1L]]$rows <- 101
 expect_resume_rejection(changed, "benchmark case contract changed")
 
+# Exercise the actual core runner's observation/checkpoint callbacks without
+# loading cudaverse or initializing a GPU. A rejected preflight must produce
+# a sidecar, and a resumed checkpoint must retain both old and new records.
+sys.source(file.path("tools", "benchmark-gpu-guard.R"), envir = environment())
+core_expressions <- as.list(parse(file = file.path("tools", "run-benchmark-contract.R")))
+core_assignments <- function(name) Filter(function(expression) {
+  is.call(expression) && identical(expression[[1L]], as.name("<-")) &&
+    identical(expression[[2L]], as.name(name))
+}, core_expressions)
+callbacks <- core_assignments("write_guard_failure")
+stopifnot(length(callbacks) == 3L)
+core_fixture <- new.env(parent = environment())
+core_fixture$profile <- "full"
+core_fixture$source <- expected$source
+core_fixture$output <- file.path(work, "guard-report.json")
+observed_inventory <- list(schema = "cudaverse-gpu-idle-inventory/1", gpus = list(list(
+  uuid = "GPU-20f1bc2f-fe5d-b05c-a970-3f8ed181777a", display_active = "Enabled",
+  processes = list())))
+new_recorder <- function() benchmark_gpu_guard_recorder(
+  read_inventory = function() observed_inventory,
+  clock = function() "2026-10-10 12:00:00 UTC", current_pid = function() 42L)
+core_fixture$gpu_guard_records <- new_recorder()
+eval(core_assignments("observe_idle_gpu")[[1L]], core_fixture)
+eval(callbacks[[2L]], core_fixture)
+expect_error_message(core_fixture$observe_idle_gpu("benchmark startup"),
+                     "active display context")
+sidecars <- list.files(work, pattern = "guard-report.json.idle-gpu-failure-",
+                       full.names = TRUE)
+stopifnot(length(sidecars) == 1L, !file.exists(core_fixture$output))
+preflight <- jsonlite::read_json(sidecars[[1L]], simplifyVector = FALSE)
+stopifnot(identical(preflight$schema, "cudaverse-benchmark-gpu-preflight/1"),
+          identical(preflight$idle_gpu_observations[[1L]]$passed, FALSE),
+          identical(preflight$idle_gpu_observations[[1L]]$context, "benchmark startup"),
+          identical(preflight$idle_gpu_observations[[1L]]$inventory$gpus[[1L]]$display_active,
+                    "Enabled"))
+
+observed_inventory$gpus[[1L]]$display_active <- "Disabled"
+core_fixture$gpu_guard_records <- new_recorder()
+core_fixture$gpu_guard_records$check("resumed startup")
+prior_record <- list(context = "prior sample", observed_at_utc = "2026-10-09 12:00:00 UTC",
+                     pid = 41L, passed = TRUE, inventory = observed_inventory)
+core_fixture$report <- existing
+core_fixture$report$idle_gpu_observations <- list(prior_record)
+core_fixture$gpu_guard_records$prepend(core_fixture$report$idle_gpu_observations)
+eval(core_assignments("write_report")[[1L]], core_fixture)
+eval(callbacks[[3L]], core_fixture)
+core_fixture$write_report()
+observed_inventory$gpus[[1L]]$processes <- list(list(pid = 99L, type = "G"))
+expect_error_message(core_fixture$observe_idle_gpu("case-a/native/host_boundary/after retained sample 1"),
+                     "99 (G)")
+guard_report <- jsonlite::read_json(core_fixture$output, simplifyVector = FALSE)
+stopifnot(identical(guard_report$complete, FALSE),
+          length(guard_report$idle_gpu_observations) == 3L,
+          identical(guard_report$idle_gpu_observations[[1L]]$context, "prior sample"),
+          identical(guard_report$idle_gpu_observations[[2L]]$context, "resumed startup"),
+          identical(guard_report$idle_gpu_observations[[3L]]$passed, FALSE),
+          identical(guard_report$idle_gpu_observations[[3L]]$pid, 42L),
+          grepl("99 (G)", guard_report$idle_gpu_observations[[3L]]$error, fixed = TRUE),
+          identical(guard_report$cases, existing$cases),
+          isTRUE(validate_benchmark_resume(guard_report, expected)))
+
 message("Benchmark checkpoint write/recovery/resume self-tests passed.")

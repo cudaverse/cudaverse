@@ -34,9 +34,19 @@ durations.
 
 The full profile adds a 4096 square fixture and uses five warmups and ten
 measured samples per scope and mode. It requires a clean checkout, a verified
-installation of that source, and an idle GPU. The existing GPU guard checks
-compute processes before and after every first, warmup, and measured sample;
-there is no environment switch to disable this requirement.
+installation of that source, `xml2`, and an idle GPU. The GPU guard parses
+the full `nvidia-smi -q -x` inventory before and after every first, warmup,
+and measured sample. Every reported GPU must have display activity disabled
+and no processes except this R process with a compute-only context. Graphics,
+mixed compute/graphics, MPS, and other clients are rejected. Missing,
+unsupported, or malformed inventory is rejected; an empty compute-process
+query alone cannot establish eligibility. There is no environment switch to
+disable this requirement.
+
+The report retains these process/display observations. They are point-in-time
+checks, not continuous monitoring: a client could appear and disappear between
+observations. Use a controlled machine window for retained performance runs.
+The benchmark does not stop clients or change display/driver configuration.
 
 Create a verified candidate installation from a clean checkout:
 

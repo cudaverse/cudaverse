@@ -18,7 +18,7 @@ jobs:
         with:
           r-version: release
       - name: Install validation dependencies
-        run: install.packages(c("digest", "jsonlite"))
+        run: install.packages(c("digest", "jsonlite", "xml2"))
         shell: Rscript {0}
       - name: Reject bundled NVIDIA and LibTorch runtimes
         run: Rscript tools/check-redistributables.R .
@@ -119,7 +119,7 @@ jobs:
       - name: Install hard dependencies and validation helpers
         shell: Rscript {0}
         run: |
-          install.packages(c("Matrix", "digest", "jsonlite"))
+          install.packages(c("Matrix", "digest", "jsonlite", "xml2"))
       - name: Validate recoverable benchmark checkpoints
         shell: Rscript {0}
         run: source(file.path("tools", "test-benchmark-checkpoint-io.R"))

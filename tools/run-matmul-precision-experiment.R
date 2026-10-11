@@ -38,11 +38,12 @@ run_matmul_precision_experiment <- function() {
     report$runtime_error <<- conditionMessage(e)
     report$passed <<- FALSE
     report$complete <<- FALSE
+    report$retained_performance_eligible <<- FALSE
   }
   tryCatch({
     require_check(profile %in% c("diagnostic", "full"),
                   "The precision profile must be diagnostic or full.")
-    for (package in c("digest", "cudaverse")) {
+    for (package in c("digest", "cudaverse", if (profile == "full") "xml2")) {
       require_check(requireNamespace(package, quietly = TRUE),
                     paste("Required package is unavailable:", package))
     }
@@ -70,6 +71,9 @@ run_matmul_precision_experiment <- function() {
       validation_and_gc = "outside timed intervals; allocations and API overhead inside intervals",
       cold_scope = "first scope sample after backend initialization and correctness probes; not a fresh-process CUDA cold start",
       idle_guard_required = full,
+      idle_guard_inventory = "nvidia-smi XML: display activity and every reported process type on all GPUs",
+      continuous_monitoring = FALSE,
+      idle_guard_limit = "Point-in-time observations cannot exclude interference that starts and stops between samples; use a controlled machine window",
       shared_gpu_warning = if (!full) paste(
         "Diagnostic profile: GPU sharing is allowed. These durations are",
         "not retained performance evidence and support no speed claim."
@@ -150,7 +154,14 @@ run_matmul_precision_experiment <- function() {
     require_check(!identical(Sys.getenv("NVIDIA_TF32_OVERRIDE"), "0"),
                   "TF32 comparison requires a new process without NVIDIA_TF32_OVERRIDE=0.")
     benchmark_validate_idle_gpu_requirement(if (full) "full" else "smoke", "native", full)
-    if (full) benchmark_assert_idle_gpu("precision experiment startup")
+    gpu_guard_records <- benchmark_gpu_guard_recorder()
+    report$environment$idle_gpu_observations <- list()
+    observe_idle_gpu <- function(context) {
+      on.exit(report$environment$idle_gpu_observations <<-
+                gpu_guard_records$snapshot(), add = TRUE)
+      gpu_guard_records$check(context)
+    }
+    if (full) observe_idle_gpu("precision experiment startup")
     old_options <- options(cudaverse.cuda_backends = "native")
     on.exit(options(old_options), add = TRUE)
     report$diagnostics <- cudaverse::cuda_diagnostics()
@@ -316,10 +327,11 @@ run_matmul_precision_experiment <- function() {
         samples <- list()
         guards <- list()
         guard <- if (full) function(context) {
-          pids <- benchmark_gpu_compute_pids()
-          guards[[length(guards) + 1L]] <<- list(context = context, compute_pids = pids)
-          benchmark_assert_idle_gpu(paste(fixture$id, name, scope, context, sep = "/"),
-                                    pids = pids, current_pid = Sys.getpid())
+          on.exit({
+            observations <- gpu_guard_records$snapshot()
+            guards[[length(guards) + 1L]] <<- observations[[length(observations)]]
+          }, add = TRUE)
+          observe_idle_gpu(paste(fixture$id, name, scope, context, sep = "/"))
         } else NULL
         observe <- function(value) {
           tensor <- if (scope == "host_boundary") value$tensor else value
@@ -369,10 +381,10 @@ run_matmul_precision_experiment <- function() {
           "Original 64x64 benchmark inputs changed.")
       }
       report$cases[[id]] <- entry
-      if (full) benchmark_assert_idle_gpu(paste(id, "before correctness probe"))
+      if (full) observe_idle_gpu(paste(id, "before correctness probe"))
       entry$accuracy <- with_memory_check(function() correctness_probe(inputs))
       report$cases[[id]] <- entry
-      if (full) benchmark_assert_idle_gpu(paste(id, "after correctness probe"))
+      if (full) observe_idle_gpu(paste(id, "after correctness probe"))
       if (!isTRUE(entry$accuracy$passed)) break
       for (name in names(modes)) {
         cat(sprintf("  PRECISION_MODE=%s\n", name))
@@ -420,6 +432,7 @@ run_matmul_precision_experiment <- function() {
       isTRUE(report$installed$dll_unchanged) &&
       isTRUE(report$installed$source_identity_after$verified) &&
       isTRUE(report$installed$source_identity_unchanged)
+    if (full) observe_idle_gpu("precision experiment completion")
     report$retained_performance_eligible <- full && report$passed && report$source$clean
     report$environment$compute_processes_at_finish <- command_result("nvidia-smi", c(
       "--query-compute-apps=pid,process_name", "--format=csv,noheader"))

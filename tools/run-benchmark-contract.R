@@ -1,4 +1,4 @@
-required_packages <- c("cudaverse", "jsonlite", "digest", "Matrix")
+required_packages <- c("cudaverse", "jsonlite", "digest", "Matrix", "xml2")
 missing_packages <- required_packages[!vapply(
   required_packages, requireNamespace, logical(1), quietly = TRUE
 )]
@@ -70,7 +70,20 @@ require_idle_gpu <- truthy(
     "false"
 )
 benchmark_validate_idle_gpu_requirement(profile, backends, require_idle_gpu)
-timing_guard <- if (require_idle_gpu) benchmark_assert_idle_gpu else NULL
+gpu_guard_records <- benchmark_gpu_guard_recorder()
+write_guard_failure <- NULL
+observe_idle_gpu <- function(context) {
+  failed <- function(condition) {
+    if (is.function(write_guard_failure)) write_guard_failure()
+    stop(condition)
+  }
+  tryCatch(gpu_guard_records$check(context), error = failed, interrupt = failed)
+}
+timing_guard <- function(case_id, backend, scope) {
+  if (!require_idle_gpu) return(NULL)
+  prefix <- paste(case_id, backend, scope, sep = "/")
+  function(context) observe_idle_gpu(paste(prefix, context, sep = "/"))
+}
 
 contract_path <- Sys.getenv(
   "CUDAVERSE_BENCHMARK_CONTRACT",
@@ -173,9 +186,21 @@ gpu_identity <- function() {
   )
 }
 
-if (require_idle_gpu) {
-  benchmark_assert_idle_gpu("benchmark startup")
+# Startup is checked before CUDA diagnostics. A rejection therefore has its
+# own immutable preflight record, without initializing any GPU workload.
+write_guard_failure <- function() {
+  failure_path <- tempfile(
+    paste0(basename(output), ".idle-gpu-failure-"),
+    tmpdir = dirname(output), fileext = ".json"
+  )
+  jsonlite::write_json(list(
+    schema = "cudaverse-benchmark-gpu-preflight/1", profile = profile,
+    source = source, intended_report = output, complete = FALSE,
+    idle_gpu_observations = gpu_guard_records$snapshot()
+  ), failure_path, auto_unbox = TRUE, pretty = TRUE, null = "null")
+  message("GPU guard preflight failure preserved: ", failure_path)
 }
+if (require_idle_gpu) observe_idle_gpu("benchmark startup")
 
 diagnostics_start <- elapsed()
 diagnostics <- cudaverse::cuda_diagnostics()
@@ -336,7 +361,7 @@ matmul_case <- function(case, backend, source) {
     host_timing <- benchmark_time_runs(
       host_run, host_run, case$warmups, case$timed_runs,
       summarize = summary_times,
-      guard = timing_guard,
+      guard = timing_guard(case$case_id, backend, "host_boundary"),
       progress = benchmark_progress_logger(
         case$case_id, backend, "host_boundary"
       )
@@ -344,7 +369,7 @@ matmul_case <- function(case, backend, source) {
     resident_timing <- benchmark_time_runs(
       resident_run, resident_run, case$warmups, case$timed_runs,
       summarize = summary_times,
-      guard = timing_guard,
+      guard = timing_guard(case$case_id, backend, "resident_compute"),
       progress = benchmark_progress_logger(
         case$case_id, backend, "resident_compute"
       )
@@ -477,7 +502,7 @@ pipeline_case <- function(case, backend, source, reference) {
     included <- benchmark_time_runs(
       included_run, included_run, case$warmups, case$timed_runs,
       summarize = summary_times,
-      guard = timing_guard,
+      guard = timing_guard(case$case_id, backend, "host_boundary"),
       collect = function(result) result$seconds,
       progress = benchmark_progress_logger(
         case$case_id, backend, "host_boundary"
@@ -486,7 +511,7 @@ pipeline_case <- function(case, backend, source, reference) {
     excluded <- if (is.null(preloaded)) NULL else benchmark_time_runs(
       excluded_run, excluded_run, case$warmups, case$timed_runs,
       summarize = summary_times,
-      guard = timing_guard,
+      guard = timing_guard(case$case_id, backend, "resident_continuation"),
       progress = benchmark_progress_logger(
         case$case_id, backend, "resident_continuation"
       )
@@ -632,6 +657,7 @@ expected_report <- list(
     bundled_cuda_runtime = 0
   ),
   cases = list(),
+  idle_gpu_observations = list(),
   complete = FALSE
 )
 
@@ -677,11 +703,19 @@ if (resume) {
   }
   report <- expected_report
 }
+gpu_guard_records$prepend(report$idle_gpu_observations)
 
 write_report <- function() {
   report$generated_at_utc <<- format(Sys.time(), tz = "UTC", usetz = TRUE)
+  report$idle_gpu_observations <<- gpu_guard_records$snapshot()
   write_benchmark_checkpoint(report, output)
 }
+write_guard_failure <- function() {
+  report$complete <<- FALSE
+  write_report()
+}
+# Retain startup and resume observations even if the first case cannot finish.
+write_report()
 
 for (row in seq_len(nrow(cases))) {
   case <- as.list(cases[row, , drop = FALSE])
@@ -716,7 +750,7 @@ for (row in seq_len(nrow(cases))) {
   for (backend in backends) {
     message("  backend: ", backend)
     if (require_idle_gpu) {
-      benchmark_assert_idle_gpu(paste(case$case_id, backend, "start"))
+      observe_idle_gpu(paste(case$case_id, backend, "start", sep = "/"))
     }
     result <- if (identical(case$family, "matmul")) {
       matmul_case(case, backend, benchmark_source)
@@ -724,9 +758,10 @@ for (row in seq_len(nrow(cases))) {
       pipeline_case(case, backend, benchmark_source, reference)
     }
     if (require_idle_gpu) {
-      benchmark_assert_idle_gpu(paste(case$case_id, backend, "completion"))
+      observe_idle_gpu(paste(case$case_id, backend, "completion", sep = "/"))
     }
     if (!isTRUE(result$validation$passed)) {
+      report$idle_gpu_observations <- gpu_guard_records$snapshot()
       report <- checkpoint_benchmark_parity_failure(
         report, case$case_id, backend, result, output
       )
