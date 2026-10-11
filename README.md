@@ -75,6 +75,17 @@ DLLs can load. See the
 [CUDA setup guide](https://cudaverse.github.io/cudaverse/articles/gpu-setup.html)
 for platform-specific examples and troubleshooting.
 
+### Development version
+
+The development version (0.4.1.9000) adds optional TF32 computation through
+`tensor_matmul(..., precision = "tf32")`. This option is not available in CRAN
+version 0.4.1. To try it, install the development version from GitHub:
+
+```r
+install.packages("remotes")
+remotes::install_github("cudaverse/cudaverse")
+```
+
 ## A five-minute CUDA workflow
 
 The following workflow computes PCA and exact kNN with CUDA. PCA returns an R
