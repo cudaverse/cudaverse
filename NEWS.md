@@ -1,5 +1,8 @@
 # cudaverse (development version)
 
+- Native Euclidean distances use a dimension-aware cancellation check and
+  direct coordinate differences for close pairs, preserving small distances
+  in distance matrices and k-nearest-neighbour results.
 - Added an explicit `precision = "tf32"` option to native float32
   `tensor_matmul()`. It permits cuBLAS TensorFloat-32 computation on supported
   GPUs, records the policy in provenance and leaves standard dtype arithmetic
