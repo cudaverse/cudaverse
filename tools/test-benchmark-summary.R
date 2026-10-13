@@ -272,6 +272,22 @@ smoke_lines <- readLines(summary_path, warn = FALSE)
 stopifnot(identical(smoke_lines[[1L]], "# cudaverse smoke benchmark evidence"),
           !any(grepl("full workload", smoke_lines, fixed = TRUE)))
 
+# Counts must retain every digit, including values that general numeric
+# formatting would round or render in scientific notation.
+for (failed_count in c(123L, 12345L, 638414L, 16413669L)) {
+  counted <- report
+  counted$cases[["matmul-test"]]$backends$native$validation$
+    strict_diagnostic$failed_elements <- failed_count
+  jsonlite::write_json(counted, report_path, auto_unbox = TRUE,
+                       pretty = TRUE, null = "null")
+  run_script(file.path("tools", "summarize-benchmark-report.R"))
+  run_script(file.path("tools", "check-benchmark-summary.R"))
+  row <- readLines(summary_path, warn = FALSE)
+  row <- row[startsWith(row, "| matmul-test | native |")]
+  fields <- trimws(strsplit(row, "|", fixed = TRUE)[[1L]])
+  stopifnot(identical(fields[[10L]], as.character(failed_count)))
+}
+
 report$complete <- FALSE
 jsonlite::write_json(
   report, report_path, auto_unbox = TRUE, pretty = TRUE, null = "null"
