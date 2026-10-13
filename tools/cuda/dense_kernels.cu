@@ -447,8 +447,14 @@ extern "C" __global__ void cudaverse_distance_from_gram_f64(
 
   double magnitude = query_norms[query_row] + reference_norms[reference_row];
   double squared = magnitude - 2.0 * cross;
+  // Close vectors lose significant digits in the Gram identity. Match the
+  // CPU path's dimension-aware cancellation guard and recompute risky pairs
+  // from scaled coordinate differences before taking the square root.
+  double roundoff_scale = magnitude + 2.0 * fabs(cross);
+  double risk_ratio = fmax(sqrt(DBL_EPSILON),
+                          64.0 * DBL_EPSILON * columns);
   bool risky = !isfinite(squared) || squared < 0.0 ||
-      squared <= 1e-12 * magnitude;
+      squared <= risk_ratio * roundoff_scale;
   if (!risky) {
     distance[index] = sqrt(squared);
     return;
