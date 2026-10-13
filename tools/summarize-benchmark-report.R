@@ -42,6 +42,12 @@ text_value <- function(x, default = "n/a") {
   if (is.na(value) || !nzchar(as.character(value))) default else
     as.character(value)
 }
+tf32_override_label <- function(x) {
+  value <- unlist(x, recursive = TRUE, use.names = FALSE)
+  if (length(value) != 1L || is.na(value[[1L]])) return("<missing>")
+  value <- as.character(value[[1L]])
+  if (!nzchar(value)) "<empty>" else value
+}
 logical_value <- function(x) isTRUE(as.logical(scalar(x, FALSE)))
 format_seconds <- function(x) {
   value <- number(x)
@@ -58,6 +64,10 @@ format_bytes <- function(x) {
   if (!is.finite(value)) "n/a" else
     format(round(value), big.mark = ",", scientific = FALSE, trim = TRUE)
 }
+format_count <- function(x) {
+  value <- number(x)
+  if (!is.finite(value)) "n/a" else formatC(value, digits = 0L, format = "f")
+}
 format_mib <- function(x) {
   value <- number(x)
   if (!is.finite(value)) "n/a" else
@@ -70,6 +80,8 @@ if (!identical(text_value(report$schema), "cudaverse-benchmark/1")) {
   stop("Unexpected benchmark report schema.", call. = FALSE)
 }
 is_complete <- logical_value(report$complete)
+shared_gpu_execution <- logical_value(report$shared_gpu_execution) ||
+  logical_value(report$contract$idle_gpu_guard$allow_shared_gpu)
 if (!is_complete && !allow_incomplete) {
   stop(
     paste(
@@ -96,6 +108,11 @@ if (!is_complete) {
               "case/backend results are shown.")
   append_line("")
 }
+if (shared_gpu_execution) {
+  append_line("> **SHARED GPU: selected workload and correctness assessment.** ",
+              "Timing samples may include contention and do not establish uncontended performance.")
+  append_line("")
+}
 append_line("- Schema: `", text_value(report$schema), "`")
 append_line("- Profile: `", text_value(report$profile), "`")
 append_line("- Source commit: `", commit, "`")
@@ -103,12 +120,21 @@ append_line("- Source tracked dirty: `",
             tolower(as.character(logical_value(report$source$tracked_dirty))),
             "`")
 append_line("- Report complete: `", tolower(as.character(is_complete)), "`")
+if (!is.null(report$shared_gpu_execution)) {
+  append_line("- Shared GPU opt-in: `", tolower(as.character(shared_gpu_execution)), "`")
+  append_line("- Retained performance eligible: `",
+              tolower(as.character(logical_value(report$retained_performance_eligible))), "`")
+}
 append_line("- Report SHA-256: `", report_sha256, "`")
 append_line("- Report generated: ", text_value(report$generated_at_utc))
 append_line("- Hardware: ", escape_markdown(hardware))
 append_line("- R: ", text_value(report$software$R))
 append_line("- cudaverse: `", text_value(report$software$cudaverse), "`")
 append_line("- torch: `", text_value(report$software$torch), "`")
+append_line("- Float32 matmul numeric policy: `",
+            text_value(report$contract$numeric_policy$version), "`")
+append_line("- NVIDIA_TF32_OVERRIDE: `",
+            tf32_override_label(report$contract$NVIDIA_TF32_OVERRIDE), "`")
 append_line(
   "- Stage sampling: ",
   text_value(
@@ -147,9 +173,10 @@ append_line("")
 append_line(paste(
   "| Case | Backend | Host median (s) | Host p95 (s) |",
   "Resident median (s) | Resident p95 (s) | Peak MiB |",
-  "Max relative error | Parity |"
+  "Global-scale relative error | Original strict failed entries |",
+  "Policy max scaled error | Parity |"
 ))
-append_line("|---|---:|---:|---:|---:|---:|---:|---:|---:|")
+append_line("|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|")
 for (case_id in matmul_ids) {
   values <- report$cases[[case_id]]$backends
   for (backend in intersect(backends, names(values))) {
@@ -162,6 +189,8 @@ for (case_id in matmul_ids) {
       format_seconds(value$warm$resident_compute$p95_seconds), " | ",
       format_mib(value$memory$backend_allocator_peak_bytes), " | ",
       format_number(value$validation$max_relative_error), " | ",
+      format_count(value$validation$strict_diagnostic$failed_elements), " | ",
+      format_number(value$validation$max_scaled_error), " | ",
       if (logical_value(value$validation$passed)) "pass" else "fail", " |"
     )
   }
@@ -243,7 +272,13 @@ comparison <- function(candidate_name, candidate, reference_name, reference) {
 }
 append_line("## Workload-specific observations")
 append_line("")
-for (case_id in names(report$cases)) {
+if (shared_gpu_execution) {
+  append_line("All recorded case sizes, warmups, measured runs, numerical checks, ",
+              "and memory checks use the selected workload contract. Raw timing samples ",
+              "remain in the JSON report. Backend speed rankings are omitted because ",
+              "other GPU clients may affect the measurements.")
+}
+if (!shared_gpu_execution) for (case_id in names(report$cases)) {
   values <- report$cases[[case_id]]$backends
   if (!all(c("base", "native", "torch") %in% names(values))) next
   host <- vapply(c("base", "native", "torch"), function(backend) {
@@ -281,11 +316,14 @@ append_line(paste(
   escape_markdown(hardware),
   "hardware. They do not support a universal GPU speed claim."
 ))
-append_line(paste(
+if (!shared_gpu_execution) append_line(paste(
   "- Ratios compare ten-run sample medians descriptively. They are not",
   "confidence intervals or statistical significance tests; small differences",
   "may be measurement noise."
 ))
+if (shared_gpu_execution) append_line(
+  "- Shared GPU timings are descriptive observations, not retained uncontended performance evidence."
+)
 append_line(paste(
   "- Host-boundary and resident timings answer different questions.",
   "Dense PCA upload is internal to the public boundary and is therefore",

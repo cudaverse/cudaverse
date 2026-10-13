@@ -4,10 +4,16 @@
 \alias{tensor_matmul}
 \title{Matrix multiplication for tensors}
 \usage{
-tensor_matmul(x, y)
+tensor_matmul(x, y, precision = "standard")
 }
 \arguments{
 \item{x, y}{Two-dimensional \code{cudatensor} objects or numeric matrices.}
+
+\item{precision}{Compute policy: \code{"standard"} preserves the existing dtype
+and backend arithmetic. \code{"tf32"} explicitly permits reduced-precision
+TensorFloat-32 multiplication with float32 output on the native CUDA
+backend. It requires two native CUDA float32 tensors and an NVIDIA GPU
+with compute capability 8.0 or newer.}
 }
 \value{
 A \code{cudatensor}.
@@ -18,6 +24,20 @@ Matrix multiplication for tensors
 \details{
 Row names come from \code{x} and column names come from \code{y}. When both
 operands name the contracted dimension, those names must be identical.
+
+Standard native float32 multiplication uses cuBLAS SGEMM; float64 uses
+DGEMM. Float32 inputs are never automatically promoted to float64 for
+accuracy. TF32 permits cuBLAS to use Tensor Cores with reduced input
+precision; the selected kernel and any speedup depend on the workload.
+An unsupported TF32 request raises an error, including when
+\code{NVIDIA_TF32_OVERRIDE=0}. The policy applies only to this call, and
+\code{\link[=cuda_provenance]{cuda_provenance()}} records \code{matmul_standard} or \code{matmul_tf32_permitted}
+as its selection reason. \code{\%*\%} uses the standard policy.
+
+Rounding and cancellation can cause float32 dot products to differ from
+a double-precision reference, especially near zero. TF32 allows larger
+differences. Use float64 tensors when the analysis requires greater
+accuracy; assess precision against the needs of the complete workflow.
 }
 \examples{
 x <- cuda_tensor(matrix(1:6, 2, 3), device = "cpu")

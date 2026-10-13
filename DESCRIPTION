@@ -1,6 +1,6 @@
 Package: cudaverse
 Title: Lightweight 'CUDA' Numerical Computing
-Version: 0.4.1
+Version: 0.4.1.9000
 Authors@R:
     person("Yaoxiang", "Li", email = "liyaoxiang@outlook.com",
            role = c("aut", "cre"))

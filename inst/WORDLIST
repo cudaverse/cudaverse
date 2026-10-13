@@ -15,6 +15,7 @@ cudacellr
 cudaverse
 CycloneDX
 densifying
+DGEMM
 deterministically
 dtype
 dtypes
@@ -24,6 +25,7 @@ eigendecomposition
 embeddings
 et
 favour
+GPUs
 integrations
 joss
 kNN
@@ -54,10 +56,13 @@ RTX
 runnable
 SBOM
 SHA
+SGEMM
 SingleCellExperiment
 symlink
 SNE
 tensor's
+TensorFloat
+TF
 toolchain
 Traag
 UMAP

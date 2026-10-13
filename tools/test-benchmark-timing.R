@@ -89,4 +89,57 @@ without_collection <- benchmark_time_runs(
 )
 stopifnot(is.null(without_collection$observations))
 
+# Inventory checks must surround each sample but never enter its duration.
+guard_clock <- 0
+guard_events <- character()
+guarded <- benchmark_time_runs(
+  cold_run = function() { guard_clock <<- guard_clock + 2; TRUE },
+  timed_run = function() { guard_clock <<- guard_clock + 2; TRUE },
+  warmups = 1L, timed_runs = 2L, summarize = summarize,
+  clock = function() guard_clock,
+  guard = function(context) {
+    guard_events <<- c(guard_events, context)
+    guard_clock <<- guard_clock + 100
+  }
+)
+stopifnot(identical(guarded$cold_seconds, 2),
+          identical(guarded$warm$runs_seconds, c(2, 2)),
+          length(guard_events) == 8L)
+error <- tryCatch(benchmark_time_runs(
+  cold_run = function() TRUE, timed_run = function() TRUE,
+  warmups = 0L, timed_runs = 1L, summarize = summarize,
+  guard = function(context) {
+    if (identical(context, "after retained sample 1")) stop("contended")
+  }
+), error = identity)
+stopifnot(inherits(error, "error"),
+          identical(conditionMessage(error), "contended"))
+
+# Recording the full inventory and UTC context must also remain outside all
+# timed boundaries, rather than merely testing a lightweight dummy callback.
+sys.source(file.path("tools", "benchmark-gpu-guard.R"), envir = environment())
+record_clock <- 0
+records <- benchmark_gpu_guard_recorder(
+  read_inventory = function() {
+    record_clock <<- record_clock + 100
+    list(schema = "cudaverse-gpu-idle-inventory/1", gpus = list(list(
+      uuid = "GPU-20f1bc2f-fe5d-b05c-a970-3f8ed181777a",
+      display_active = "Disabled", processes = list())))
+  },
+  clock = function() "2026-10-10 12:00:00 UTC",
+  current_pid = function() 42L
+)
+recorded <- benchmark_time_runs(
+  cold_run = function() { record_clock <<- record_clock + 2; TRUE },
+  timed_run = function() { record_clock <<- record_clock + 2; TRUE },
+  warmups = 1L, timed_runs = 2L, summarize = summarize,
+  clock = function() record_clock,
+  guard = function(context) records$check(paste0("case-a/native/host_boundary/", context))
+)
+stopifnot(identical(recorded$cold_seconds, 2),
+          identical(recorded$warm$runs_seconds, c(2, 2)),
+          length(records$snapshot()) == 8L,
+          identical(vapply(records$snapshot(), `[[`, character(1L), "context"),
+                    paste0("case-a/native/host_boundary/", guard_events)))
+
 message("Benchmark timing/collection self-tests passed.")

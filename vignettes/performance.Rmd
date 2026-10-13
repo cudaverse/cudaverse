@@ -16,6 +16,46 @@ benefit from CUDA but do not need a complete deep-learning framework. It uses
 the NVIDIA CUDA installation already on your computer, keeping the R package
 small.
 
+## Choose precision for the workload
+
+Native float32 tensors use standard cuBLAS single-precision multiplication by
+default. They are not automatically promoted to float64. Float64 tensors remain
+available for analyses requiring greater accuracy.
+
+On supported NVIDIA GPUs (compute capability 8.0 or newer), an explicit TF32
+request permits cuBLAS to use reduced-precision TensorFloat-32 multiplication:
+
+```{r tf32-example, eval=FALSE}
+a <- cuda_tensor(matrix(rnorm(1024 * 1024), 1024), "cuda", "float32")
+b <- cuda_tensor(matrix(rnorm(1024 * 1024), 1024), "cuda", "float32")
+standard <- tensor_matmul(a, b)
+fast <- tensor_matmul(a, b, precision = "tf32")
+cuda_provenance(fast)
+```
+
+TF32 keeps float32 storage and output while allowing reduced input precision.
+Its kernel choice and speed depend on matrix dimensions, cuBLAS and the GPU.
+It applies only to the requested call; later standard calls and `%*%` retain
+their existing behavior. Unsupported requests raise an error, including on
+CPU or torch tensors, float64 inputs, older GPUs, or when
+`NVIDIA_TF32_OVERRIDE=0`. The provenance reason `matmul_tf32_permitted` records
+the permitted compute policy; it does not prove a particular hardware kernel
+was selected. See the [NVIDIA cuBLAS guide](https://docs.nvidia.com/cuda/cublas/index.html).
+
+Assess numerical error against the analysis requirements. Cancellation can
+make a small output particularly sensitive to floating-point rounding. TF32
+permits larger differences than standard float32, and a fixed relative error
+target near zero is not a universal float32 guarantee. The development
+benchmark checks standard float32 dot products against a componentwise
+rounding-error model and also reports the original strict comparison.
+
+For good throughput, upload data once, keep intermediate tensors on the GPU,
+reuse them across calls and download results when the host needs them. Profile
+the complete workflow: the native PCA and distance paths currently use
+float64, so this tensor-matmul option does not change their precision.
+The historical results below use the earlier standard path and do not measure
+the new TF32 option.
+
 ## What was compared?
 
 The retained 0.4 benchmark runs the same public cudaverse workload with three

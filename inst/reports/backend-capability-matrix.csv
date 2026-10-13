@@ -30,7 +30,7 @@ sparse_normalize,sparse,sparse,direct,hybrid,direct,same_device,Torch normalizes
 sparse_row_sums,sparse,sparse,direct,cpu_only,direct,host,Torch uses the host metadata mirror while native reduces on device
 tensor_broadcast_to,tensor,tensor,direct,direct,direct,same_device,Uses the selected tensor backend
 tensor_device,tensor,tensor,metadata,metadata,metadata,host,Returns tensor metadata only
-tensor_matmul,tensor,tensor,direct,direct,direct,same_device,Uses the selected tensor backend
+tensor_matmul,tensor,tensor,direct,direct,direct,same_device,Standard uses the selected backend; explicit TF32 requires native CUDA float32 tensors and supported hardware
 tensor_mean,tensor,tensor,direct,direct,direct,same_device,Uses the selected tensor backend
 tensor_reshape,tensor,tensor,direct,direct,direct,same_device,Native reshape shares storage ownership
 tensor_shape,tensor,tensor,metadata,metadata,metadata,host,Returns tensor metadata only

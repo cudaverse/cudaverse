@@ -7,7 +7,7 @@
     "component": {
       "type": "library",
       "name": "cudaverse",
-      "version": "0.4.1",
+      "version": "0.4.1.9000",
       "licenses": [{"license": {"id": "MIT"}}]
     }
   },
@@ -50,7 +50,7 @@
       "name": "cudaverse_dense_kernels.ptx",
       "scope": "required",
       "hashes": [
-        {"alg": "SHA-256", "content": "839666346300d40e761b6a01608be77806ed1d63ce36c9001ba6ba5ef5a6215f"}
+        {"alg": "SHA-256", "content": "ba4d7b6f1722eab2237488aa86d64bfe67a7bac8029fd7a41ed551f392f7f6c5"}
       ],
       "licenses": [{"license": {"id": "MIT"}}],
       "properties": [

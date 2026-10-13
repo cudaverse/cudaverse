@@ -732,6 +732,41 @@ test_that("native distances and stable device top-k match CPU ordering", {
   }
 })
 
+test_that("native Euclidean distances retain accuracy for close vectors", {
+  skip_if_not(identical(Sys.getenv("CUDAVERSE_NATIVE_TESTS"), "true"))
+  skip_if_not(isTRUE(cudaverse:::.native_diagnostics()$available))
+  old <- options(cudaverse.cuda_backends = "native")
+  on.exit(options(old), add = TRUE)
+
+  # Only one coordinate differs, so the reference is the represented
+  # coordinate difference, independent of either distance implementation.
+  offsets <- c(1e-3, 1e-4, 1.2e-5, 1.4e-5, 1.5e-5, 1.6e-5, 3.3e-5)
+  query <- matrix(1, 1L, 20L)
+  reference <- matrix(1, length(offsets), 20L)
+  reference[, 1L] <- reference[, 1L] + offsets
+  expected <- abs(reference[, 1L] - query[1L, 1L])
+  actual <- cudaverse::cuda_distance(query, reference, device = "cuda")
+  expect_true(all(abs(as.numeric(actual) - expected) <= 1e-12))
+
+  values <- rbind(query, reference)
+  exact <- abs(outer(values[, 1L], values[, 1L], "-"))
+  for (batch_size in c(1L, 3L)) {
+    neighbors <- cudaverse::cuda_knn(
+      values, k = 3L, batch_size = batch_size, device = "cuda"
+    )
+    expected_index <- t(vapply(seq_len(nrow(values)), function(row) {
+      candidates <- setdiff(seq_len(nrow(values)), row)
+      candidates[order(exact[row, candidates], candidates)][seq_len(3L)]
+    }, integer(3L)))
+    expect_identical(neighbors$index, expected_index)
+    expected_distance <- exact[cbind(
+      rep(seq_len(nrow(values)), 3L), as.vector(expected_index)
+    )]
+    expect_true(all(abs(as.vector(neighbors$distance) - expected_distance) <=
+                      1e-12))
+  }
+})
+
 test_that("native distance batching bounds peak VRAM and releases cycles", {
   skip_if_not(identical(Sys.getenv("CUDAVERSE_NATIVE_TESTS"), "true"))
   skip_if_not(isTRUE(cudaverse:::.native_diagnostics()$available))
@@ -1169,6 +1204,36 @@ test_that("native float32 and float64 transfer and cuBLAS matmul match base R", 
     provenance <- cudaverse::cuda_provenance(actual)
     expect_identical(provenance$backend, "native")
     expect_identical(provenance$output_device, "cuda")
+  }
+})
+
+test_that("native PCA preserves identical observations and their exact ties", {
+  skip_if_not(identical(Sys.getenv("CUDAVERSE_NATIVE_TESTS"), "true"))
+  skip_if_not(nzchar(Sys.getenv("CUDAVERSE_CUSOLVER_PATH")))
+  skip_if_not(isTRUE(cudaverse:::.native_diagnostics()$auto_eligible))
+  old <- options(cudaverse.cuda_backends = "native")
+  on.exit(options(old), add = TRUE)
+
+  set.seed(20260907)
+  training <- matrix(rnorm(96L * 9L), 96L, 9L)
+  duplicated_rows <- c(1L, 2L, 10L, 28L)
+  training[duplicated_rows, ] <- training[rep(1L, length(duplicated_rows)), ]
+  fit <- cudaverse::cuda_pca(
+    training, n_components = 8L, center = TRUE, scale. = TRUE,
+    device = "cuda"
+  )
+  for (index in duplicated_rows[-1L]) {
+    expect_identical(fit$x[index, ], fit$x[duplicated_rows[1L], ])
+  }
+  predicted <- predict(fit, training, device = "cuda")
+  expect_equal(as.vector(fit$x), as.vector(predicted), tolerance = 1e-12)
+  state <- attr(fit$x, "cudaverse_native_state", exact = TRUE)
+  expect_type(state$storage, "externalptr")
+  neighbors <- cudaverse::cuda_knn(fit$x, k = 3L, device = "cuda")
+  for (index in duplicated_rows) {
+    expect_identical(as.integer(neighbors$index[index, ]),
+                     setdiff(duplicated_rows, index))
+    expect_identical(as.numeric(neighbors$distance[index, ]), rep(0, 3L))
   }
 })
 
