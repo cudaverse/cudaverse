@@ -69,9 +69,22 @@ cuda_select_device("cuda")
 The native backend needs the NVIDIA driver, cuBLAS 12, and cuSOLVER 11. If
 Windows or Linux cannot find the libraries automatically, set
 `CUDAVERSE_CUBLAS_PATH` and `CUDAVERSE_CUSOLVER_PATH` to their absolute paths
-before loading cudaverse. See the
+before loading cudaverse. On Windows, these paths select the primary DLLs;
+the runtime `bin` directory also needs to be on `PATH` so their dependent
+DLLs can load. See the
 [CUDA setup guide](https://cudaverse.github.io/cudaverse/articles/gpu-setup.html)
 for platform-specific examples and troubleshooting.
+
+### Development version
+
+The development version (0.4.1.9000) adds optional TF32 computation through
+`tensor_matmul(..., precision = "tf32")`. This option is not available in CRAN
+version 0.4.1. To try it, install the development version from GitHub:
+
+```r
+install.packages("remotes")
+remotes::install_github("cudaverse/cudaverse")
+```
 
 ## A five-minute CUDA workflow
 
