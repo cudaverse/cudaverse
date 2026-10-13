@@ -64,6 +64,10 @@ format_bytes <- function(x) {
   if (!is.finite(value)) "n/a" else
     format(round(value), big.mark = ",", scientific = FALSE, trim = TRUE)
 }
+format_count <- function(x) {
+  value <- number(x)
+  if (!is.finite(value)) "n/a" else formatC(value, digits = 0L, format = "f")
+}
 format_mib <- function(x) {
   value <- number(x)
   if (!is.finite(value)) "n/a" else
@@ -185,8 +189,7 @@ for (case_id in matmul_ids) {
       format_seconds(value$warm$resident_compute$p95_seconds), " | ",
       format_mib(value$memory$backend_allocator_peak_bytes), " | ",
       format_number(value$validation$max_relative_error), " | ",
-      format_number(value$validation$strict_diagnostic$failed_elements,
-                    digits = 0L), " | ",
+      format_count(value$validation$strict_diagnostic$failed_elements), " | ",
       format_number(value$validation$max_scaled_error), " | ",
       if (logical_value(value$validation$passed)) "pass" else "fail", " |"
     )
