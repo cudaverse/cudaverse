@@ -2,6 +2,8 @@
 
 ## cudaverse 0.4.2
 
+CRAN release: 2026-10-17
+
 - Native Euclidean distances use a dimension-aware cancellation check
   and direct coordinate differences for close pairs, preserving small
   distances in distance matrices and k-nearest-neighbour results.

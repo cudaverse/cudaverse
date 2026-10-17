@@ -36,11 +36,11 @@
 <div class="row">
   <main id="main" class="col-md-9"><div class="page-header">
       <img src="../logo.svg" class="logo" alt=""><h1>Changelog</h1>
-      <small>Source: <a href="https://github.com/cudaverse/cudaverse/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
+      <small>Source: <a href="https://github.com/cudaverse/cudaverse/blob/v0.4.2/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
     <div class="section level2">
-<h2 class="pkg-version" data-toc-text="0.4.2" id="cudaverse-042">cudaverse 0.4.2<a class="anchor" aria-label="anchor" href="#cudaverse-042"></a></h2>
+<h2 class="pkg-version" data-toc-text="0.4.2" id="cudaverse-042">cudaverse 0.4.2<a class="anchor" aria-label="anchor" href="#cudaverse-042"></a></h2><p class="text-muted">CRAN release: 2026-10-17</p>
 <ul><li>Native Euclidean distances use a dimension-aware cancellation check and direct coordinate differences for close pairs, preserving small distances in distance matrices and k-nearest-neighbour results.</li>
 <li>Added an explicit <code>precision = "tf32"</code> option to native float32 <code><a href="../reference/tensor_matmul.html">tensor_matmul()</a></code>. It permits cuBLAS TensorFloat-32 computation on supported GPUs, records the policy in provenance and leaves standard dtype arithmetic and <code>%*%</code> unchanged. Unsupported requests fail without changing later calls.</li>
 <li>Standard float32 matmul benchmarks use a documented componentwise rounding model with conditioning, underflow and overflow checks. Reports retain the former strict tolerance and its failed-entry count as diagnostics.</li>
