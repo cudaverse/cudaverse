@@ -1,54 +1,39 @@
-## Resubmission
+## Update to an existing CRAN package
 
-This is a resubmission following manual review. In this version I have:
+This updates cudaverse 0.4.1, published on 2026-09-10, to 0.4.2.
 
-- omitted the redundant "for R" and "in R" wording from the package title and
-  description;
-- enclosed software and API names in single quotes, preserving their official
-  capitalization; and
-- added formatted DOI references for methods implemented by the package.
+- Correct native PCA scores for duplicate observations and avoid cancellation
+  in native Euclidean distances for close pairs.
+- Add an opt-in TF32 matrix-multiplication policy for supported NVIDIA GPUs.
+  Standard float32 remains the default; unsupported requests fail explicitly.
+- Improve benchmark validation and Windows CUDA setup documentation.
 
-## New submission context
+The maintainer, license, required R dependencies and optional runtime-library
+model are unchanged. CUDA is optional, and NVIDIA runtimes are neither bundled
+nor downloaded. Examples, tests and vignettes work without CUDA; hardware-only
+tests are conditional. Optional torch use remains guarded.
 
-This is the first CRAN submission of `cudaverse`.
+## Validation and source provenance
 
-CUDA is optional. The lightweight native backend discovers user-provided NVIDIA
-runtime libraries only when requested and does not bundle or download them.
-`torch` is listed only in `Suggests`, all torch-dependent code is conditional,
-and the documented automatic path uses the portable R backend when no usable
-CUDA backend is available. An explicit `device = "cuda"` request fails with an
-actionable error instead of silently using the CPU.
+The release is prepared from main revision f93361d, whose R checks passed on
+Windows, macOS, Linux release and Linux R-devel. Each recorded 1,242 passing
+assertions, 58 conditional skips, zero failures and zero test warnings.
 
-## Test environments
+Its unchanged R/native runtime also passed the retained full shared-A100 core,
+precision and single-cell workloads. Shared-device timings are not presented
+as uncontended performance claims. The documented numerical policies and all
+original strict diagnostics are retained with the evidence.
 
-- Windows 11, R 4.6.0 (local, NVIDIA CUDA hardware)
-- Windows, current R release (GitHub Actions)
-- macOS, current R release (GitHub Actions)
-- Ubuntu, current R release (GitHub Actions)
-- Ubuntu, R-devel (GitHub Actions and the full `cran-readiness` candidate check)
-
-## R CMD check results
-
-0 errors | 0 warnings | 1 note
-
-The note is the expected incoming-feasibility note for a new submission:
-
-- `New submission`
-
-The local Windows check used the source tarball produced by `R CMD build` and
-`R CMD check --as-cran`, with all suggested packages installed. Its PDF and
-HTML reference manuals, examples, tests, and vignettes passed. Because the
-machine has a usable NVIDIA GPU, conditional CUDA tests also ran rather than
-being skipped.
-
-The manually dispatched `cran-readiness` workflow builds one source candidate,
-records its SHA-256, passes that exact tarball to a separate R-devel job, runs a
-full CRAN-style check including the reference manual, and retains the candidate
-and check evidence together. The tarball uploaded to CRAN will be that verified
-workflow artifact, not a locally rebuilt archive.
+The release workflow builds a source archive with R CMD build, records its
+source revision and SHA-256, and checks that exact archive with R-devel
+--as-cran, including vignettes and the PDF/HTML manual. The verified archive
+and fresh release-check results accompany the submission; historical checks
+are not substituted for the release archive's checks.
 
 ## Downstream dependencies
 
-There are no CRAN reverse dependencies because this is a new submission. The
-development package `cudacellr` depends on `cudaverse`, but it will not be
-submitted until `cudaverse` has completed CRAN review.
+The CRAN package page lists no reverse dependencies as of 2026-10-16.
+The separately maintained cudacellr 0.4.0 requires cudaverse >= 0.4.1 and has
+passed the identifier/provenance integration contract with the release's
+runtime. Its submission will be confirmed only after this cudaverse update
+is accepted.
