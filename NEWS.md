@@ -1,4 +1,4 @@
-# cudaverse (development version)
+# cudaverse 0.4.2
 
 - Native Euclidean distances use a dimension-aware cancellation check and
   direct coordinate differences for close pairs, preserving small distances
