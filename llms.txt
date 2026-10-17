@@ -88,17 +88,17 @@ their dependent DLLs can load. See the [CUDA setup
 guide](https://cudaverse.github.io/cudaverse/articles/gpu-setup.html)
 for platform-specific examples and troubleshooting.
 
-### Development version
+### Optional TF32 matrix multiplication
 
-The development version (0.4.1.9000) adds optional TF32 computation
-through `tensor_matmul(..., precision = "tf32")`. This option is not
-available in CRAN version 0.4.1. To try it, install the development
-version from GitHub:
+Version 0.4.2 adds optional TF32 computation through
+`tensor_matmul(..., precision = "tf32")` on supported NVIDIA GPUs. It
+keeps float32 storage and output while allowing reduced input precision.
+Standard float32 arithmetic remains the default. Check that your
+installed version is 0.4.2 or newer before using this option:
 
 ``` r
 
-install.packages("remotes")
-remotes::install_github("cudaverse/cudaverse")
+packageVersion("cudaverse")
 ```
 
 ## A five-minute CUDA workflow

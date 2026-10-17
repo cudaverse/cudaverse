@@ -20,7 +20,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">cudaverse</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.4.1.9000</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.4.2</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -82,10 +82,10 @@ accuracy.</p>
 <p>On supported NVIDIA GPUs (compute capability 8.0 or newer), an
 explicit TF32 request permits cuBLAS to use reduced-precision
 TensorFloat-32 multiplication.</p>
-<p>The <code>precision = "tf32"</code> option requires the development
-version (0.4.1.9000); it is not available in CRAN version 0.4.1. Follow
-the <a href="https://github.com/cudaverse/cudaverse#development-version" class="external-link">development
-installation instructions</a> before running this example.</p>
+<p>The <code>precision = "tf32"</code> option requires cudaverse 0.4.2
+or newer. Check your installed version with
+<code>packageVersion("cudaverse")</code> before running this
+example.</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">a</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cuda_tensor.html">cuda_tensor</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">matrix</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="fl">1024</span> <span class="op">*</span> <span class="fl">1024</span><span class="op">)</span>, <span class="fl">1024</span><span class="op">)</span>, <span class="st">"cuda"</span>, <span class="st">"float32"</span><span class="op">)</span></span>
 <span><span class="va">b</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cuda_tensor.html">cuda_tensor</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">matrix</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="fl">1024</span> <span class="op">*</span> <span class="fl">1024</span><span class="op">)</span>, <span class="fl">1024</span><span class="op">)</span>, <span class="st">"cuda"</span>, <span class="st">"float32"</span><span class="op">)</span></span>

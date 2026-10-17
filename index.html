@@ -23,7 +23,7 @@
 
     <a class="navbar-brand me-2" href="index.html">cudaverse</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.4.1.9000</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.4.2</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -112,12 +112,11 @@
 <span><span class="fu"><a href="reference/cuda_select_device.html">cuda_select_device</a></span><span class="op">(</span><span class="st">"cuda"</span><span class="op">)</span></span></code></pre></div>
 <p>The native backend needs the NVIDIA driver, cuBLAS 12, and cuSOLVER 11. If Windows or Linux cannot find the libraries automatically, set <code>CUDAVERSE_CUBLAS_PATH</code> and <code>CUDAVERSE_CUSOLVER_PATH</code> to their absolute paths before loading cudaverse. On Windows, these paths select the primary DLLs; the runtime <code>bin</code> directory also needs to be on <code>PATH</code> so their dependent DLLs can load. See the <a href="https://cudaverse.github.io/cudaverse/articles/gpu-setup.html">CUDA setup guide</a> for platform-specific examples and troubleshooting.</p>
 <div class="section level3">
-<h3 id="development-version">Development version<a class="anchor" aria-label="anchor" href="#development-version"></a>
+<h3 id="optional-tf32-matrix-multiplication">Optional TF32 matrix multiplication<a class="anchor" aria-label="anchor" href="#optional-tf32-matrix-multiplication"></a>
 </h3>
-<p>The development version (0.4.1.9000) adds optional TF32 computation through <code>tensor_matmul(..., precision = "tf32")</code>. This option is not available in CRAN version 0.4.1. To try it, install the development version from GitHub:</p>
+<p>Version 0.4.2 adds optional TF32 computation through <code>tensor_matmul(..., precision = "tf32")</code> on supported NVIDIA GPUs. It keeps float32 storage and output while allowing reduced input precision. Standard float32 arithmetic remains the default. Check that your installed version is 0.4.2 or newer before using this option:</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/install.packages.html" class="external-link">install.packages</a></span><span class="op">(</span><span class="st">"remotes"</span><span class="op">)</span></span>
-<span><span class="fu">remotes</span><span class="fu">::</span><span class="fu">install_github</span><span class="op">(</span><span class="st">"cudaverse/cudaverse"</span><span class="op">)</span></span></code></pre></div>
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/packageDescription.html" class="external-link">packageVersion</a></span><span class="op">(</span><span class="st">"cudaverse"</span><span class="op">)</span></span></code></pre></div>
 </div>
 </div>
 <div class="section level2">

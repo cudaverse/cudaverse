@@ -16,11 +16,9 @@ On supported NVIDIA GPUs (compute capability 8.0 or newer), an explicit
 TF32 request permits cuBLAS to use reduced-precision TensorFloat-32
 multiplication.
 
-The `precision = "tf32"` option requires the development version
-(0.4.1.9000); it is not available in CRAN version 0.4.1. Follow the
-[development installation
-instructions](https://github.com/cudaverse/cudaverse#development-version)
-before running this example.
+The `precision = "tf32"` option requires cudaverse 0.4.2 or newer. Check
+your installed version with `packageVersion("cudaverse")` before running
+this example.
 
 ``` r
 
